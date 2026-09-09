@@ -164,6 +164,17 @@ int main(int argc, char** argv)
         else if ((a == "-s" || a == "--sock") && i + 1 < argc) sock_path = argv[++i];
         else if (a == "--cells" && i + 1 < argc) sh.cfg.num_cells = (uint32_t)atoi(argv[++i]);
         else if (a == "--window" && i + 1 < argc) sh.cfg.window_slots = (uint32_t)atoi(argv[++i]);
+        else if (a == "--max-prb" && i + 1 < argc) sh.cfg.max_prb = (uint32_t)atoi(argv[++i]);
+        else if (a == "--max-layers" && i + 1 < argc) sh.cfg.max_layers = (uint32_t)atoi(argv[++i]);
+        else if (a == "--max-tb-kb" && i + 1 < argc) sh.cfg.max_tb_kbytes = (uint32_t)atoi(argv[++i]);
+        else if (a == "--cuphy-sm" && i + 2 < argc) {
+            sh.cfg.cuphy_sm_idle = (uint32_t)atoi(argv[++i]);
+            sh.cfg.cuphy_sm_peak = (uint32_t)atoi(argv[++i]);
+        }
+        else if (a == "--infer-sm" && i + 2 < argc) {
+            sh.cfg.infer_sm_min = (uint32_t)atoi(argv[++i]);
+            sh.cfg.infer_sm_max = (uint32_t)atoi(argv[++i]);
+        }
         else if (a == "--self-test" && i + 1 < argc) self_test = atoi(argv[++i]);
         else if (a == "--work-ms" && i + 1 < argc) work_ms = atoi(argv[++i]);
         else if (a == "--verbose" || a == "-v") verbose = true;
@@ -176,6 +187,8 @@ int main(int argc, char** argv)
         } else {
             std::fprintf(stderr,
                 "usage: %s [-n ring] [-s sock] [--cells N] [--window N] [--classes a,b,c]\n"
+                "          [--max-prb N] [--max-layers N] [--max-tb-kb N]\n"
+                "          [--cuphy-sm IDLE PEAK] [--infer-sm MIN MAX]\n"
                 "          [--self-test N] [--work-ms N] [--verbose]\n", argv[0]);
             return 2;
         }
@@ -203,6 +216,8 @@ int main(int argc, char** argv)
     std::printf("            policy: cuPHY reserve %u..%u SM, inference %u..%u SM, window %u slots\n",
                 sh.cfg.cuphy_sm_idle, sh.cfg.cuphy_sm_peak,
                 sh.cfg.infer_sm_min, sh.cfg.infer_sm_max, sh.cfg.window_slots);
+    std::printf("            full load = %u cells x %u PRB x %u layers, %u kB TB per cell per slot\n",
+                sh.cfg.num_cells, sh.cfg.max_prb, sh.cfg.max_layers, sh.cfg.max_tb_kbytes);
 
     std::signal(SIGINT, on_sig);
     std::signal(SIGTERM, on_sig);

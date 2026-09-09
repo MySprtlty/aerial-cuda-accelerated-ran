@@ -148,6 +148,7 @@ OPTION(BUILD_DOCS "Build cuBB documentation" ON)
 OPTION(BUILD_NVIPC_ONLY "Build libnvipc.so only" OFF)
 OPTION(SCF_FAPI_10_04 "Set flag SCF_FAPI_10_04" OFF)
 OPTION(ENABLE_L2_SLT_RSP "Enable L2 Slot Response" ON)
+OPTION(ENABLE_DAPP_HOOK "Enable dApp FAPI hook shared-memory ring" ON)
 OPTION(SCF_FAPI_10_04_SRS "Set flag SCF_FAPI_10_04_SRS for 10.04 SRS Only" OFF)
 OPTION(CMAKE_CUDA_ARCHITECTURES "Set CUDA Architectures" OFF)
 # Having BUILD_SHARED_LIBS set to OFF resulted in significant increase in cuPHY build directory in cuBB builds
@@ -204,6 +205,10 @@ endif()
 if(ENABLE_L2_SLT_RSP)
     add_definitions(-DENABLE_L2_SLT_RSP)
 endif()
+
+# ENABLE_DAPP_HOOK is deliberately NOT a global add_definitions(): the macro is
+# attached to the dapp_hook interface target so only the two libraries that
+# carry hook code are rebuilt when it changes.
 
 if(ENABLE_BLOCKING_LOGGER)
     add_definitions(-DFMTLOG_BLOCK)
@@ -288,6 +293,7 @@ add_subdirectory(cuPHY-CP/gt_common_libs)
 add_subdirectory(cuPHY-CP/cuphyoam)
 add_subdirectory(cuPHY-CP/ru-emulator)
 add_subdirectory(cuPHY-CP/aerial-fh-driver)
+add_subdirectory(cuPHY-CP/dapp_hook)
 add_subdirectory(cuPHY-CP/cuphydriver)
 add_subdirectory(cuPHY-CP/data_lake)
 add_subdirectory(cuPHY-CP/cuphyl2adapter)

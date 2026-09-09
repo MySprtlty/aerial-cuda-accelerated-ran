@@ -31,12 +31,17 @@ set(SOURCES scf_5g_fapi.cpp
             scf_5g_slot_commands_pdcch.cpp
             scf_5g_slot_commands_pdsch_mod_comp.cpp
             scf_5g_slot_commands_pdsch_csirs.cpp
+            scf_5g_fapi_dapp_export.cpp
             )
 
 add_library(scf_5g_fapi STATIC ${SOURCES})
 set_property(TARGET scf_5g_fapi PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(scf_5g_fapi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 target_link_libraries(scf_5g_fapi PRIVATE cuphy_hdf5 cuphy_cpp_header_only nvphy nvipc slot_command)
+if(ENABLE_DAPP_HOOK)
+    target_link_libraries(scf_5g_fapi PRIVATE dapp_hook)
+    target_compile_definitions(scf_5g_fapi PRIVATE ENABLE_DAPP_HOOK)
+endif()
 
 # Header-only INTERFACE library for SCF 5G FAPI headers
 add_library(scf_5g_fapi_h INTERFACE)

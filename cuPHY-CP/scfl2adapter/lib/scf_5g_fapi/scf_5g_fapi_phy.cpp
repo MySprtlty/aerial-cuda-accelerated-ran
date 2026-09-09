@@ -25,6 +25,9 @@
 #include "nv_phy_fapi_msg_common.hpp"
 #include "nv_phy_limit_errors.hpp"
 #include "cuphydriver_api.hpp"
+#ifdef ENABLE_DAPP_HOOK
+#include "scf_5g_fapi_dapp_export.hpp"
+#endif
 #include <cerrno>
 #include <functional>
 
@@ -1090,6 +1093,29 @@ void phy::on_dl_tti_request(scf_fapi_dl_tti_req_t &msg, nv_ipc_msg_t& ipc_msg, u
     }
     cur_dl_tti_msg = reinterpret_cast<nv::phy_mac_msg_desc&>(ipc_msg);
 
+#ifdef ENABLE_DAPP_HOOK
+    // dApp hook: export this cell's DL_TTI.request (off by default; the DL GPU
+    // work is enqueued immediately, so it has little prediction lead time).
+    if (nv::dapp::Producer* dapp_ring = nv::dapp::producer(); (dapp_ring != nullptr) && nv::dapp::export_dl())
+    {
+        int64_t dapp_ts_send = 0;
+        if (ipc_msg.msg_buf != nullptr)
+        {
+            // get_transport() throws on an unmapped cell id; the hook must never
+            // propagate an exception into the FAPI path, so fall back to 0.
+            try
+            {
+                dapp_ts_send = phy_module().transport(get_carrier_id()).get_ts_send(ipc_msg);
+            }
+            catch (...)
+            {
+                dapp_ts_send = 0;
+            }
+        }
+        dapp_export_dl_tti(*dapp_ring, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+    }
+#endif
+
     for (uint16_t i = 0; i < numPDU; i++) {
         auto &pdu = *(reinterpret_cast<scf_fapi_generic_pdu_info_t*>(data + offset));
         NVLOGD_FMT(TAG, "{}: PDU Type ={}, PDU Size={}, Offset={}", __FUNCTION__, static_cast<int>(pdu.pdu_type), static_cast<int>(pdu.pdu_size), offset);
@@ -1353,7 +1379,30 @@ void phy::on_ul_tti_request(scf_fapi_ul_tti_req_t& msg, nv_ipc_msg_t& ipc_msg)
     auto cell_id = phy_config.cell_config_.carrier_idx;
     ::cell_mplane_info& mplane = phyDriver.getMPlaneConfig(cell_id);
     ru_type ru = mplane.ru;
-    
+
+#ifdef ENABLE_DAPP_HOOK
+    // dApp hook: export this cell's UL_TTI.request before any of it is turned
+    // into slot commands. Observation only - nothing here modifies the message.
+    if (nv::dapp::Producer* dapp_ring = nv::dapp::producer(); (dapp_ring != nullptr) && nv::dapp::export_ul())
+    {
+        int64_t dapp_ts_send = 0;
+        if (ipc_msg.msg_buf != nullptr)
+        {
+            // get_transport() throws on an unmapped cell id; the hook must never
+            // propagate an exception into the FAPI path, so fall back to 0.
+            try
+            {
+                dapp_ts_send = phy_module().transport(get_carrier_id()).get_ts_send(ipc_msg);
+            }
+            catch (...)
+            {
+                dapp_ts_send = 0;
+            }
+        }
+        dapp_export_ul_tti(*dapp_ring, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+    }
+#endif
+
     for (uint i = 0 ; i < num_pdu_rx; i++) {
         auto &pdu = *(reinterpret_cast<scf_fapi_generic_pdu_info_t*>(data + offset));
         switch (pdu.pdu_type)

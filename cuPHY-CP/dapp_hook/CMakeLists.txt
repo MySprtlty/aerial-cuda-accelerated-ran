@@ -31,5 +31,17 @@ add_executable(dapp_ring_selftest tools/dapp_ring_selftest.cpp)
 target_link_libraries(dapp_ring_selftest PRIVATE dapp_hook pthread)
 set_target_properties(dapp_ring_selftest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
+# dapp_sched: rule-based SM budget scheduler prototype. Needs the CUDA driver
+# API; skipped when that target is unavailable.
+if(TARGET CUDA::cuda_driver)
+    add_executable(dapp_sched sched/dapp_sched_main.cpp)
+    target_include_directories(dapp_sched PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sched)
+    target_link_libraries(dapp_sched PRIVATE dapp_hook CUDA::cuda_driver pthread)
+    set_target_properties(dapp_sched PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    install(TARGETS dapp_sched DESTINATION ${PROJECT_NAME}/bin OPTIONAL)
+else()
+    message(STATUS "dapp_sched skipped: CUDA::cuda_driver target not available")
+endif()
+
 install(TARGETS dapp_ring_dump dapp_ring_fakel1 dapp_ring_selftest DESTINATION ${PROJECT_NAME}/bin OPTIONAL)
 install(DIRECTORY include/ DESTINATION ${PROJECT_NAME}/include OPTIONAL)

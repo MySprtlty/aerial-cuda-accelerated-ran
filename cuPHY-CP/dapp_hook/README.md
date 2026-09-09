@@ -98,6 +98,52 @@ build/cuPHY-CP/dapp_hook/dapp_ring_selftest --records 2000000 --ring-len 4096
 build/cuPHY-CP/dapp_hook/dapp_ring_selftest --records 200000 --ring-len 1024 --slow-reader
 ```
 
+## dapp_sched: rule-based SM scheduler prototype
+
+`sched/` holds a first consumer that does something with the records: it keeps
+a windowed estimate of how loaded cuPHY is and, when an inference request
+arrives, decides how many SMs that inference may use.
+
+There is no model. The policy is a linear rule in `sched/dapp_sched.hpp`:
+
+1. Each UL slot gets a load index in [0,1] from the UL_TTI summaries of every
+   cell, weighting PRB x layers (front end) against transport block bytes
+   (LDPC decode).
+2. A sliding window keeps the last N slots and the **peak** is used, because an
+   inference spans several slots and the binding constraint is the worst slot
+   it overlaps.
+3. The peak maps linearly onto an SM reservation for cuPHY; what is left, minus
+   headroom, is offered to the inference and quantised to the 8-SM granularity
+   of compute capability 9.0.
+
+If the ring goes stale or the producer dies, the tracker reports full load and
+the inference gets its minimum. Protecting the real-time RAN is the safe
+direction.
+
+```bash
+# no L1 needed: synthetic records in, decisions out
+build/cuPHY-CP/dapp_hook/dapp_ring_fakel1 --slots 4000 --cells 4 --ue-per-cell 3 &
+build/cuPHY-CP/dapp_hook/dapp_sched --self-test 5 --cells 4
+
+# as a service: one request per connection
+build/cuPHY-CP/dapp_hook/dapp_sched -s /tmp/dapp_sched.sock
+echo 'RUN 10' | nc -U /tmp/dapp_sched.sock
+# OK sm=48 granted=48 pct=36.4 load=0.31 ms=12.4 capped=1 reason=moderate uplink
+```
+
+Enforcement needs MPS. A context is capped by creating it with
+`CU_EXEC_AFFINITY_TYPE_SM_COUNT`, which the driver only honours under MPS, and
+the count is fixed at creation - so the pool creates one context per SM class
+up front and picks one per request (`sched/dapp_sm_pool.hpp`). Without MPS the
+component still runs and logs its decisions, but reports
+`SM capping=INACTIVE`; the phase4 run scripts start MPS as part of bringing the
+RAN up.
+
+The inference itself is a placeholder GPU workload. Replace `run_inference()`
+in `sched/dapp_sched_main.cpp` with the TensorRT execution call; nothing around
+it changes. Replacing the linear rule with a trained predictor means replacing
+`decide()` alone.
+
 ## Consuming it from your own process
 
 C/C++: include `dapp_hook/dapp_ring.hpp` and use `nv::dapp::Consumer`.
@@ -140,4 +186,7 @@ inspected afterwards. On restart L1 re-initialises the same object, bumps
 | `tools/dapp_ring_dump.cpp` | CLI viewer |
 | `tools/dapp_ring_fakel1.cpp` | record generator for offline consumer bring-up |
 | `tools/dapp_ring_selftest.cpp` | ring integrity test |
+| `sched/dapp_sched.hpp` | load tracker and SM budget policy (no CUDA) |
+| `sched/dapp_sm_pool.hpp` | SM-capped CUDA context pool |
+| `sched/dapp_sched_main.cpp` | scheduler process |
 | `../scfl2adapter/lib/scf_5g_fapi/scf_5g_fapi_dapp_export.cpp` | FAPI → record conversion |

@@ -1,313 +1,107 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# MAC configuration file
 ---
 aerial_sdk_version: 25-3-cubb
 name: fapi_gnb_configure_mac
 class: test_mac
-
-# log file name
 log_name: testmac.log
-
-# Set to yaml file like test_cumac_config.yaml to enable cuMAC-CP test
-test_cumac_config_file: null # test_cumac_config.yaml
-
+test_cumac_config_file: null
 oam_server_addr: 0.0.0.0:50052
-
-# CPU core shared by all low-priority threads
-low_priority_core: 19
-
-sched_thread_config:
-  name: mac_sched
-  cpu_affinity: 16
-  sched_priority: 96
-
-recv_thread_config:
-  name: mac_recv
-  cpu_affinity: 21
-  sched_priority: 95
-
-builder_thread_config:
-  name: fapi_builder
-  cpu_affinity: 20
-  sched_priority: 95
-
-# Dynamic SFN/Slot
+low_priority_core: 15
+sched_thread_config: {name: mac_sched, cpu_affinity: 16, sched_priority: 96}
+recv_thread_config: {name: mac_recv, cpu_affinity: 17, sched_priority: 95}
+builder_thread_config: {name: fapi_builder, cpu_affinity: 18, sched_priority: 95}
 enableTickDynamicSfnSlot: 0
-
-# Enable FAPI builder thread
 builder_thread_enable: 0
-
-# For estimating sending ahead time for STT feature. This is configuration of time cost of L2 sending 1 message:
-# -1: Send ahead of STT disabled, keep the old STT solution: schedule_start_time = schedule_total_time
-# 0:  Calculate and update average estimate_send_time in each second for each slot, and:
-#         - First second: schedule_start_time = schedule_total_time - 1000 * fapi_num_to_send - 2500
-#         - Then: schedule_start_time = schedule_total_time - estimate_send_time - 2500
 estimate_send_time: -1
-
-# STT: L2 scheduler total time of a slot (unit: ns). Set 0 to disable this feature.
-# Can be a scalar indicating the same value for all slots, or sequence with
-# different values to be applied to slot % N, where N is the size of the sequence.
-# In the current implementation N must be less than or equal to 20.
 schedule_total_time: 0
-# schedule_total_time: [225000,225000,450000,450000,450000,450000,450000,225000,225000,225000]
-
-# FAPI message bit mask:
-# bit 0 - DL_TTI.req
-# bit 1 - UL_TTI.req
-# bit 2 - TX_DATA.req
-# bit 3 - UL_DCI.req
-# bit 4 - DL_BFW_CVI.req
-# bit 5 - UL_BFW_CVI.req
-
-# FAPIs to be delayed in STT feature
 fapi_delay_bit_mask: 0
-
-# Duplicate SLOT FAPI test: FAPIs to be duplicated
 duplicate_fapi_bit_mask: 0
-# Duplicate sending times: random 1~max times
 duplicate_fapi_num_max: 1
-
-# Worker thread cores, can be used for both outgoing message building and incoming message handling
 worker_cores: []
-
-# restart_option:
-# 0 - No CONFIG.req
-# 1 - Send CONFIG.req with full parameters
-# 2 - Send CONFIG.req with new PRACH parameters only
 restart_option: 0
-
-# Total slot number in test
-test_slots: 0
-# Restart interval after test_slots finished. Unit: second
+test_slots: 60000
 restart_interval: 0
-
-# For single cell restart test. Unit: slots. When both > 0, restart each cell in sequency.
 cell_run_slots: 0
 cell_stop_slots: 0
-
-# Wait before sending next cell CONFIG.req. Unit: millisecond.
-# Values: negative number - no wait; 0 - wait until CONFIG.resp; positive number - wait time in millisecond after CONFIG.resp.
 cell_config_wait: 20
-# Cell CONFIG.resp timeout. Unit: millisecond.
 cell_config_timeout: 2000
-# Retry times when cell config failed
 cell_config_retry: 5
-
-# Send cell config/start/stop request via OAM command
 oam_cell_ctrl_cmd: 0
-
-# Early Harq deadline after T0
 early_harq_deadline_ns: 2000000
-
-# UL Indication deadline after T0
 ul_ind_deadline_ns: 4500000
-# PRACH Indication deadline after T0
 prach_ind_deadline_ns: 4500000
-# UCI Indication deadline after T0
 uci_ind_deadline_ns: 4500000
-
-# SRS Late deadline after T0 + 11 slots for 2 UE Ant port 8 SRS PDU's.
 srs_late_deadline_ns: 5500000
-
-# SRS Early deadline after T0. Set based on ul_u_plane_tx_offset_srs value set in ru-emulator config.
 srs_early_deadline_ns: 1759000
-
-# For cell net parameters update test
-# Configs of slot_point=0 only runs at init, other configs will run repeatly.
 test_cell_update:
   test_cells: []
   test_sequence:
-  - slot_point: 0 # Initial cell parameters
+  - slot_point: 0
     configs:
-    - {cell_id: 0, dst_mac: 26:04:9D:9E:29:B3, vlan: 2, pcp: 7}
+    - {cell_id: 0, dst_mac: '26:04:9D:9E:29:B3', vlan: 2, pcp: 7}
   - slot_point: 20000
     configs:
-    - {cell_id: 0, dst_mac: 20:04:9B:9E:27:A3, vlan: 2, pcp: 7}
+    - {cell_id: 0, dst_mac: '20:04:9B:9E:27:A3', vlan: 2, pcp: 7}
   - slot_point: 40000
     configs:
-    - {cell_id: 0, dst_mac: 26:04:9D:9E:29:B3, vlan: 2, pcp: 7}
-
-# SHM IPC DL notify mode: 0 - notify per cell, 1 - notify per TTI, 2 - notify per message
+    - {cell_id: 0, dst_mac: '26:04:9D:9E:29:B3', vlan: 2, pcp: 7}
 ipc_sync_mode: 0
-
-# FAPI indication validating
-# validate_enable: 0 - disabled; 1 - report error level; 2 - report error and warning levels
-validate_enable: 1
-# validate_log_opt: 0 - no print; 1 - print per MSG; 2 - print per PDU; 3 - force print all
-validate_log_opt: 1
-
-# Enable FAPI TV map to reuse duplicate PDU data and reduce TV pasing time
+validate_enable: 2
+validate_log_opt: 2
 tv_data_map_enable: 1
-
-# Enable dummy DL_TTI and UL_TTI request
 enable_dummy_tti: 0
-
-# FAPI TB data location option. See enum dl_tb_loc in nv_phy_module.hpp
-# 0 - CPU_MSG buffer; 1 - CPU_DATA buffer; 2 - CUDA_DATA buffer
 fapi_tb_loc: 1
-
-# PDSCH TB align bytes (For SCF 222 pdschMacPduBitsAlignment configuration). Valid values: 1, 2, 4, 8, 16, 32
 pdsch_align_bytes: 1
-
-# Enable CSI P2 FAPI V3
 enable_csip2_v3: 0
-
-# SRS validation option: 0 - full validation; positive number - sample number of partial random validation
 srs_vald_sample_num: 100
-
-# Transport settings for nvIPC
 transport:
   type: shm
-  shm_config:
-    prefix: nvipc
-
+  shm_config: {prefix: nvipc}
 message: cell_config_request
 data:
   nCarrierIdx: 0
-  # DMRS -Type A postion
-  # Range : pos2 = 2 , pos3 =3
   nDMRSTypeAPos: 2
-  # Number of TX Antenna
   nNrOfTxAnt: 8
-  #Number of receiving Antennas
   nNrOfRxAnt: 4
-  # Cell wide Sub Carrier Spacing Common
-  # Range carrier frequency < 6 GHz, 0: 15kHz, 1: 30 kHz
-  # Range carrier frequency > 6 GHz, 2: 60kHz, 3: 120 kHz
   nSubcCommon: 1
-  # Number of TDD Pattern configured.
   numTDDPattern: 1
-  # dl-UL-TransmissionPeriodicity for each TDD pattern
-  # 0: ms0p5
-  # 1: ms0p625
-  # 2: ms1
-  # 3: ms1p25
-  # 4: ms2
-  # 5: ms2p5
-  # 6: ms5
-  # 7: ms10
-  TDDPeriod:
-    - 3
-    - 0 # should not read this index based on numTDDPattern
-  # absolute Frequency SSB in KHz
-  nSSBAbsFre : 3313920
-  # absolute Frequency of DL pointA in KHz
-  nDLAbsFrePointA : 3301680
-  # absolute Frequency of UL pointA in KHz
-  nULAbsFrePointA : 3301680
-
-  # L1 parameter K0 for DL (Refer 38.211, section 5.3.1)
-  # Range 0: -6 1: 0 2: 6
+  TDDPeriod: [3, 0]
+  nSSBAbsFre: 3313920
+  nDLAbsFrePointA: 3301680
+  nULAbsFrePointA: 3301680
   nDLK0: 1
-  # L1 parameter K0 for UL (Refer 38.211, section 5.3.1)
-  # Range 0: -6 1: 0 2: 6
   nULK0: 1
-  # ifft/fft size in DL
   nDLFftSize: 4096
-  # ifft137
-  # PRACH zeroCorrelationZone Config
-#  nPrachZeroCorrConf: /fft size in UL
   nULFftSize: 4096
-  # Range 0->15
-  nCarrierAggregationLevel: 0 # should this be 1
-  # Frame Duplex Type
-  # 0: FDD 1: TDD
-  nFrameDuplexType : 1
-  # Physical cell id
+  nCarrierAggregationLevel: 0
+  nFrameDuplexType: 1
   nPhyCellId: 41
-  # SSB block power
-  #0.001 dB step, -60 to 50dBm
   nSSBPwr: 1
-  #SS/PBCH clock Subcarrier spacing
-  #0: Case A 15kHz 1: Case B 30kHz 2: Case C 30kHz 3: Case D 120kHz 4: Case E 240kHz
   nSSBSubcSpacing: 2
-  # SSB periodicity in msec
-  # 0: ms5 1: ms10 2: ms20 3: ms40 4: ms80 5: ms160
-  # PBCH once every 20 slots
   nSSBPeriod: 2
-  # SSB Subcarrier Offset
-  # Range 0->23
   nSSBSubcOffset: 0
-  # Bitmap for transmitted SSB.
-  # 0: not transmitted 1: transmitted. MSB->LSB of first 32-bit number corresponds to SSB 0 to SSB 31
-  # MSB->LSB of second 32-bit number corresponds to SSB 32 to SSB 63
-  nSSBMask:
-    - 0 # Need to be changed for proper PBCH
-    - 0 # Need to be changed for proper PBCH
-  # MSB->LSB of first byte correspond to bit0 to bit7
-  # The same bit order applies to the other two bytes.
-  # Need to ne changed for PBCH
-  nMIB:
-    - 1
-    - 13
-    - 4
-  # PRACH Configuration Index
-  # Range 0->255
-  nPrachConfIdx : 158
-  # PRACH Subcarrier spacing
-  # Range 0->3
+  nSSBMask: [0, 0]
+  nMIB: [1, 13, 4]
+  nPrachConfIdx: 158
   nPrachSubcSpacing: 1
-  # PRACH Root Sequence Index
-  # Range 0->837
   nPrachRootSeqIdx: 137
-  # PRACH zeroCorrelationZone Config
-  # Range 0->15
   nPrachZeroCorrConf: 5
-  # PRACH restrictedSetConfig
-  # 0: unrestricted
-  # 1: restrictedToTypeA
-  # 2: restrictedToTypeB
   nPrachRestrictSet: 0
-  # Prach-FDM
-  # Range 1, 2, 4, 8
   nPrachFdm: 1
-  # Offset of lowest PRACH transmission occasion in frequency domain
-  # Range 0->272
   nPrachFreqStart: 3
-  # SSB-Per-RACH- occasion
-  # 0: 1/8 1: 1/4 2: 1/2 3: 1 4: 2 5: 4 6: 8 7: 16
   nPrachSsbRach: 3
-  # measurement parameters
   rsrpMeasurement: 1
   pnMeasurement: 1
   pf_234_interference: 1
   prach_interference: 1
   pusch_aggr_factor: 1
   channel_segment_timelines: 0
-
-indicationPerSlot:
-  rxDataIndPerSlot : 0
-  crcIndPerSlot : 0
-  uciIndPerSlot : 0
-  rachIndPerSlot : 0
-  srsIndPerSlot : 0
-  dlTTIrspPerSlot : 0
-
-
+indicationPerSlot: {rxDataIndPerSlot: 0, crcIndPerSlot: 0, uciIndPerSlot: 2, rachIndPerSlot: 0, srsIndPerSlot: 0, dlTTIrspPerSlot: 0}
 conf_test:
   conf_test_enable: 0
   conf_test_slots: 75000
-  conformance_test_start_time: 480000 
-  prach:
-    expect_prmbindexes: 0
-    delay_error_tolerance: 0.5
-  pusch:
-  pucch:
-    ack_nack_pattern: 01
-  stats_file: "conformance_test_stats_file.txt"
-
+  conformance_test_start_time: 480000
+  prach: {expect_prmbindexes: 0, delay_error_tolerance: 0.5}
+  pusch: null
+  pucch: {ack_nack_pattern: 1}
+  stats_file: conformance_test_stats_file.txt
 ...

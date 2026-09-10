@@ -228,6 +228,7 @@ void dapp_export_ul_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     s.tot_srs_ports      = tot_srs_ports;
     ring.commit(r);
     ring.count_ul_tti();
+    ring.note_cell(sfn, slot, cell_id);
     if (w.truncated) { ring.count_pdu_truncated(); }
 }
 
@@ -439,6 +440,7 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     s.tot_pdcch_prg_bf     = tot_pdcch_prg_bf;
     ring.commit(r);
     ring.count_dl_tti();
+    ring.note_cell(sfn, slot, cell_id);
     if (w.truncated) { ring.count_pdu_truncated(); }
 }
 

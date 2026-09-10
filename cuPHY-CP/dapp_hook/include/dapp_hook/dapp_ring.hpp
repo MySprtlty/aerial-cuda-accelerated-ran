@@ -211,6 +211,30 @@ public:
     inline void count_slot_dropped() noexcept  { hdr_->cnt_slot_dropped++; }
     inline void count_pdu_truncated() noexcept { hdr_->cnt_pdu_truncated++; }
 
+    // ---- per-slot cell bookkeeping for SLOT_END -------------------------
+    // The TTI hooks call note_cell() once per cell and slot; the SLOT_END hook
+    // calls take_cells() to learn how many distinct cells sent a request for
+    // that slot. Single writer thread, so plain fields are enough. Entries are
+    // indexed by slot number and keyed by (sfn, slot), so a stale entry from a
+    // slot that never produced a SLOT_END is simply overwritten.
+    inline void note_cell(uint16_t sfn, uint16_t slot, uint16_t cell) noexcept
+    {
+        SlotCells& e = slot_cells_[slot & (kSlotCells - 1)];
+        const uint32_t key = (static_cast<uint32_t>(sfn) << 16) | slot;
+        if (e.key != key) { e.key = key; e.mask = 0; }
+        if (cell < 64) { e.mask |= (1ull << cell); }
+    }
+    inline uint32_t take_cells(uint16_t sfn, uint16_t slot) noexcept
+    {
+        SlotCells& e = slot_cells_[slot & (kSlotCells - 1)];
+        const uint32_t key = (static_cast<uint32_t>(sfn) << 16) | slot;
+        if (e.key != key) { return 0; }
+        const uint32_t n = static_cast<uint32_t>(__builtin_popcountll(e.mask));
+        e.key = 0xFFFFFFFFu;
+        e.mask = 0;
+        return n;
+    }
+
     // ---- info -----------------------------------------------------------
     const std::string& name() const noexcept { return name_; }
     uint64_t head() const noexcept { return __atomic_load_n(&hdr_->head, __ATOMIC_ACQUIRE); }
@@ -232,6 +256,10 @@ private:
     dapp_rec_t*      recs_     = nullptr;
     uint64_t         mask_     = 0;
     uint64_t         next_seq_ = 1;
+
+    static constexpr unsigned kSlotCells = 32;
+    struct SlotCells { uint32_t key = 0xFFFFFFFFu; uint64_t mask = 0; };
+    SlotCells        slot_cells_[kSlotCells];
     bool             mlocked_  = false;
     std::string      name_;
 };

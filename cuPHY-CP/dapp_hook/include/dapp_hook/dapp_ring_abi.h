@@ -200,7 +200,7 @@ typedef struct dapp_slot_end_s {
     uint8_t  is_csirs;            /* 4  */
     uint8_t  reserved0[3];        /* 5  */
     int32_t  enqueue_ret;         /* 8  return of l1_enqueue_phy_work (-1: not called) */
-    uint32_t num_cells;           /* 12 cells with commands in this slot           */
+    uint32_t num_cells;           /* 12 cells that sent a UL/DL TTI request for this slot */
     uint32_t cmd_size;            /* 16 slot_cmd.cells.size()                      */
     uint32_t reserved1;           /* 20 */
     int64_t  tick_original_ns;    /* 24 slot_cmd.tick_original                     */

@@ -391,3 +391,4 @@ for var in ${VARS}; do
     echo "$var=\"${!var}\"" >> "$TEST_CONFIG_FILE"
 done
 chmod +x "$TEST_CONFIG_FILE"
+echo $CONTROLLER_MODE

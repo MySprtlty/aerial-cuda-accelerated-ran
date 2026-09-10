@@ -7,3 +7,18 @@ testVectors/multi-cell/*.yaml
 .idea/
 build*/
 cmake-build-*/
+# Runtime data, logs and profiling output (local to a test bench)
+ch_data/
+ch_logs/
+clickhouse
+clickhouse/
+*.parquet
+*.nsys-rep
+prof/
+
+# Local build/install trees and backups
+cuPHY/install/
+testVectors.org/
+__pycache__/
+*.bak
+cuPHY-CP/cuphycontroller/config/out.txt

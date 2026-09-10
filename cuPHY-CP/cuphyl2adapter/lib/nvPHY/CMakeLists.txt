@@ -89,6 +89,10 @@ target_include_directories(nvphy PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES
 target_include_directories(nvphy PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/cuphydriver/include/>)
 target_link_libraries(nvphy PRIVATE gRPC::grpc++ gRPC::grpc++_reflection)
 target_link_libraries(nvphy PUBLIC nvphy_generic cuphydriver)
+if(ENABLE_DAPP_HOOK)
+    target_link_libraries(nvphy PUBLIC dapp_hook)
+    target_compile_definitions(nvphy PUBLIC ENABLE_DAPP_HOOK)
+endif()
 
 install(TARGETS nvphy DESTINATION ${PROJECT_NAME}/lib)
 

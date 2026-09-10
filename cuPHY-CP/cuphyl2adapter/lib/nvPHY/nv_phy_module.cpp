@@ -29,6 +29,9 @@
 #define TAG_TICK_TIMES (NVLOG_TAG_BASE_L2_ADAPTER + 12) // "L2A.TICK_TIMES"
 
 #include "cuphyoam.hpp"
+#ifdef ENABLE_DAPP_HOOK
+#include "dapp_hook/dapp_ring.hpp"
+#endif
 
 #include <unistd.h> // usleep(), temporary!
 #include <chrono>
@@ -414,6 +417,46 @@ PHY_module::PHY_module(yaml::node node_config) :
     } else {
         fapi_config_check_mask_ = 0;
     }
+
+#ifdef ENABLE_DAPP_HOOK
+    // dApp hook: export FAPI TTI requests to a shared-memory ring so an
+    // external process (GPU scheduler, analytics) can consume them.
+    // Disabled unless the l2_adapter yaml carries a "dapp_hook" block.
+    if (node_config.has_key("dapp_hook") && nv::dapp::producer() == nullptr)
+    {
+        yaml::node dcfg   = node_config["dapp_hook"];
+        const bool enable = dcfg.has_key("enable") ? (dcfg["enable"].as<uint32_t>() != 0) : false;
+        if (enable)
+        {
+            nv::dapp::Producer::Config pcfg;
+            pcfg.name          = dcfg.has_key("shm_name") ? dcfg["shm_name"].as<std::string>()
+                                                         : std::string(DAPP_RING_DEFAULT_NAME);
+            pcfg.ring_len      = dcfg.has_key("ring_len") ? dcfg["ring_len"].as<uint32_t>() : DAPP_RING_DEFAULT_LEN;
+            pcfg.do_mlock      = dcfg.has_key("mlock") ? (dcfg["mlock"].as<uint32_t>() != 0) : true;
+            pcfg.slot_advance  = tick_updater_.slot_advance_;
+            pcfg.mu            = tick_updater_.mu_highest_;
+            pcfg.num_cells     = total_cell_num;
+            pcfg.producer_name = "cuphycontroller";
+
+            nv::dapp::g_export_ul   = dcfg.has_key("export_ul") ? (dcfg["export_ul"].as<uint32_t>() != 0) : true;
+            nv::dapp::g_export_dl   = dcfg.has_key("export_dl") ? (dcfg["export_dl"].as<uint32_t>() != 0) : false;
+            nv::dapp::g_export_pdus = dcfg.has_key("export_pdus") ? (dcfg["export_pdus"].as<uint32_t>() != 0) : true;
+
+            std::string derr;
+            if (nv::dapp::install_producer(pcfg, derr))
+            {
+                NVLOGC_FMT(TAG, "dApp hook enabled: shm={} ring_len={} bytes={} mlock={} export_ul={} export_dl={} export_pdus={} slot_advance={} mu={} cells={}",
+                           pcfg.name, pcfg.ring_len, nv::dapp::producer()->bytes(), nv::dapp::producer()->mlocked(),
+                           nv::dapp::g_export_ul, nv::dapp::g_export_dl, nv::dapp::g_export_pdus,
+                           pcfg.slot_advance, pcfg.mu, pcfg.num_cells);
+            }
+            else
+            {
+                NVLOGE_FMT(TAG, AERIAL_CONFIG_EVENT, "dApp hook could not be enabled, continuing without it: {}", derr);
+            }
+        }
+    }
+#endif
 
     dtx_thresholds_.fill(1.0);
     if (node_config.has_key("pucch_dtx_thresholds")) {
@@ -1090,6 +1133,9 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
                 ss_curr.u16.sfn, ss_curr.u16.slot, __func__, phy_list_size, cells_size, latency);
 
         int ret = -1;
+#ifdef ENABLE_DAPP_HOOK
+        bool dapp_enqueued = false;
+#endif
         int to_clean = 0;
         bool clean_srs_ind_buffers = false;
 
@@ -1099,6 +1145,9 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
             auto start_process_command_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
             ret = PHYDriverProxy::getInstance().l1_enqueue_phy_work(slot_cmd);
             to_clean = 1;
+#ifdef ENABLE_DAPP_HOOK
+            dapp_enqueued = true;
+#endif
             auto end_process_command_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
             auto diff = end_process_command_time - start_process_command_time;
             NVLOGI_FMT(TAG, "SFN {}.{} {}: l1_enqueue_phy_work after status = {} slot cmd size ={}  phy_refs : size = {} l1_enqueue_phy_work start: {} l1_enqueue_phy_work duration: {} ns UL {} DL {}",
@@ -1146,6 +1195,39 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
             NVLOGW_FMT(TAG, "Dropping the slot command for sfn {} slot {}", ss_curr.u16.sfn, slot);
             PHYDriverProxy::getInstance().l1_resetBatchedMemcpyBatches(); //used to guard against case when the slot is dropped and PDSCH H2D copies are batched with preponing (prepone_h2d_copy=1) enabled and without separate copy thread (enable_h2d_copy_thread in cuphycontroller yaml = 0)
         }
+
+#ifdef ENABLE_DAPP_HOOK
+        // dApp hook: one record per slot telling the external scheduler whether
+        // this slot's work actually reached cuphydriver, and how much of the
+        // L2+L2A budget it consumed.
+        if (nv::dapp::Producer* dapp_ring = nv::dapp::producer())
+        {
+            const uint16_t dapp_sfn  = slot_cmd.cell_groups.slot.slot_3gpp.sfn_;
+            const uint16_t dapp_slot = slot_cmd.cell_groups.slot.slot_3gpp.slot_;
+            dapp_rec_t*      drec = dapp_ring->begin(DAPP_REC_SLOT_END, dapp_sfn, dapp_slot, 0xFFFF);
+            dapp_slot_end_t& d    = drec->u.slot_end;
+            d.enqueued            = dapp_enqueued ? 1u : 0u;
+            d.slot_end_rcvd       = slot_end_rcvd ? 1u : 0u;
+            d.is_ul               = is_ul_slot_ ? 1u : 0u;
+            d.is_dl               = is_dl_slot_ ? 1u : 0u;
+            d.is_csirs            = is_csirs_slot_ ? 1u : 0u;
+            d.enqueue_ret         = ret;
+            d.num_cells           = phy_list_size;
+            d.cmd_size            = static_cast<uint32_t>(cells_size);
+            d.tick_original_ns    = slot_cmd.tick_original.count();
+            d.t0_ns               = slot_cmd.tick_original.count() +
+                                    static_cast<int64_t>(tick_updater_.slot_advance_) *
+                                        static_cast<int64_t>(nv::mu_to_ns(tick_updater_.mu_highest_));
+            d.l1_slot_ind_tick_ns = l1_slot_ind_tick_[ss_curr.u16.slot % 10].count();
+            d.l2a_latency_ns      = (now - l1_slot_ind_tick_[ss_curr.u16.slot % 10]).count();
+            d.l2a_start_ns        = l2a_start_tick_.count();
+            d.l2a_end_ns          = l2a_end_tick_.count();
+            dapp_ring->commit(drec);
+            dapp_ring->count_slot_end();
+            if (!dapp_enqueued) { dapp_ring->count_slot_dropped(); }
+            dapp_ring->heartbeat();
+        }
+#endif
 
         if (to_clean == 1) {
             // Clean up slot command and FAPI message

@@ -54,6 +54,8 @@ struct pdu_walker
     static bool fits(const uint8_t* p, size_t n, const uint8_t* limit) { return p + n <= limit; }
 };
 
+inline uint16_t clamp_u16(uint32_t v) { return v > 0xFFFFu ? 0xFFFFu : static_cast<uint16_t>(v); }
+
 } // namespace
 
 void dapp_export_ul_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fapi_ul_tti_req_t& msg,
@@ -226,6 +228,7 @@ void dapp_export_ul_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     s.tot_srs_ports      = tot_srs_ports;
     ring.commit(r);
     ring.count_ul_tti();
+    ring.note_cell(sfn, slot, cell_id);
     if (w.truncated) { ring.count_pdu_truncated(); }
 }
 
@@ -238,6 +241,8 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
 
     uint16_t n_pdcch = 0, n_pdsch = 0, n_csirs = 0, n_ssb = 0;
     uint32_t n_dci = 0, tot_prb = 0, tot_layers = 0, tot_tb = 0, tot_prb_layers = 0;
+    uint32_t tot_pdsch_prg_bf = 0, tot_dci_al = 0, tot_dci_bits = 0, tot_pdcch_prg_bf = 0;
+    uint8_t  max_dci_al = 0, max_pdsch_mcs = 0;
 
     pdu_walker     w(msg.payload, ipc);
     const unsigned num_pdus = msg.num_pdus;
@@ -296,12 +301,33 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
                 o.rb_size                   = e.rb_size;
                 o.start_sym                 = e.start_sym_index;
                 o.num_sym                   = e.num_symbols;
+
+                // The precoding/beamforming section follows the fixed tail,
+                // after the optional PTRS block when pdu_bitmap bit 0 is set
+                // (same walk as scf_5g_slot_commands_pdsch_csirs.cpp).
+                const uint8_t* bf_ptr = end_ptr + sizeof(scf_fapi_pdsch_pdu_end_t);
+                if (p.pdu_bitmap & 0x1)
+                {
+                    bf_ptr = pdu_walker::fits(bf_ptr, sizeof(scf_fapi_pdsch_ptrs_t), limit)
+                                 ? bf_ptr + sizeof(scf_fapi_pdsch_ptrs_t)
+                                 : nullptr;
+                }
+                if (bf_ptr != nullptr && pdu_walker::fits(bf_ptr, sizeof(scf_fapi_tx_precoding_beamforming_t), limit))
+                {
+                    const auto& bf      = *reinterpret_cast<const scf_fapi_tx_precoding_beamforming_t*>(bf_ptr);
+                    o.num_prgs          = bf.num_prgs;
+                    o.prg_size          = bf.prg_size;
+                    o.dig_bf_interfaces = bf.dig_bf_interfaces;
+                    o.prg_bf_sum        = static_cast<uint32_t>(bf.num_prgs) * bf.dig_bf_interfaces;
+                }
             }
             ++n_pdsch;
             tot_prb += o.rb_size;
             tot_layers += o.num_layers;
             tot_prb_layers += static_cast<uint32_t>(o.rb_size) * o.num_layers;
             tot_tb += o.tb_size + o.tb_size_cw1;
+            tot_pdsch_prg_bf += o.prg_bf_sum;
+            if (o.mcs_index > max_pdsch_mcs) { max_pdsch_mcs = o.mcs_index; }
             break;
         }
         case DL_TTI_PDU_TYPE_PDCCH:
@@ -313,8 +339,47 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
             o.start_sym   = p.start_sym_index;
             o.num_sym     = p.duration_sym;
             o.num_dl_dci  = p.num_dl_dci;
+
+            // Each DCI is variable length: header, precoding/beamforming block
+            // sized by its own num_prgs/dig_bf_interfaces, tx power info, then
+            // the payload. Stride formula mirrors scf_5g_slot_commands_pdcch.cpp.
+            uint32_t al_sum = 0, bits_sum = 0, prg_bf = 0;
+            uint8_t  al_max = 0;
+            bool     truncated = false;
+            const uint8_t* dci_ptr = reinterpret_cast<const uint8_t*>(p.dl_dci);
+            for (uint16_t k = 0; k < p.num_dl_dci; ++k)
+            {
+                if (!pdu_walker::fits(dci_ptr, sizeof(scf_fapi_dl_dci_t), limit)) { truncated = true; break; }
+                const auto&    dci = *reinterpret_cast<const scf_fapi_dl_dci_t*>(dci_ptr);
+                const uint8_t* q   = dci_ptr + sizeof(scf_fapi_dl_dci_t);
+                if (!pdu_walker::fits(q, sizeof(scf_fapi_tx_precoding_beamforming_t), limit)) { truncated = true; break; }
+                const auto&  bf      = *reinterpret_cast<const scf_fapi_tx_precoding_beamforming_t*>(q);
+                const size_t bf_size = sizeof(scf_fapi_tx_precoding_beamforming_t) +
+                                       static_cast<size_t>(bf.num_prgs) * sizeof(uint16_t) +
+                                       static_cast<size_t>(bf.num_prgs) * bf.dig_bf_interfaces * sizeof(uint16_t);
+                q += bf_size + sizeof(scf_fapi_pdcch_tx_power_info_t);
+                if (!pdu_walker::fits(q, sizeof(scf_fapi_pdcch_dci_payload_t), limit)) { truncated = true; break; }
+                const auto& pl = *reinterpret_cast<const scf_fapi_pdcch_dci_payload_t*>(q);
+                al_sum   += dci.aggregation_level;
+                bits_sum += pl.payload_size_bits;
+                prg_bf   += static_cast<uint32_t>(bf.num_prgs) * bf.dig_bf_interfaces;
+                if (dci.aggregation_level > al_max) { al_max = dci.aggregation_level; }
+                dci_ptr = q + sizeof(scf_fapi_pdcch_dci_payload_t) + (static_cast<size_t>(pl.payload_size_bits) + 7u) / 8u;
+                if (dci_ptr > limit) { truncated = true; break; } // payload claims more bytes than the PDU holds
+            }
+            o.agg_level_sum        = clamp_u16(al_sum);
+            o.agg_level_max        = al_max;
+            o.dci_payload_bits_sum = clamp_u16(bits_sum);
+            o.prg_bf_sum           = prg_bf;
+            o.dci_truncated        = truncated ? 1u : 0u;
+
             ++n_pdcch;
             n_dci += p.num_dl_dci;
+            tot_dci_al += al_sum;
+            tot_dci_bits += bits_sum;
+            tot_pdcch_prg_bf += prg_bf;
+            if (al_max > max_dci_al) { max_dci_al = al_max; }
+            if (truncated) { w.truncated = true; }
             break;
         }
         case DL_TTI_PDU_TYPE_CSI_RS:
@@ -367,8 +432,15 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     s.tot_pdsch_layers     = tot_layers;
     s.tot_pdsch_tb_bytes   = tot_tb;
     s.tot_pdsch_prb_layers = tot_prb_layers;
+    s.tot_pdsch_prg_bf     = tot_pdsch_prg_bf;
+    s.tot_dci_agg_level    = tot_dci_al;
+    s.tot_dci_payload_bits = tot_dci_bits;
+    s.max_dci_agg_level    = max_dci_al;
+    s.max_pdsch_mcs        = max_pdsch_mcs;
+    s.tot_pdcch_prg_bf     = tot_pdcch_prg_bf;
     ring.commit(r);
     ring.count_dl_tti();
+    ring.note_cell(sfn, slot, cell_id);
     if (w.truncated) { ring.count_pdu_truncated(); }
 }
 

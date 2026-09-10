@@ -96,10 +96,12 @@ static void print_rec(const dapp_rec_t& r, bool pdus)
     }
     case DAPP_REC_DL_TTI: {
         const dapp_dl_tti_t& d = r.u.dl_tti;
-        std::printf("#%-8llu %s DL_TTI   %4u.%-2u cell=%-2u pdus=%u (pdcch=%u pdsch=%u csirs=%u ssb=%u) dci=%u prb=%u layers=%u prb*layers=%u tb_bytes=%u msg_len=%u%s\n",
+        std::printf("#%-8llu %s DL_TTI   %4u.%-2u cell=%-2u pdus=%u (pdcch=%u pdsch=%u csirs=%u ssb=%u) dci=%u prb=%u layers=%u prb*layers=%u tb_bytes=%u"
+                    " prg_bf=%u dci_al=%u al_max=%u dci_bits=%u pdcch_prg_bf=%u mcs_max=%u msg_len=%u%s\n",
                     (unsigned long long)r.seq, ts, r.sfn, r.slot, r.cell_id, d.num_pdus, d.n_pdcch, d.n_pdsch, d.n_csirs, d.n_ssb,
-                    d.n_dci, d.tot_pdsch_prb, d.tot_pdsch_layers, d.tot_pdsch_prb_layers, d.tot_pdsch_tb_bytes, d.msg_len,
-                    d.pdu_truncated ? " TRUNCATED" : "");
+                    d.n_dci, d.tot_pdsch_prb, d.tot_pdsch_layers, d.tot_pdsch_prb_layers, d.tot_pdsch_tb_bytes,
+                    d.tot_pdsch_prg_bf, d.tot_dci_agg_level, d.max_dci_agg_level, d.tot_dci_payload_bits, d.tot_pdcch_prg_bf,
+                    d.max_pdsch_mcs, d.msg_len, d.pdu_truncated ? " TRUNCATED" : "");
         break;
     }
     case DAPP_REC_DL_PDU: {
@@ -109,12 +111,15 @@ static void print_rec(const dapp_rec_t& r, bool pdus)
                     p.pdu_index, dl_pdu_type_name(p.pdu_type));
         switch (p.pdu_type) {
         case DAPP_DL_PDSCH:
-            std::printf(" rnti=0x%04x rb=%u+%u sym=%u+%u layers=%u cw=%u mcs=%u/%u qam=%u cr=%u tb=%uB tb1=%uB fapi_idx=%u", p.rnti,
+            std::printf(" rnti=0x%04x rb=%u+%u sym=%u+%u layers=%u cw=%u mcs=%u/%u qam=%u cr=%u tb=%uB tb1=%uB fapi_idx=%u prg=%ux%u bf=%u", p.rnti,
                         p.rb_start, p.rb_size, p.start_sym, p.num_sym, p.num_layers, p.num_codewords, p.mcs_index, p.mcs_table,
-                        p.qam_mod_order, p.target_code_rate, p.tb_size, p.tb_size_cw1, p.fapi_pdu_index);
+                        p.qam_mod_order, p.target_code_rate, p.tb_size, p.tb_size_cw1, p.fapi_pdu_index,
+                        p.num_prgs, p.prg_size, p.dig_bf_interfaces);
             break;
         case DAPP_DL_PDCCH:
-            std::printf(" dci=%u sym=%u+%u bwp=%u+%u", p.num_dl_dci, p.start_sym, p.num_sym, p.bwp_start, p.bwp_size);
+            std::printf(" dci=%u al_sum=%u al_max=%u bits=%u prg_bf=%u sym=%u+%u bwp=%u+%u%s", p.num_dl_dci, p.agg_level_sum,
+                        p.agg_level_max, p.dci_payload_bits_sum, p.prg_bf_sum, p.start_sym, p.num_sym, p.bwp_start, p.bwp_size,
+                        p.dci_truncated ? " DCI_TRUNC" : "");
             break;
         case DAPP_DL_CSI_RS:
             std::printf(" rb=%u+%u row=%u", p.rb_start, p.rb_size, p.csirs_row);

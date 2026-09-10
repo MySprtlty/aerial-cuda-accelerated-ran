@@ -43,5 +43,23 @@ else()
     message(STATUS "dapp_sched skipped: CUDA::cuda_driver target not available")
 endif()
 
+# dapp_export_test: builds synthetic SCF FAPI DL_TTI/UL_TTI messages in memory,
+# runs the same export code the L1 hook uses, and checks the records. Compiles
+# the export source directly so it needs no L1 library; the FAPI defines must
+# match the scf_5g_fapi build or the struct layouts diverge.
+if(ENABLE_DAPP_HOOK)
+    add_executable(dapp_export_test tools/dapp_export_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../scfl2adapter/lib/scf_5g_fapi/scf_5g_fapi_dapp_export.cpp)
+    target_include_directories(dapp_export_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../scfl2adapter/lib/scf_5g_fapi
+        ${CMAKE_CURRENT_SOURCE_DIR}/../gt_common_libs/nvIPC/include)
+    target_link_libraries(dapp_export_test PRIVATE dapp_hook)
+    target_compile_definitions(dapp_export_test PRIVATE ENABLE_DAPP_HOOK)
+    if(ENABLE_CONFORMANCE_TM_PDSCH_PDCCH)
+        target_compile_definitions(dapp_export_test PRIVATE ENABLE_CONFORMANCE_TM_PDSCH_PDCCH)
+    endif()
+    set_target_properties(dapp_export_test PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+endif()
+
 install(TARGETS dapp_ring_dump dapp_ring_fakel1 dapp_ring_selftest DESTINATION ${PROJECT_NAME}/bin OPTIONAL)
 install(DIRECTORY include/ DESTINATION ${PROJECT_NAME}/include OPTIONAL)

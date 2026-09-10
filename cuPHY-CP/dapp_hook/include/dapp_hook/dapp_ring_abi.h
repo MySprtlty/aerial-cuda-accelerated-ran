@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 #define DAPP_RING_MAGIC        0x31474E5250504144ULL /* "DAPPRNG1" as little-endian u64 */
-#define DAPP_RING_ABI_VERSION  1u
+#define DAPP_RING_ABI_VERSION  2u   /* 2: DL precoding + DCI fields appended */
 #define DAPP_RING_HDR_SIZE     4096u
 #define DAPP_REC_SIZE          128u
 #define DAPP_REC_PAYLOAD_SIZE  (DAPP_REC_SIZE - 24u)
@@ -153,8 +153,17 @@ typedef struct dapp_dl_pdu_s {
     uint16_t fapi_pdu_index;      /* 40 PDSCH pdu_index (links TX_DATA.request)    */
     uint8_t  csirs_row;           /* 42 CSI-RS */
     uint8_t  ssb_block_index;     /* 43 SSB */
-    uint32_t reserved;            /* 44 */
-} dapp_dl_pdu_t;                  /* 48 bytes */
+    uint16_t num_prgs;            /* 44 PDSCH precoding: PRGs in this PDU          */
+    uint16_t prg_size;            /* 46 PDSCH precoding: PRBs per PRG              */
+    uint8_t  dig_bf_interfaces;   /* 48 PDSCH precoding: digital BF ports          */
+    uint8_t  agg_level_max;       /* 49 PDCCH: max aggregation level over DCIs     */
+    uint16_t agg_level_sum;       /* 50 PDCCH: sum of aggregation levels           */
+    uint16_t dci_payload_bits_sum;/* 52 PDCCH: sum of payload_size_bits            */
+    uint8_t  dci_truncated;       /* 54 PDCCH: 1 if the DCI walk hit the PDU end   */
+    uint8_t  reserved8;           /* 55 */
+    uint32_t prg_bf_sum;          /* 56 sum(num_prgs x dig_bf_interfaces): one term for PDSCH, over DCIs for PDCCH */
+    uint32_t reserved;            /* 60 */
+} dapp_dl_pdu_t;                  /* 64 bytes */
 
 typedef struct dapp_dl_tti_s {
     uint8_t  num_pdus;            /* 0  */
@@ -174,8 +183,14 @@ typedef struct dapp_dl_tti_s {
     uint32_t tot_pdsch_layers;    /* 40 */
     uint32_t tot_pdsch_tb_bytes;  /* 44 */
     uint32_t tot_pdsch_prb_layers;/* 48 */
-    uint32_t reserved2;           /* 52 */
-} dapp_dl_tti_t;                  /* 56 bytes */
+    uint32_t tot_pdsch_prg_bf;    /* 52 sum over PDSCH of num_prgs x dig_bf_interfaces (precoding work) */
+    uint32_t tot_dci_agg_level;   /* 56 sum of aggregation levels over every DCI            */
+    uint32_t tot_dci_payload_bits;/* 60 sum of DCI payload bits                              */
+    uint8_t  max_dci_agg_level;   /* 64 */
+    uint8_t  max_pdsch_mcs;       /* 65 max mcs_index over PDSCH codeword 0                 */
+    uint16_t reserved2;           /* 66 */
+    uint32_t tot_pdcch_prg_bf;    /* 68 sum over DCIs of num_prgs x dig_bf_interfaces       */
+} dapp_dl_tti_t;                  /* 72 bytes */
 
 typedef struct dapp_slot_end_s {
     uint8_t  enqueued;            /* 0  1: l1_enqueue_phy_work() was called        */
@@ -185,7 +200,7 @@ typedef struct dapp_slot_end_s {
     uint8_t  is_csirs;            /* 4  */
     uint8_t  reserved0[3];        /* 5  */
     int32_t  enqueue_ret;         /* 8  return of l1_enqueue_phy_work (-1: not called) */
-    uint32_t num_cells;           /* 12 cells with commands in this slot           */
+    uint32_t num_cells;           /* 12 cells that sent a UL/DL TTI request for this slot */
     uint32_t cmd_size;            /* 16 slot_cmd.cells.size()                      */
     uint32_t reserved1;           /* 20 */
     int64_t  tick_original_ns;    /* 24 slot_cmd.tick_original                     */
@@ -263,8 +278,8 @@ typedef struct dapp_ring_hdr_s {
 #endif
 DAPP_STATIC_ASSERT(sizeof(dapp_ul_pdu_t) == 64, "dapp_ul_pdu_t size");
 DAPP_STATIC_ASSERT(sizeof(dapp_ul_tti_t) == 64, "dapp_ul_tti_t size");
-DAPP_STATIC_ASSERT(sizeof(dapp_dl_pdu_t) == 48, "dapp_dl_pdu_t size");
-DAPP_STATIC_ASSERT(sizeof(dapp_dl_tti_t) == 56, "dapp_dl_tti_t size");
+DAPP_STATIC_ASSERT(sizeof(dapp_dl_pdu_t) == 64, "dapp_dl_pdu_t size");
+DAPP_STATIC_ASSERT(sizeof(dapp_dl_tti_t) == 72, "dapp_dl_tti_t size");
 DAPP_STATIC_ASSERT(sizeof(dapp_slot_end_t) == 72, "dapp_slot_end_t size");
 DAPP_STATIC_ASSERT(sizeof(dapp_producer_start_t) == 32, "dapp_producer_start_t size");
 DAPP_STATIC_ASSERT(sizeof(dapp_rec_t) == DAPP_REC_SIZE, "dapp_rec_t size");
@@ -272,6 +287,8 @@ DAPP_STATIC_ASSERT(offsetof(dapp_rec_t, u) == 24, "dapp_rec_t payload offset");
 DAPP_STATIC_ASSERT(offsetof(dapp_ul_pdu_t, tb_size) == 24, "dapp_ul_pdu_t.tb_size offset");
 DAPP_STATIC_ASSERT(offsetof(dapp_ul_tti_t, ts_l2_send_ns) == 16, "dapp_ul_tti_t.ts_l2_send_ns offset");
 DAPP_STATIC_ASSERT(offsetof(dapp_slot_end_t, tick_original_ns) == 24, "dapp_slot_end_t.tick_original_ns offset");
+DAPP_STATIC_ASSERT(offsetof(dapp_dl_pdu_t, prg_bf_sum) == 56, "dapp_dl_pdu_t.prg_bf_sum offset");
+DAPP_STATIC_ASSERT(offsetof(dapp_dl_tti_t, tot_pdcch_prg_bf) == 68, "dapp_dl_tti_t.tot_pdcch_prg_bf offset");
 DAPP_STATIC_ASSERT(sizeof(dapp_ring_hdr_t) == DAPP_RING_HDR_SIZE, "dapp_ring_hdr_t size");
 DAPP_STATIC_ASSERT(offsetof(dapp_ring_hdr_t, head) == 40, "dapp_ring_hdr_t.head offset");
 DAPP_STATIC_ASSERT(offsetof(dapp_ring_hdr_t, producer_name) == 120, "dapp_ring_hdr_t.producer_name offset");

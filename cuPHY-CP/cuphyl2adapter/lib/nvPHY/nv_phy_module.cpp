@@ -1212,7 +1212,10 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
             d.is_dl               = is_dl_slot_ ? 1u : 0u;
             d.is_csirs            = is_csirs_slot_ ? 1u : 0u;
             d.enqueue_ret         = ret;
-            d.num_cells           = phy_list_size;
+            // cells that sent a UL/DL TTI request for this slot (tracked by the
+            // TTI hooks); phy_list_size only counts the PDSCH cells and the
+            // per-cell channel_array_size stays 0 in cell-group mode
+            d.num_cells           = dapp_ring->take_cells(dapp_sfn, dapp_slot);
             d.cmd_size            = static_cast<uint32_t>(cells_size);
             d.tick_original_ns    = slot_cmd.tick_original.count();
             d.t0_ns               = slot_cmd.tick_original.count() +

@@ -26,7 +26,7 @@ from collections import defaultdict
 import numpy as np
 
 MAGIC = 0x31474E5250504144
-ABI_VERSION = 1
+ABI_VERSION = 2
 HDR_SIZE = 4096
 REC_SIZE = 128
 
@@ -98,6 +98,9 @@ DL_PDU_DTYPE = _dtype(COMMON + [
     ("bwp_size", "<u2", P + 32), ("bwp_start", "<u2", P + 34), ("dmrs_config_type", "u1", P + 36),
     ("num_dmrs_cdm_grps_no_data", "u1", P + 37), ("dl_dmrs_sym_pos", "<u2", P + 38), ("fapi_pdu_index", "<u2", P + 40),
     ("csirs_row", "u1", P + 42), ("ssb_block_index", "u1", P + 43),
+    ("num_prgs", "<u2", P + 44), ("prg_size", "<u2", P + 46), ("dig_bf_interfaces", "u1", P + 48),
+    ("agg_level_max", "u1", P + 49), ("agg_level_sum", "<u2", P + 50), ("dci_payload_bits_sum", "<u2", P + 52),
+    ("dci_truncated", "u1", P + 54), ("prg_bf_sum", "<u4", P + 56),
 ])
 
 DL_TTI_DTYPE = _dtype(COMMON + [
@@ -105,6 +108,8 @@ DL_TTI_DTYPE = _dtype(COMMON + [
     ("body_len", "<u4", P + 8), ("ts_l2_send_ns", "<i8", P + 16), ("n_pdcch", "<u2", P + 24), ("n_pdsch", "<u2", P + 26),
     ("n_csirs", "<u2", P + 28), ("n_ssb", "<u2", P + 30), ("n_dci", "<u4", P + 32), ("tot_pdsch_prb", "<u4", P + 36),
     ("tot_pdsch_layers", "<u4", P + 40), ("tot_pdsch_tb_bytes", "<u4", P + 44), ("tot_pdsch_prb_layers", "<u4", P + 48),
+    ("tot_pdsch_prg_bf", "<u4", P + 52), ("tot_dci_agg_level", "<u4", P + 56), ("tot_dci_payload_bits", "<u4", P + 60),
+    ("max_dci_agg_level", "u1", P + 64), ("max_pdsch_mcs", "u1", P + 65), ("tot_pdcch_prg_bf", "<u4", P + 68),
 ])
 
 SLOT_END_DTYPE = _dtype(COMMON + [
@@ -241,17 +246,22 @@ def fmt_rec(r, pdus=False):
             return head + "   [%d] PRACH format=%d ocas=%d num_ra=%d" % (r["pdu_index"], r["prach_format"], r["num_prach_ocas"], r["num_ra"])
         return head + "   [%d] SRS rnti=0x%04x ports=%d sym=%d rep=%d" % (r["pdu_index"], r["rnti"], r["num_layers"], r["srs_num_symbols"], r["srs_num_repetitions"])
     if t == REC_DL_TTI:
-        return head + " pdus=%d pdcch=%d pdsch=%d csirs=%d ssb=%d dci=%d prb=%d layers=%d tb_bytes=%d%s" % (
+        return head + " pdus=%d pdcch=%d pdsch=%d csirs=%d ssb=%d dci=%d prb=%d layers=%d tb_bytes=%d prg_bf=%d dci_al=%d al_max=%d dci_bits=%d mcs_max=%d%s" % (
             r["num_pdus"], r["n_pdcch"], r["n_pdsch"], r["n_csirs"], r["n_ssb"], r["n_dci"], r["tot_pdsch_prb"],
-            r["tot_pdsch_layers"], r["tot_pdsch_tb_bytes"], " TRUNCATED" if r["pdu_truncated"] else "")
+            r["tot_pdsch_layers"], r["tot_pdsch_tb_bytes"], r["tot_pdsch_prg_bf"], r["tot_dci_agg_level"],
+            r["max_dci_agg_level"], r["tot_dci_payload_bits"], r["max_pdsch_mcs"], " TRUNCATED" if r["pdu_truncated"] else "")
     if t == REC_DL_PDU:
         if not pdus:
             return None
         kind = DL_PDU_NAMES.get(int(r["pdu_type"]), "?")
         if kind == "PDSCH":
-            return head + "   [%d] PDSCH rnti=0x%04x rb=%d+%d sym=%d+%d layers=%d mcs=%d qam=%d tb=%dB" % (
+            return head + "   [%d] PDSCH rnti=0x%04x rb=%d+%d sym=%d+%d layers=%d mcs=%d qam=%d tb=%dB prg=%dx%d bf=%d" % (
                 r["pdu_index"], r["rnti"], r["rb_start"], r["rb_size"], r["start_sym"], r["num_sym"], r["num_layers"],
-                r["mcs_index"], r["qam_mod_order"], r["tb_size"])
+                r["mcs_index"], r["qam_mod_order"], r["tb_size"], r["num_prgs"], r["prg_size"], r["dig_bf_interfaces"])
+        if kind == "PDCCH":
+            return head + "   [%d] PDCCH dci=%d al_sum=%d al_max=%d bits=%d prg_bf=%d%s" % (
+                r["pdu_index"], r["num_dl_dci"], r["agg_level_sum"], r["agg_level_max"], r["dci_payload_bits_sum"],
+                r["prg_bf_sum"], " DCI_TRUNC" if r["dci_truncated"] else "")
         return head + "   [%d] %s" % (r["pdu_index"], kind)
     if t == REC_SLOT_END:
         return head + " %s ret=%d trig=%s cells=%d ul=%d dl=%d l2a_latency_us=%.1f" % (

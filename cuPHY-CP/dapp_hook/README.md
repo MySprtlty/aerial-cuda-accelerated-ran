@@ -19,6 +19,25 @@ message.
 | `DL_PDU`, `DL_TTI` | `scf_5g_fapi::phy::on_dl_tti_request`, after the state/validate guards | `msg_processing` |
 | `SLOT_END` | `nv::PHY_module::process_phy_commands`, after `l1_enqueue_phy_work` and on the drop path | `msg_processing` |
 
+### What each record carries (ABI v2)
+
+| Record | Fields |
+|---|---|
+| `UL_PDU` PUSCH | rnti, handle, rb_start/size, symbols, layers, mcs_index/table, qam, code rate, tb_size, num_cb, rv, harq id, ndi, DMRS, transform precoding, BWP, UCI harq/csi1 bit lengths |
+| `UL_PDU` PUCCH / PRACH / SRS | format, prb_start/size, symbols, harq/csi1/csi2 bit lengths, sr / prach format, occasions, num_ra / ant ports, symbols, repetitions, comb, bandwidth index |
+| `UL_TTI` | per-cell counts and sums: PRB, layers, PRB x layers, TB bytes, code blocks, PUCCH PRB, SRS ports |
+| `DL_PDU` PDSCH | rnti, fapi pdu_index, rb, symbols, layers, codewords, mcs/qam/code rate, tb_size (cw0, cw1), DMRS, **num_prgs, prg_size, dig_bf_interfaces, prg_bf_sum** |
+| `DL_PDU` PDCCH | num_dl_dci, **agg_level_sum, agg_level_max, dci_payload_bits_sum, prg_bf_sum** (over its DCIs), dci_truncated |
+| `DL_TTI` | per-cell counts and sums incl. **tot_pdsch_prg_bf, tot_dci_agg_level, max_dci_agg_level, tot_dci_payload_bits, tot_pdcch_prg_bf, max_pdsch_mcs** |
+| `SLOT_END` | enqueued/dropped, trigger, UL/DL flags, tick_original, T0, L2+L2A latency |
+
+The bold DL fields live in the variable-length tail of the FAPI PDU (the
+precoding/beamforming block after the optional PTRS section for PDSCH; one
+block per DCI for PDCCH) and were added in ABI v2. `num_cb` is exported as
+received; the testMAC L2 leaves it 0, so derive it from `tb_size` when needed.
+`tools/dapp_export_test.cpp` builds synthetic FAPI messages and checks all of
+this, including truncated inputs, without an L1.
+
 `UL_TTI` arrives roughly `slot_advance` slots (1.5 ms at mu=1, slot_advance 3)
 before the slot's air time T0. The UL PUSCH GPU pipeline runs around T0, so a
 consumer has a few milliseconds of lead time. DL GPU work is enqueued
@@ -186,6 +205,7 @@ inspected afterwards. On restart L1 re-initialises the same object, bumps
 | `tools/dapp_ring_dump.cpp` | CLI viewer |
 | `tools/dapp_ring_fakel1.cpp` | record generator for offline consumer bring-up |
 | `tools/dapp_ring_selftest.cpp` | ring integrity test |
+| `tools/dapp_export_test.cpp` | FAPI -> record conversion test on synthetic messages |
 | `sched/dapp_sched.hpp` | load tracker and SM budget policy (no CUDA) |
 | `sched/dapp_sm_pool.hpp` | SM-capped CUDA context pool |
 | `sched/dapp_sched_main.cpp` | scheduler process |

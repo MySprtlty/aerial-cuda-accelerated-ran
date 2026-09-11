@@ -21,12 +21,23 @@
  *     -> RUN <milliseconds_of_work>     (placeholder kernel)
  *     <- OK sm=48 granted=48 pct=36.4 load=0.31 ms=12.4 capped=1 reason=moderate uplink
  *
+ * With --ctrl the SM budget comes from the estimator's control block
+ * (estimator/live.py -> /dev/shm/aerial_dapp_ctrl, dapp_ctrl_abi.h) instead
+ * of the built-in heuristic: cap_pct picks the SM class, and a closed gate
+ * (gate_slots == 0), a stale block (older than --ctrl-max-age-ms) or a
+ * missing block holds the request for up to --gate-wait-ms, then answers
+ *
+ *     <- HOLD gate=0 cap=40 slot_id=1234 age_us=812 reason=gate closed
+ *     <- OK sm=53 granted=48 cap=40 gate=40 slot_id=1234 age_us=812 ms=0.91 pre_ms=4.1 dets=5 top=... capped=1 source=ctrl
+ *
  *   dapp_sched [-n /aerial_dapp_ring] [-s /tmp/dapp_sched.sock] [--cells N]
  *              [--classes 16,32,48,64,96] [--engine yolo.engine] [--image img.jpg]
  *              [--conf 0.25] [--iou 0.7] [--sweep N] [--self-test N] [--verbose]
+ *              [--ctrl [/aerial_dapp_ctrl]] [--ctrl-max-age-ms 20] [--gate-wait-ms 50]
  */
 #include "dapp_sched.hpp"
 #include "dapp_sm_pool.hpp"
+#include "dapp_ctrl_reader.hpp"
 #ifdef DAPP_SCHED_TENSORRT
 #include "dapp_yolo.hpp"
 #endif
@@ -196,7 +207,43 @@ struct Shared {
     std::atomic<uint64_t> slots{0};
     std::atomic<uint64_t> dropped{0};
     std::atomic<uint64_t> requests{0};
+    std::atomic<uint64_t> held{0};       // requests answered with HOLD (estimator mode)
 };
+
+// Estimator (control block) mode. Values are command-line options; the
+// defaults match rules.yaml safety.stale_after_ms.
+struct CtrlCfg {
+    bool        enabled = false;
+    std::string name = DAPP_CTRL_SHM_NAME;
+    uint32_t    max_age_ms = 20;     // block older than this = estimator dead or ring stalled
+    uint32_t    gate_wait_ms = 50;   // how long a request waits for the gate to open
+};
+
+// Reads the control block, waiting up to gate_wait_ms for a fresh, open gate.
+// Returns true with the block copied into cb when the tenant may run now.
+static bool ctrl_wait_for_gate(CtrlReader& rd, const CtrlCfg& cfg, dapp_ctrl_block& cb,
+                               int64_t& age_us, const char*& why)
+{
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(cfg.gate_wait_ms);
+    why = "ctrl block missing";
+    age_us = -1;
+    for (;;) {
+        if (!rd.is_open()) {
+            std::string err;
+            rd.open(cfg.name, err);
+        }
+        if (rd.is_open() && rd.read(cb)) {
+            age_us = (CtrlReader::now_ns() - static_cast<int64_t>(cb.ts_ns)) / 1000;
+            if (cb.n_decisions == 0)                                   { why = "no decision yet"; }
+            else if (age_us > static_cast<int64_t>(cfg.max_age_ms) * 1000) { why = "ctrl stale"; }
+            else if (cb.cap_pct == 0)                                  { why = "cap 0"; }
+            else if (cb.gate_slots == 0)                               { why = "gate closed"; }
+            else                                                       { return true; }
+        }
+        if (std::chrono::steady_clock::now() >= deadline) { return false; }
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+}
 
 // Ring consumer thread: folds records into the load tracker.
 static void ring_thread(Shared* sh, const std::string& ring_name, bool verbose)
@@ -258,16 +305,35 @@ static bool is_number(const std::string& s)
 // arg: image path (YOLO), a number of milliseconds (placeholder), or empty.
 static std::string handle_request(Shared* sh, const SmPool& pool, YoloRig& rig,
                                   const std::string& arg, const std::string& default_image,
-                                  int work_ms, bool verbose)
+                                  int work_ms, bool verbose, CtrlReader* ctrl, const CtrlCfg& ccfg)
 {
     const bool   stale = sh->stale.load();
     const double load  = sh->peak.load();
     const Decision d   = decide(sh->cfg, load, stale);
-    const SmPool::Slot* slot = pool.pick(d.infer_sm);
-    const uint32_t granted = slot ? slot->sm : pool.device_sm();
     sh->requests.fetch_add(1);
-
     char buf[400];
+
+    // Budget: estimator control block (--ctrl) or the built-in heuristic.
+    uint32_t budget_sm = d.infer_sm;
+    double   budget_pct = d.infer_pct;
+    dapp_ctrl_block cb{};
+    int64_t  age_us = -1;
+    if (ccfg.enabled) {
+        const char* why = "";
+        if (!ctrl_wait_for_gate(*ctrl, ccfg, cb, age_us, why)) {
+            sh->held.fetch_add(1);
+            std::snprintf(buf, sizeof(buf), "HOLD gate=%u cap=%u slot_id=%u age_us=%" PRId64 " reason=%s\n",
+                          cb.gate_slots, cb.cap_pct, cb.slot_id, age_us, why);
+            std::printf("[hold] gate=%u cap=%u slot_id=%u age_us=%" PRId64 " (%s)\n",
+                        cb.gate_slots, cb.cap_pct, cb.slot_id, age_us, why);
+            return std::string(buf);
+        }
+        budget_sm  = (cb.cap_pct * pool.device_sm() + 50) / 100;
+        budget_pct = static_cast<double>(cb.cap_pct);
+    }
+    const SmPool::Slot* slot = pool.pick(budget_sm);
+    const uint32_t granted = slot ? slot->sm : pool.device_sm();
+
 #ifdef DAPP_SCHED_TENSORRT
     const bool want_yolo = rig.enabled && !is_number(arg);
     if (want_yolo) {
@@ -278,13 +344,25 @@ static std::string handle_request(Shared* sh, const SmPool& pool, YoloRig& rig,
             std::snprintf(buf, sizeof(buf), "ERR %s\n", r.err.c_str());
             return std::string(buf);
         }
-        std::snprintf(buf, sizeof(buf),
-                      "OK sm=%u granted=%u pct=%.1f load=%.3f ms=%.2f pre_ms=%.1f dets=%d top=%s capped=%d reason=%s\n",
-                      d.infer_sm, granted, d.infer_pct, d.load, r.gpu_ms, r.pre_ms, r.dets,
-                      r.top.empty() ? "-" : r.top.c_str(), pool.capping_active() ? 1 : 0, d.reason);
-        std::printf("[run ] budget=%u granted=%u load=%.3f%s -> yolo %.2f ms gpu, %d dets [%s]  (%s)\n",
-                    d.infer_sm, granted, d.load, stale ? " STALE" : "", r.gpu_ms, r.dets,
-                    r.top.c_str(), d.reason);
+        if (ccfg.enabled) {
+            std::snprintf(buf, sizeof(buf),
+                          "OK sm=%u granted=%u cap=%u gate=%u slot_id=%u age_us=%" PRId64
+                          " ms=%.2f pre_ms=%.1f dets=%d top=%s capped=%d source=ctrl\n",
+                          budget_sm, granted, cb.cap_pct, cb.gate_slots, cb.slot_id, age_us, r.gpu_ms, r.pre_ms,
+                          r.dets, r.top.empty() ? "-" : r.top.c_str(), pool.capping_active() ? 1 : 0);
+            std::printf("[run ] ctrl cap=%u%% gate=%u slot_id=%u age=%" PRId64 "us -> budget=%u granted=%u"
+                        " -> yolo %.2f ms gpu, %d dets [%s]\n",
+                        cb.cap_pct, cb.gate_slots, cb.slot_id, age_us, budget_sm, granted, r.gpu_ms, r.dets,
+                        r.top.c_str());
+        } else {
+            std::snprintf(buf, sizeof(buf),
+                          "OK sm=%u granted=%u pct=%.1f load=%.3f ms=%.2f pre_ms=%.1f dets=%d top=%s capped=%d reason=%s\n",
+                          d.infer_sm, granted, d.infer_pct, d.load, r.gpu_ms, r.pre_ms, r.dets,
+                          r.top.empty() ? "-" : r.top.c_str(), pool.capping_active() ? 1 : 0, d.reason);
+            std::printf("[run ] budget=%u granted=%u load=%.3f%s -> yolo %.2f ms gpu, %d dets [%s]  (%s)\n",
+                        d.infer_sm, granted, d.load, stale ? " STALE" : "", r.gpu_ms, r.dets,
+                        r.top.c_str(), d.reason);
+        }
         if (verbose) { print_detections(rig); }
         return std::string(buf);
     }
@@ -293,9 +371,18 @@ static std::string handle_request(Shared* sh, const SmPool& pool, YoloRig& rig,
 #endif
     const int ms_req = is_number(arg) ? std::atoi(arg.c_str()) : work_ms;
     const double ms = run_placeholder(pool, slot, ms_req > 0 ? ms_req : work_ms);
+    if (ccfg.enabled) {
+        std::snprintf(buf, sizeof(buf),
+                      "OK sm=%u granted=%u cap=%u gate=%u slot_id=%u age_us=%" PRId64 " ms=%.1f capped=%d source=ctrl\n",
+                      budget_sm, granted, cb.cap_pct, cb.gate_slots, cb.slot_id, age_us, ms,
+                      pool.capping_active() ? 1 : 0);
+        std::printf("[run ] ctrl cap=%u%% gate=%u -> budget=%u granted=%u -> placeholder %.1f ms\n",
+                    cb.cap_pct, cb.gate_slots, budget_sm, granted, ms);
+        return std::string(buf);
+    }
     std::snprintf(buf, sizeof(buf),
                   "OK sm=%u granted=%u pct=%.1f load=%.3f ms=%.1f capped=%d reason=%s\n",
-                  d.infer_sm, granted, d.infer_pct, d.load, ms,
+                  d.infer_sm, granted, budget_pct, d.load, ms,
                   pool.capping_active() ? 1 : 0, d.reason);
     std::printf("[run ] budget=%u granted=%u load=%.3f%s -> placeholder %.1f ms  (%s)\n",
                 d.infer_sm, granted, d.load, stale ? " STALE" : "", ms, d.reason);
@@ -345,6 +432,8 @@ int main(int argc, char** argv)
     int self_test = 0, work_ms = 10, sweep = 0;
     bool verbose = false;
     YoloRig rig;
+    CtrlCfg ccfg;
+    CtrlReader ctrl;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -371,6 +460,12 @@ int main(int argc, char** argv)
         else if (a == "--conf" && i + 1 < argc) rig.conf = (float)atof(argv[++i]);
         else if (a == "--iou" && i + 1 < argc) rig.iou = (float)atof(argv[++i]);
         else if (a == "--verbose" || a == "-v") verbose = true;
+        else if (a == "--ctrl") {
+            ccfg.enabled = true;
+            if (i + 1 < argc && argv[i + 1][0] == '/') { ccfg.name = argv[++i]; }
+        }
+        else if (a == "--ctrl-max-age-ms" && i + 1 < argc) ccfg.max_age_ms = (uint32_t)atoi(argv[++i]);
+        else if (a == "--gate-wait-ms" && i + 1 < argc) ccfg.gate_wait_ms = (uint32_t)atoi(argv[++i]);
         else if (a == "--classes" && i + 1 < argc) {
             classes.clear();
             char* s = argv[++i];
@@ -383,7 +478,8 @@ int main(int argc, char** argv)
                 "          [--max-prb N] [--max-layers N] [--max-tb-kb N]\n"
                 "          [--cuphy-sm IDLE PEAK] [--infer-sm MIN MAX]\n"
                 "          [--engine yolo.engine] [--image img.jpg] [--conf 0.25] [--iou 0.7]\n"
-                "          [--sweep N] [--self-test N] [--work-ms N] [--verbose]\n", argv[0]);
+                "          [--sweep N] [--self-test N] [--work-ms N] [--verbose]\n"
+                "          [--ctrl [/aerial_dapp_ctrl]] [--ctrl-max-age-ms 20] [--gate-wait-ms 50]\n", argv[0]);
             return 2;
         }
     }
@@ -412,6 +508,13 @@ int main(int argc, char** argv)
                 sh.cfg.infer_sm_min, sh.cfg.infer_sm_max, sh.cfg.window_slots);
     std::printf("            full load = %u cells x %u PRB x %u layers, %u kB TB per cell per slot\n",
                 sh.cfg.num_cells, sh.cfg.max_prb, sh.cfg.max_layers, sh.cfg.max_tb_kbytes);
+    if (ccfg.enabled) {
+        std::string cerr_;
+        const bool ok = ctrl.open(ccfg.name, cerr_);
+        std::printf("            budget source: estimator control block %s (%s; max age %u ms, gate wait %u ms)\n",
+                    CtrlReader::shm_path(ccfg.name).c_str(), ok ? "attached" : "not there yet, will retry per request",
+                    ccfg.max_age_ms, ccfg.gate_wait_ms);
+    }
 
     if (!engine_path.empty()) {
 #ifdef DAPP_SCHED_TENSORRT
@@ -454,7 +557,7 @@ int main(int argc, char** argv)
         std::printf("[self] %d synthetic inference requests\n", self_test);
         std::this_thread::sleep_for(std::chrono::milliseconds(300)); // let the ring attach
         for (int i = 0; i < self_test && !g_stop; ++i) {
-            handle_request(&sh, pool, rig, "", default_image, work_ms, verbose);
+            handle_request(&sh, pool, rig, "", default_image, work_ms, verbose, &ctrl, ccfg);
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         g_stop = 1;
@@ -493,7 +596,7 @@ int main(int argc, char** argv)
             char rest[480] = {0};
             if (std::sscanf(req, "%31s %479s", verb, rest) >= 2) { arg = rest; }
         }
-        const std::string reply = handle_request(&sh, pool, rig, arg, default_image, work_ms, verbose);
+        const std::string reply = handle_request(&sh, pool, rig, arg, default_image, work_ms, verbose, &ctrl, ccfg);
         (void)!::write(fd, reply.data(), reply.size());
         ::close(fd);
     }
@@ -504,6 +607,7 @@ int main(int argc, char** argv)
 #ifdef DAPP_SCHED_TENSORRT
     yolo_shutdown(rig, pool);
 #endif
-    std::printf("dapp_sched: %" PRIu64 " requests served\n", sh.requests.load());
+    std::printf("dapp_sched: %" PRIu64 " requests served, %" PRIu64 " held by the estimator gate\n",
+                sh.requests.load(), sh.held.load());
     return 0;
 }

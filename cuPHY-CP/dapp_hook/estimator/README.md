@@ -58,6 +58,33 @@ python3 calibrate.py --measure kernels.csv --dump-dir ../../../prof --write
 python3 evaluate.py --decisions out/decisions_ring_59c_8C_yolov8n_b1.csv --nvlog /path/phy.log --ind ind_sent.csv
 ```
 
+## dapp_sched 연결 (`--ctrl`)
+
+세입자 실행기 `dapp_sched`는 `--ctrl`로 띄우면 요청마다 제어 블록을 읽는다.
+
+```bash
+# L1(또는 dapp_ring_fakel1)이 링을 쓰고 있고 live.py가 제어 블록을 갱신 중일 때
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy \
+  /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched \
+  --engine /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
+  --image  /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/bus.jpg -s /dev/shm/dapp_sched.sock --ctrl
+python3 ../tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock RUN /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/bus.jpg
+```
+
+- `cap_pct`는 SM 개수로 바꿔(`cap/100 × 132`, 반올림) 그 이하의 가장 큰 SM 클래스 컨텍스트에서 YOLO를 돌린다.
+  기본 클래스 16/32/48/64/96이면 cap 80 → 106 → 96 SM, 60 → 79 → 64 SM, 40 → 53 → 48 SM, 20 → 26 → 16 SM.
+- `gate_slots == 0`, `cap_pct == 0`, 블록이 `--ctrl-max-age-ms`(20)보다 오래됐거나 없으면 `--gate-wait-ms`(50)
+  동안 기다렸다가 `HOLD gate= cap= slot_id= age_us= reason=`으로 답하고 실행하지 않는다.
+- 실행하면 `OK sm=<예산> granted=<클래스> cap= gate= slot_id= age_us= ms= dets= ... source=ctrl`.
+- `--ctrl` 없이 띄우면 예전 PRB 기반 휴리스틱이 그대로 쓰인다(`reason=` 필드).
+
+실전 확인(2026-09-11, 재구성 4T4R 8셀 패턴, RU 에뮬레이터 + L1 + testMAC 40,000슬롯, ERR 0):
+트래픽 전 요청 3건은 `HOLD reason=no decision yet`, 트래픽 중 요청 60건은 전부
+`OK cap=80 gate=40 → budget 106 SM → granted 96 SM`(YOLO GPU p50 1.46 ms, 제어 블록 나이 p50 1.3 ms),
+트래픽 종료 3초 뒤 요청 3건은 `HOLD reason=ctrl stale`. live.py는 39,997 슬롯 전부 결정(유실 0),
+슬롯당 처리 p50 333 µs / p99 1,050 µs로 50 µs 예산은 못 지킨다(순수 Python 한계, 아래 참조).
+testMAC은 실행 후 약 35 s 뒤에야 FAPI를 보내기 시작하므로 요청은 제어 블록의 `n_decisions > 0`을 본 뒤 보낸다.
+
 덤프는 `tools/dapp_ring_record.py`로 만든다 (`--out prof/ring_x.bin --seconds 80`,
 헤더는 `.hdr`에 같이 저장). shm 이미지를 그대로 복사한 파일도 읽는다.
 

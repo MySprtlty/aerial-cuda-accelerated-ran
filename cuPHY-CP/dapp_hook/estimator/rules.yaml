@@ -1,0 +1,94 @@
+# dapp_est rules. Every number here is a tunable; "provisional" means it has
+# not been measured yet and README.md lists where the measured value comes from.
+version: 1
+provisional: true
+
+slot_us: 500                # mu=1; the ring header's mu overrides this at run time
+sm_total: 132               # GH200
+caps_pct: [0, 20, 40, 60, 80]   # cap candidates offered to the tenant (100 is never offered)
+
+# D_c: time budget per channel from the moment the slot's GPU work can start
+# (UL: order kernel done ~T0+0.3 ms; DL: task start at tick = T0 - 1.5 ms).
+# provisional -> replace from deployment_constants.md
+deadline_us:
+  PUSCH: 2000
+  PUCCH: 1500
+  PRACH: 3000
+  SRS:   4000
+  PDSCH: 900
+  PDCCH: 900
+  SSB:   900
+  CSIRS: 900
+
+# fixed per-channel launch/setup cost added to base_c (us). provisional
+fixed_us:
+  PUSCH: 60
+  PUCCH: 30
+  PRACH: 30
+  SRS:   30
+  PDSCH: 60
+  PDCCH: 20
+  SSB:   15
+  CSIRS: 15
+
+# w_ck: microseconds of GPU time per unit of work_ck (work_formulas.py).
+# provisional -> replace with calibrate.py --write. Derived so that on the
+# reconstructed 4T4R peak pattern with 8 cells a UL slot's PUSCH comes to
+# ~400 us with ldpc ~60 % of it, and a DL slot's PDSCH to ~360 us with enc
+# ~40 % of it (checked on prof/ring_59c_8C.bin; see README, "provisional values").
+weights_us_per_work:
+  PUSCH:
+    chest: 4.3e-4      # per (rb*12*dmrs_sym*layers)
+    eq:    7.2e-5      # per (rb*12*data_sym*layers)
+    llr:   6.3e-6      # per (eq*qam)
+    ldpc:  9.5e-4      # per (num_cb*Zc)
+    uci:   8.8e-3      # per UCI bit
+  PDSCH:
+    enc:   1.13e-4     # per TB byte
+    mod:   8.9e-5      # per (rb*12*sym*layers)
+    prec:  0.078       # per (prg_bf_sum*layers)
+  PDCCH:
+    agg:   0.5         # per aggregation level unit
+    bits:  0.05        # per DCI payload bit
+  PUCCH:
+    f01:   0.3         # per format 0/1 PDU
+    f234:  2.0e-3      # per (uci_bits*prb)
+  PRACH:
+    ocas:  20.0        # per time-domain occasion
+  SRS:
+    ports: 2.0         # per (ports*symbols)
+  SSB:
+    present: 5.0       # per SSB PDU
+  CSIRS:
+    count: 3.0
+
+margin:
+  jitter_us: 30             # added to profile.kernel_max_us  (rule c). provisional
+
+gate:                       # rule d
+  known_slots: 3            # FAPI arrives slot_advance slots early: now, +1, +2 are confirmed
+  window_s: 1.0             # W: beyond the confirmed slots use the max context of the last W seconds
+  max_gate_slots: 40        # never promise more than this (20 ms at mu=1)
+
+cap:                        # rule e
+  window_s: 1.0             # T: window for the percentile context
+  percentile: 100           # p: 100 = worst slot in the window
+  raise_after: 3            # N: consecutive decisions that allow a higher cap before raising it
+  # lowering is immediate
+
+safety:                     # rule f
+  stale_after_ms: 20        # no closed context for this long -> gate 0
+  missing_context_gate: 0
+
+cell_scale_default: 1.0     # rule g, per-cell factor comes from cells.yaml
+
+live:
+  budget_us: 50             # warn when decode+decide of one slot takes longer
+  idle_sleep_us: 50         # poll interval when the ring has no new record
+
+calibrate:
+  min_r2: 0.8               # kernels fitted worse than this are reported but not written
+
+label:                      # evaluate.py: where D_c starts counting. provisional
+  ul_start_offset_us: 500   # UL GPU work can start after the slot's last symbol (T0 + 1 slot at mu=1)
+  dl_start_offset_us: 1500  # DL task starts at the tick, slot_advance slots before T0

@@ -39,6 +39,23 @@ if(TARGET CUDA::cuda_driver)
     target_link_libraries(dapp_sched PRIVATE dapp_hook CUDA::cuda_driver pthread)
     set_target_properties(dapp_sched PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     install(TARGETS dapp_sched DESTINATION ${PROJECT_NAME}/bin OPTIONAL)
+
+    # Real inference: a YOLO engine through TensorRT, one instance per SM class
+    # (sched/dapp_yolo.hpp). Optional; without TensorRT the placeholder kernel
+    # is all dapp_sched can run. Image decoding is the vendored stb_image,
+    # compiled on its own with warnings off so -Werror does not apply to it.
+    find_library(DAPP_NVINFER_LIB nvinfer)
+    find_path(DAPP_NVINFER_INC NvInfer.h PATH_SUFFIXES aarch64-linux-gnu x86_64-linux-gnu)
+    if(DAPP_NVINFER_LIB AND DAPP_NVINFER_INC AND TARGET CUDA::cudart)
+        target_sources(dapp_sched PRIVATE third_party/stb_image_impl.cpp)
+        set_source_files_properties(third_party/stb_image_impl.cpp PROPERTIES COMPILE_OPTIONS "-w")
+        target_compile_definitions(dapp_sched PRIVATE DAPP_SCHED_TENSORRT=1)
+        target_include_directories(dapp_sched PRIVATE ${DAPP_NVINFER_INC} ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+        target_link_libraries(dapp_sched PRIVATE ${DAPP_NVINFER_LIB} CUDA::cudart)
+        message(STATUS "dapp_sched: TensorRT YOLO runner enabled (${DAPP_NVINFER_LIB})")
+    else()
+        message(STATUS "dapp_sched: TensorRT not found, YOLO runner disabled")
+    endif()
 else()
     message(STATUS "dapp_sched skipped: CUDA::cuda_driver target not available")
 endif()

@@ -60,8 +60,11 @@ selected by the `grace-cross` toolchain file live there, not on the host.
 # then, inside the container:
 cmake -B build.aarch64 -S .               # reuses the cached toolchain and options
 ninja -C build.aarch64 -j $(nproc) cuphycontroller_scf \
-      dapp_ring_dump dapp_ring_fakel1 dapp_ring_selftest
+      dapp_ring_dump dapp_ring_fakel1 dapp_ring_selftest dapp_export_test dapp_sched
 ```
+
+`dapp_sched` links TensorRT (present in the container) when CMake finds
+`libnvinfer`; otherwise it builds with the placeholder kernel only.
 
 `ENABLE_DAPP_HOOK` is ON by default. The macro is attached to the `dapp_hook`
 interface target rather than added globally, so enabling or disabling it
@@ -158,10 +161,83 @@ component still runs and logs its decisions, but reports
 `SM capping=INACTIVE`; the phase4 run scripts start MPS as part of bringing the
 RAN up.
 
-The inference itself is a placeholder GPU workload. Replace `run_inference()`
-in `sched/dapp_sched_main.cpp` with the TensorRT execution call; nothing around
-it changes. Replacing the linear rule with a trained predictor means replacing
-`decide()` alone.
+Replacing the linear rule with a trained predictor means replacing `decide()`
+alone.
+
+### Real inference: YOLO through TensorRT
+
+With `--engine`, dapp_sched runs a real YOLO detector (ultralytics v8/11
+export) instead of the placeholder kernel. `sched/dapp_yolo.hpp` holds the
+TensorRT runner plus the letterbox/NMS pre- and post-processing; images are
+decoded with the vendored `third_party/stb_image.h`.
+
+TensorRT allocates in whichever CUDA context is current when an engine is
+deserialised, so dapp_sched keeps **one engine instance per SM class** (5 x
+~9 MB for yolov8n). Picking a budget is then just `cuCtxSetCurrent`; nothing
+is rebuilt or re-uploaded per request.
+
+Build the model once (weights, ONNX and engines are git-ignored):
+
+```bash
+# host: CPU-only ultralytics in a venv, exports ONNX + reference detections
+python3 -m venv ~/.venvs/dapp_yolo && ~/.venvs/dapp_yolo/bin/pip install ultralytics onnx onnxslim onnxruntime
+~/.venvs/dapp_yolo/bin/python cuPHY-CP/dapp_hook/models/export_yolo.py --model yolov8n.pt --imgsz 640
+
+# container, as root with the MPS pipe the RAN scripts use: build the engine
+# UNDER A SMALL SM CAP (see below)
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=12 c_aerial_troy \
+  /usr/src/tensorrt/bin/trtexec --onnx=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n.onnx \
+  --saveEngine=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine --fp16 --skipInference
+```
+
+**Why the cap during the build:** an engine built on the full GPU selects
+Hopper kernels that the driver refuses to launch inside a small SM partition
+(`enqueueV3: Cask convolution execution` / `Cuda Runtime (invalid argument)`);
+on the GH200 the stock engine ran at 64 SMs and above but failed at 48 and
+below. Building while the process itself is capped makes the builder time only
+kernels that work there, and the resulting engine runs in every class. TensorRT
+then warns `Using an engine plan file across different models of devices`
+because the builder saw a 16-SM device; that warning is expected.
+
+Check the C++ pre/post-processing against ultralytics and see the effect of
+the cap with a sweep (MPS must be up, i.e. the RAN scripts have run or
+`nvidia-cuda-mps-control -d` was started as root):
+
+```bash
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy \
+  /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched \
+  --engine /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
+  --image  /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/bus.jpg --sweep 30 \
+  | python3 cuPHY-CP/dapp_hook/tools/yolo_check.py cuPHY-CP/dapp_hook/models/reference_detections.json bus.jpg
+```
+
+Measured on the GH200 (yolov8n, 640x640, FP16, GPU time incl. H2D/D2H):
+
+| SM class | 16 | 32 | 48 | 64 | 96 | 132 |
+|---|---|---|---|---|---|---|
+| median ms | 1.13 | 0.97 | 0.90 | 0.86 | 0.84 | 0.83 |
+
+The detections match ultralytics' ONNX output on the sample images
+(`YOLO CHECK PASS`). yolov8n is launch-bound at this size, which is why the
+curve is flat; a larger model or batch scales more steeply, and the same
+export script produces it (`--model yolov8m.pt`).
+
+Serving on the live ring, with a socket on `/dev/shm` so host-side clients
+can reach a process inside the container:
+
+```bash
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy \
+  /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched \
+  --engine /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
+  --image  /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/bus.jpg -s /dev/shm/dapp_sched.sock --cells 1
+python3 cuPHY-CP/dapp_hook/tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock RUN            # default image
+python3 cuPHY-CP/dapp_hook/tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock RUN /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/zidane.jpg
+# OK sm=64 granted=64 pct=48.5 load=0.117 ms=0.87 pre_ms=0.0 dets=5 top=person:0.89,person:0.88,person:0.88 capped=1 reason=light uplink
+```
+
+`ms` is the GPU time of that request, `pre_ms` the CPU decode/letterbox (0
+when the image is cached), `dets`/`top` the detections. Image paths are
+resolved by the dapp_sched process, i.e. inside the container.
 
 ## Consuming it from your own process
 
@@ -208,5 +284,10 @@ inspected afterwards. On restart L1 re-initialises the same object, bumps
 | `tools/dapp_export_test.cpp` | FAPI -> record conversion test on synthetic messages |
 | `sched/dapp_sched.hpp` | load tracker and SM budget policy (no CUDA) |
 | `sched/dapp_sm_pool.hpp` | SM-capped CUDA context pool |
+| `sched/dapp_yolo.hpp` | TensorRT YOLO runner, letterbox and NMS |
 | `sched/dapp_sched_main.cpp` | scheduler process |
+| `models/export_yolo.py` | YOLO -> ONNX export plus reference detections (outputs git-ignored) |
+| `tools/yolo_check.py` | compares dapp_sched detections with the ultralytics reference |
+| `tools/dapp_sched_client.py` | socket client for dapp_sched (no `nc` needed) |
+| `third_party/stb_image.h`, `stb_image_impl.cpp` | vendored image decoder (public domain) |
 | `../scfl2adapter/lib/scf_5g_fapi/scf_5g_fapi_dapp_export.cpp` | FAPI → record conversion |

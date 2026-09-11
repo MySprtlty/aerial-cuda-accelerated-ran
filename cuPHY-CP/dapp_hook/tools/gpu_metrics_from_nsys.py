@@ -23,6 +23,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("sqlite")
     ap.add_argument("--slot-us", type=float, default=500.0)
+    ap.add_argument("--from", dest="t_from", default="", help="only samples after this UTC time, HH:MM:SS[.f] of the capture day (e.g. testMAC's first stats line)")
+    ap.add_argument("--to", dest="t_to", default="", help="only samples before this UTC time (e.g. testMAC's 'Finished running' line)")
     a = ap.parse_args()
     db = sqlite3.connect(a.sqlite)
     tables = {r[0] for r in db.execute("select name from sqlite_master where type='table'")}
@@ -39,6 +41,21 @@ def main():
     if not series:
         print("GPU_METRICS is empty")
         return 1
+    if a.t_from or a.t_to:
+        import calendar
+        epoch = db.execute("select utcEpochNs from TARGET_INFO_SESSION_START_TIME").fetchone()[0]
+        day = db.execute("select utcTime from TARGET_INFO_SESSION_START_TIME").fetchone()[0][:10]
+        y, mo, d = (int(x) for x in day.split("-"))
+        def abs_ns(hms):
+            h, m, sec = hms.split(":")
+            return int((calendar.timegm((y, mo, d, int(h), int(m), 0, 0, 0, 0)) + float(sec)) * 1e9) - epoch
+        lo = abs_ns(a.t_from) if a.t_from else -1 << 62
+        hi = abs_ns(a.t_to) if a.t_to else 1 << 62
+        series = {k: [(t, v) for t, v in s if lo <= t <= hi] for k, s in series.items()}
+        series = {k: s for k, s in series.items() if s}
+        if not series:
+            print("no samples inside --from/--to")
+            return 1
     ts_all = [t for s in series.values() for t, _ in s]
     t0, t1 = min(ts_all), max(ts_all)
     print("capture window %.3f s, %d metrics, %d samples each" % ((t1 - t0) / 1e9, len(series), len(next(iter(series.values())))))

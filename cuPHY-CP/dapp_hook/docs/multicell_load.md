@@ -77,6 +77,8 @@ nrSim으로 돌아가려면 `setup1_DU.sh … -y nrSim_SCF_CG1_90063`, `setup2_R
 | 8 | 19.9 % | 7 | 53 | 62 | 85 | 97 | 12.0 / 48 / 56 | 8.3 / 30 / 59 | 0 | 8/셀 |
 | 16 | 36.2 % | 23 | 80 | 90 | 97 | 100 | 31.0 / 70 / 81 | 16.7 / 51 / 67 | **2** | 72/셀 (0.2 %) + PDSCH payload 검증 오류 1슬롯 |
 
+![8-cell SMs Active / SM Issue](img/gpu_load_8C.png)
+
 읽는 법: SMs Active는 100 µs 창에서 warp가 상주한 SM 비율(GPU 점유), SM Issue는 실제 명령어
 발행률(연산 강도). 8셀에서 UL 슬롯은 T0+750 µs에 56 %, DL 슬롯은 20–29 %로 톱니를 그린다
 (`tools/gpu_slot_profile_from_nsys.py`). 16셀은 슬롯 평균 p90이 70 %라 YOLO에 줄 SM이 슬롯마다

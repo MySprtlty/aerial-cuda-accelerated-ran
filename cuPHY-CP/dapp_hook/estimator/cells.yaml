@@ -1,0 +1,20 @@
+# Static per-cell configuration. The estimator only uses `scale` (rule g:
+# multiplies the cell's contribution to base_c); the rest is documentation and
+# input for deriving scale when cells differ (bandwidth, antennas).
+# Lab: reconstructed 4T4R pattern 59c, cells 0..7 identical (100 MHz, mu=1, 4T4R, DDDSUUDDDD).
+default:
+  bandwidth_mhz: 100
+  mu: 1
+  tx_ant: 4
+  rx_ant: 4
+  tdd_pattern: DDDSUUDDDD
+  scale: 1.0          # provisional: 1.0 for every cell; = (bw/100)*(ant/4) if cells differ
+cells:
+  0: {}
+  1: {}
+  2: {}
+  3: {}
+  4: {}
+  5: {}
+  6: {}
+  7: {}

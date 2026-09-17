@@ -1,0 +1,16 @@
+# Tenant profile: YOLOv8n, 640x640, batch 1, TensorRT FP16, GH200.
+name: yolov8n_b1
+framework: tensorrt
+input_res: 640
+batches: [1]
+# dur_ms[batch][cap]: one inference in isolation at MPS cap (% of SMs).
+# Source: dapp_sched --sweep on 2026-09-10 (SM classes 16/32/48/64/96/132 ->
+# 1.13/0.97/0.90/0.86/0.84/0.83 ms), interpolated to cap %. status: measured
+dur_ms:
+  1: {20: 1.03, 40: 0.89, 60: 0.85, 80: 0.835, 100: 0.83}
+# sm_fill[batch][cap]: fraction of the cap the model actually keeps busy.
+# status: default (batch1 = 0.5) until profile_tenant.py --nsys fills it
+sm_fill:
+  1: {20: 0.5, 40: 0.5, 60: 0.5, 80: 0.5, 100: 0.5}
+kernel_max_us: 100        # status: default
+status: {dur_ms: measured, sm_fill: default, kernel_max_us: default}

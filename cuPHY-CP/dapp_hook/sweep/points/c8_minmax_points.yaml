@@ -1,0 +1,162 @@
+generated_from: runs/c8_scan
+stat: mean
+points:
+  c8_min:
+    _cells: 8
+    PUSCH: 67000
+    PUCCH: 63010
+    PRACH: 64000
+    SRS: 65000
+    PDSCH: 61233
+    PDCCH: 62011
+  c8_max:
+    _cells: 8
+    PUSCH: 67081
+    PUCCH: 63052
+    PRACH: 64007
+    SRS: 65014
+    PDSCH: 61214
+    PDCCH: 62004
+candidates:
+  PUSCH:
+  - point: pusch_cb03_1ue
+    tv: 67000
+    lat_us: 156.634395977932
+    n: 11238
+  - point: pusch_prb_34
+    tv: 60011
+    lat_us: 195.50702905525847
+    n: 11220
+  - point: pusch_mcs_4
+    tv: 60031
+    lat_us: 196.16280007121242
+    n: 11234
+  - point: pusch_mcs_27
+    tv: 60035
+    lat_us: 217.02990494398006
+    n: 11246
+  - point: pusch_snr_0
+    tv: 60041
+    lat_us: 237.7421105272533
+    n: 11228
+  - point: default
+    tv: 60000
+    lat_us: 238.58691755793228
+    n: 11220
+  - point: pusch_layers_4
+    tv: 60023
+    lat_us: 357.02146934968016
+    n: 11256
+  - point: pusch_prb_273
+    tv: 60014
+    lat_us: 367.7478918076581
+    n: 11230
+  - point: pusch_cb60_1ue
+    tv: 67080
+    lat_us: 411.747380415483
+    n: 11264
+  - point: pusch_cb60_4ue
+    tv: 67081
+    lat_us: 424.50972943376064
+    n: 11232
+  PUCCH:
+  - point: pucch_f1_2bit_n2
+    tv: 63010
+    lat_us: 45.476273132465685
+    n: 11218
+  - point: default
+    tv: 63000
+    lat_us: 47.72258957219252
+    n: 11220
+  - point: pucch_f2_22bit_n16
+    tv: 63032
+    lat_us: 117.33783348182465
+    n: 11224
+  - point: pucch_f3_22bit_n16
+    tv: 63052
+    lat_us: 342.7799773739533
+    n: 11226
+  PRACH:
+  - point: prach_b4_occ1_ra1
+    tv: 64000
+    lat_us: 116.9990398485395
+    n: 5546
+  - point: prach_b4_occ4_ra4
+    tv: 64003
+    lat_us: 335.8781130952381
+    n: 5544
+  - point: prach_f0_occ4_ra4
+    tv: 64007
+    lat_us: 367.32155557560446
+    n: 5542
+  SRS:
+  - point: srs_ue4_p1_s1
+    tv: 65000
+    lat_us: 149.54980086580088
+    n: 5544
+  - point: srs_ue4_p4_s4
+    tv: 65008
+    lat_us: 245.3721573924005
+    n: 5553
+  - point: srs_ue8_p2_s4
+    tv: 65014
+    lat_us: 260.0810562567616
+    n: 5546
+  PDSCH:
+  - point: pdsch_mcs_27
+    tv: 61233
+    lat_us: 45.18128611209859
+    n: 33756
+  - point: pdsch_mcs_4
+    tv: 61231
+    lat_us: 47.63839238774902
+    n: 33630
+  - point: default
+    tv: 61200
+    lat_us: 48.01305143519343
+    n: 33654
+  - point: pdsch_prb_34
+    tv: 61211
+    lat_us: 48.77670423874918
+    n: 33642
+  - point: pdsch_ue_1
+    tv: 61201
+    lat_us: 52.596448243114914
+    n: 33696
+  - point: pdsch_precoding_on
+    tv: 61242
+    lat_us: 56.43835728702879
+    n: 33690
+  - point: pdsch_layers_4
+    tv: 61223
+    lat_us: 58.10496948900773
+    n: 33660
+  - point: pdsch_ue_16
+    tv: 61204
+    lat_us: 60.33213232935306
+    n: 33666
+  - point: pdsch_prb_273
+    tv: 61214
+    lat_us: 63.39412405992776
+    n: 33774
+  PDCCH:
+  - point: pdcch_al_1
+    tv: 62011
+    lat_us: 28.633810317177474
+    n: 33672
+  - point: pdcch_dci_1
+    tv: 62001
+    lat_us: 28.975226434122327
+    n: 33714
+  - point: pdcch_al_16
+    tv: 62013
+    lat_us: 39.97170520351252
+    n: 33708
+  - point: default
+    tv: 62000
+    lat_us: 40.61258025791882
+    n: 33654
+  - point: pdcch_dci_16
+    tv: 62004
+    lat_us: 99.83596408020408
+    n: 33714

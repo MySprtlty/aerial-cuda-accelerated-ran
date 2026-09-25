@@ -1,0 +1,1970 @@
+n_tv: 318
+tvs:
+- id: 60000
+  channel: PUSCH
+  group: pusch
+  name: pusch_base
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60001
+  channel: PUSCH
+  group: pusch
+  name: pusch_nUE_1
+  params: {nUE: 1, total_prb: 136, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60002
+  channel: PUSCH
+  group: pusch
+  name: pusch_nUE_2
+  params: {nUE: 2, total_prb: 136, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60004
+  channel: PUSCH
+  group: pusch
+  name: pusch_nUE_8
+  params: {nUE: 8, total_prb: 136, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60011
+  channel: PUSCH
+  group: pusch
+  name: pusch_total_prb_34
+  params: {nUE: 4, total_prb: 34, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60012
+  channel: PUSCH
+  group: pusch
+  name: pusch_total_prb_68
+  params: {nUE: 4, total_prb: 68, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60014
+  channel: PUSCH
+  group: pusch
+  name: pusch_total_prb_273
+  params: {nUE: 4, total_prb: 273, layers: 2, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60021
+  channel: PUSCH
+  group: pusch
+  name: pusch_layers_1
+  params: {nUE: 4, total_prb: 136, layers: 1, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60023
+  channel: PUSCH
+  group: pusch
+  name: pusch_layers_4
+  params: {nUE: 4, total_prb: 136, layers: 4, mcs: 16, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60031
+  channel: PUSCH
+  group: pusch
+  name: pusch_mcs_4
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 4, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60032
+  channel: PUSCH
+  group: pusch
+  name: pusch_mcs_10
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 10, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60034
+  channel: PUSCH
+  group: pusch
+  name: pusch_mcs_22
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 22, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60035
+  channel: PUSCH
+  group: pusch
+  name: pusch_mcs_27
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 27, snr: 20, retx: none, alloc: equal}
+  note: null
+- id: 60041
+  channel: PUSCH
+  group: pusch
+  name: pusch_snr_0
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 0, retx: none, alloc: equal}
+  note: null
+- id: 60042
+  channel: PUSCH
+  group: pusch
+  name: pusch_snr_5
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 5, retx: none, alloc: equal}
+  note: null
+- id: 60043
+  channel: PUSCH
+  group: pusch
+  name: pusch_snr_10
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 10, retx: none, alloc: equal}
+  note: null
+- id: 60044
+  channel: PUSCH
+  group: pusch
+  name: pusch_snr_15
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 15, retx: none, alloc: equal}
+  note: null
+- id: 60046
+  channel: PUSCH
+  group: pusch
+  name: pusch_snr_25
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 25, retx: none, alloc: equal}
+  note: null
+- id: 60047
+  channel: PUSCH
+  group: pusch
+  name: pusch_snr_30
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 30, retx: none, alloc: equal}
+  note: null
+- id: 60052
+  channel: PUSCH
+  group: pusch
+  name: pusch_retx_one_ue_rv2
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 20, retx: one_ue_rv2, alloc: equal}
+  note: null
+- id: 60062
+  channel: PUSCH
+  group: pusch
+  name: pusch_alloc_concentrated70
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, snr: 20, retx: none, alloc: concentrated70}
+  note: null
+- id: 61200
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_base
+  params: {nUE: 8, total_prb: 136, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61201
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_nUE_1
+  params: {nUE: 1, total_prb: 136, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61202
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_nUE_4
+  params: {nUE: 4, total_prb: 136, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61204
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_nUE_16
+  params: {nUE: 16, total_prb: 136, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61211
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_total_prb_34
+  params: {nUE: 8, total_prb: 34, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61212
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_total_prb_68
+  params: {nUE: 8, total_prb: 68, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61214
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_total_prb_273
+  params: {nUE: 8, total_prb: 273, layers: 2, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61221
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_layers_1
+  params: {nUE: 8, total_prb: 136, layers: 1, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61223
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_layers_4
+  params: {nUE: 8, total_prb: 136, layers: 4, mcs: 16, precoding: 'off'}
+  note: null
+- id: 61231
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_mcs_4
+  params: {nUE: 8, total_prb: 136, layers: 2, mcs: 4, precoding: 'off'}
+  note: null
+- id: 61233
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_mcs_27
+  params: {nUE: 8, total_prb: 136, layers: 2, mcs: 27, precoding: 'off'}
+  note: null
+- id: 61242
+  channel: PDSCH
+  group: pdsch
+  name: pdsch_precoding_on
+  params: {nUE: 8, total_prb: 136, layers: 2, mcs: 16, precoding: 'on'}
+  note: null
+- id: 62000
+  channel: PDCCH
+  group: pdcch
+  name: pdcch_base
+  params: {nDCI: 4, AL: 4}
+  note: null
+- id: 62001
+  channel: PDCCH
+  group: pdcch
+  name: pdcch_nDCI_1
+  params: {nDCI: 1, AL: 4}
+  note: null
+- id: 62003
+  channel: PDCCH
+  group: pdcch
+  name: pdcch_nDCI_8
+  params: {nDCI: 8, AL: 4}
+  note: null
+- id: 62004
+  channel: PDCCH
+  group: pdcch
+  name: pdcch_nDCI_16
+  params: {nDCI: 16, AL: 4}
+  note: null
+- id: 62011
+  channel: PDCCH
+  group: pdcch
+  name: pdcch_AL_1
+  params: {nDCI: 4, AL: 1}
+  note: null
+- id: 62013
+  channel: PDCCH
+  group: pdcch
+  name: pdcch_AL_16
+  params: {nDCI: 4, AL: 16}
+  note: null
+- id: 63000
+  channel: PUCCH
+  group: pucch
+  name: pucch_base
+  params: {format: F1, bits: 2, count: 4}
+  note: null
+- id: 63010
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF1_2_count2
+  params: {fmt_bits: F1_2, count: 2}
+  note: null
+- id: 63011
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF1_2_count8
+  params: {fmt_bits: F1_2, count: 8}
+  note: null
+- id: 63012
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF1_2_count16
+  params: {fmt_bits: F1_2, count: 16}
+  note: null
+- id: 63020
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF2_11_count2
+  params: {fmt_bits: F2_11, count: 2}
+  note: null
+- id: 63021
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF2_11_count8
+  params: {fmt_bits: F2_11, count: 8}
+  note: null
+- id: 63022
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF2_11_count16
+  params: {fmt_bits: F2_11, count: 16}
+  note: null
+- id: 63030
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF2_22_count2
+  params: {fmt_bits: F2_22, count: 2}
+  note: null
+- id: 63031
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF2_22_count8
+  params: {fmt_bits: F2_22, count: 8}
+  note: null
+- id: 63032
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF2_22_count16
+  params: {fmt_bits: F2_22, count: 16}
+  note: null
+- id: 63040
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF3_11_count2
+  params: {fmt_bits: F3_11, count: 2}
+  note: null
+- id: 63041
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF3_11_count8
+  params: {fmt_bits: F3_11, count: 8}
+  note: null
+- id: 63042
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF3_11_count16
+  params: {fmt_bits: F3_11, count: 16}
+  note: null
+- id: 63050
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF3_22_count2
+  params: {fmt_bits: F3_22, count: 2}
+  note: null
+- id: 63051
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF3_22_count8
+  params: {fmt_bits: F3_22, count: 8}
+  note: null
+- id: 63052
+  channel: PUCCH
+  group: pucch
+  name: pucch_fmt_bitsF3_22_count16
+  params: {fmt_bits: F3_22, count: 16}
+  note: null
+- id: 64000
+  channel: PRACH
+  group: prach
+  name: prach_formatB4_fdm1_preambles1
+  params: {format: B4, fdm: 1, preambles: 1}
+  note: null
+- id: 64001
+  channel: PRACH
+  group: prach
+  name: prach_formatB4_fdm1_preambles4
+  params: {format: B4, fdm: 1, preambles: 4}
+  note: null
+- id: 64002
+  channel: PRACH
+  group: prach
+  name: prach_formatB4_fdm4_preambles1
+  params: {format: B4, fdm: 4, preambles: 1}
+  note: null
+- id: 64003
+  channel: PRACH
+  group: prach
+  name: prach_formatB4_fdm4_preambles4
+  params: {format: B4, fdm: 4, preambles: 4}
+  note: null
+- id: 64004
+  channel: PRACH
+  group: prach
+  name: prach_format0_fdm1_preambles1
+  params: {format: '0', fdm: 1, preambles: 1}
+  note: null
+- id: 64005
+  channel: PRACH
+  group: prach
+  name: prach_format0_fdm1_preambles4
+  params: {format: '0', fdm: 1, preambles: 4}
+  note: null
+- id: 64006
+  channel: PRACH
+  group: prach
+  name: prach_format0_fdm4_preambles1
+  params: {format: '0', fdm: 4, preambles: 1}
+  note: null
+- id: 64007
+  channel: PRACH
+  group: prach
+  name: prach_format0_fdm4_preambles4
+  params: {format: '0', fdm: 4, preambles: 4}
+  note: null
+- id: 65000
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports1_symbols1
+  params: {nUE: 4, ports: 1, symbols: 1}
+  note: null
+- id: 65001
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports1_symbols2
+  params: {nUE: 4, ports: 1, symbols: 2}
+  note: null
+- id: 65002
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports1_symbols4
+  params: {nUE: 4, ports: 1, symbols: 4}
+  note: null
+- id: 65003
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports2_symbols1
+  params: {nUE: 4, ports: 2, symbols: 1}
+  note: null
+- id: 65004
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports2_symbols2
+  params: {nUE: 4, ports: 2, symbols: 2}
+  note: null
+- id: 65005
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports2_symbols4
+  params: {nUE: 4, ports: 2, symbols: 4}
+  note: null
+- id: 65006
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports4_symbols1
+  params: {nUE: 4, ports: 4, symbols: 1}
+  note: null
+- id: 65007
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports4_symbols2
+  params: {nUE: 4, ports: 4, symbols: 2}
+  note: null
+- id: 65008
+  channel: SRS
+  group: srs
+  name: srs_nUE4_ports4_symbols4
+  params: {nUE: 4, ports: 4, symbols: 4}
+  note: null
+- id: 65009
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports1_symbols1
+  params: {nUE: 8, ports: 1, symbols: 1}
+  note: null
+- id: 65010
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports1_symbols2
+  params: {nUE: 8, ports: 1, symbols: 2}
+  note: null
+- id: 65011
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports1_symbols4
+  params: {nUE: 8, ports: 1, symbols: 4}
+  note: null
+- id: 65012
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports2_symbols1
+  params: {nUE: 8, ports: 2, symbols: 1}
+  note: null
+- id: 65013
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports2_symbols2
+  params: {nUE: 8, ports: 2, symbols: 2}
+  note: null
+- id: 65014
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports2_symbols4
+  params: {nUE: 8, ports: 2, symbols: 4}
+  note: null
+- id: 65015
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports4_symbols1
+  params: {nUE: 8, ports: 4, symbols: 1}
+  note: null
+- id: 65016
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports4_symbols2
+  params: {nUE: 8, ports: 4, symbols: 2}
+  note: null
+- id: 65017
+  channel: SRS
+  group: srs
+  name: srs_nUE8_ports4_symbols4
+  params: {nUE: 8, ports: 4, symbols: 4}
+  note: null
+- id: 66000
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 0}
+  note: null
+- id: 66001
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 5}
+  note: null
+- id: 66002
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 10}
+  note: null
+- id: 66003
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 15}
+  note: null
+- id: 66004
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 20}
+  note: null
+- id: 66005
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 25}
+  note: null
+- id: 66006
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs0_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 0, snr: 30}
+  note: null
+- id: 66010
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 0}
+  note: null
+- id: 66011
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 5}
+  note: null
+- id: 66012
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 10}
+  note: null
+- id: 66013
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 15}
+  note: null
+- id: 66014
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 20}
+  note: null
+- id: 66015
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 25}
+  note: null
+- id: 66016
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs1_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 1, snr: 30}
+  note: null
+- id: 66020
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 0}
+  note: null
+- id: 66021
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 5}
+  note: null
+- id: 66022
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 10}
+  note: null
+- id: 66023
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 15}
+  note: null
+- id: 66024
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 20}
+  note: null
+- id: 66025
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 25}
+  note: null
+- id: 66026
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs2_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 2, snr: 30}
+  note: null
+- id: 66030
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 0}
+  note: null
+- id: 66031
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 5}
+  note: null
+- id: 66032
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 10}
+  note: null
+- id: 66033
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 15}
+  note: null
+- id: 66034
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 20}
+  note: null
+- id: 66035
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 25}
+  note: null
+- id: 66036
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs3_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 3, snr: 30}
+  note: null
+- id: 66040
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 0}
+  note: null
+- id: 66041
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 5}
+  note: null
+- id: 66042
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 10}
+  note: null
+- id: 66043
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 15}
+  note: null
+- id: 66044
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 20}
+  note: null
+- id: 66045
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 25}
+  note: null
+- id: 66046
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs4_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 4, snr: 30}
+  note: null
+- id: 66050
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 0}
+  note: null
+- id: 66051
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 5}
+  note: null
+- id: 66052
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 10}
+  note: null
+- id: 66053
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 15}
+  note: null
+- id: 66054
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 20}
+  note: null
+- id: 66055
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 25}
+  note: null
+- id: 66056
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs5_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 5, snr: 30}
+  note: null
+- id: 66060
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 0}
+  note: null
+- id: 66061
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 5}
+  note: null
+- id: 66062
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 10}
+  note: null
+- id: 66063
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 15}
+  note: null
+- id: 66064
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 20}
+  note: null
+- id: 66065
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 25}
+  note: null
+- id: 66066
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs6_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 6, snr: 30}
+  note: null
+- id: 66070
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 0}
+  note: null
+- id: 66071
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 5}
+  note: null
+- id: 66072
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 10}
+  note: null
+- id: 66073
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 15}
+  note: null
+- id: 66074
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 20}
+  note: null
+- id: 66075
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 25}
+  note: null
+- id: 66076
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs7_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 7, snr: 30}
+  note: null
+- id: 66080
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 0}
+  note: null
+- id: 66081
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 5}
+  note: null
+- id: 66082
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 10}
+  note: null
+- id: 66083
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 15}
+  note: null
+- id: 66084
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 20}
+  note: null
+- id: 66085
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 25}
+  note: null
+- id: 66086
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs8_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 8, snr: 30}
+  note: null
+- id: 66090
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 0}
+  note: null
+- id: 66091
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 5}
+  note: null
+- id: 66092
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 10}
+  note: null
+- id: 66093
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 15}
+  note: null
+- id: 66094
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 20}
+  note: null
+- id: 66095
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 25}
+  note: null
+- id: 66096
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs9_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 9, snr: 30}
+  note: null
+- id: 66100
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 0}
+  note: null
+- id: 66101
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 5}
+  note: null
+- id: 66102
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 10}
+  note: null
+- id: 66103
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 15}
+  note: null
+- id: 66104
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 20}
+  note: null
+- id: 66105
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 25}
+  note: null
+- id: 66106
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs10_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 10, snr: 30}
+  note: null
+- id: 66110
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 0}
+  note: null
+- id: 66111
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 5}
+  note: null
+- id: 66112
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 10}
+  note: null
+- id: 66113
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 15}
+  note: null
+- id: 66114
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 20}
+  note: null
+- id: 66115
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 25}
+  note: null
+- id: 66116
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs11_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 11, snr: 30}
+  note: null
+- id: 66120
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 0}
+  note: null
+- id: 66121
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 5}
+  note: null
+- id: 66122
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 10}
+  note: null
+- id: 66123
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 15}
+  note: null
+- id: 66124
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 20}
+  note: null
+- id: 66125
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 25}
+  note: null
+- id: 66126
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs12_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 12, snr: 30}
+  note: null
+- id: 66130
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 0}
+  note: null
+- id: 66131
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 5}
+  note: null
+- id: 66132
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 10}
+  note: null
+- id: 66133
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 15}
+  note: null
+- id: 66134
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 20}
+  note: null
+- id: 66135
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 25}
+  note: null
+- id: 66136
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs13_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 13, snr: 30}
+  note: null
+- id: 66140
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 0}
+  note: null
+- id: 66141
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 5}
+  note: null
+- id: 66142
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 10}
+  note: null
+- id: 66143
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 15}
+  note: null
+- id: 66144
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 20}
+  note: null
+- id: 66145
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 25}
+  note: null
+- id: 66146
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs14_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 14, snr: 30}
+  note: null
+- id: 66150
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 0}
+  note: null
+- id: 66151
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 5}
+  note: null
+- id: 66152
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 10}
+  note: null
+- id: 66153
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 15}
+  note: null
+- id: 66154
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 20}
+  note: null
+- id: 66155
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 25}
+  note: null
+- id: 66156
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs15_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 15, snr: 30}
+  note: null
+- id: 66160
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 0}
+  note: null
+- id: 66161
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 5}
+  note: null
+- id: 66162
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 10}
+  note: null
+- id: 66163
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 15}
+  note: null
+- id: 66164
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 20}
+  note: null
+- id: 66165
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 25}
+  note: null
+- id: 66166
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs16_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 16, snr: 30}
+  note: null
+- id: 66170
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 0}
+  note: null
+- id: 66171
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 5}
+  note: null
+- id: 66172
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 10}
+  note: null
+- id: 66173
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 15}
+  note: null
+- id: 66174
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 20}
+  note: null
+- id: 66175
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 25}
+  note: null
+- id: 66176
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs17_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 17, snr: 30}
+  note: null
+- id: 66180
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 0}
+  note: null
+- id: 66181
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 5}
+  note: null
+- id: 66182
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 10}
+  note: null
+- id: 66183
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 15}
+  note: null
+- id: 66184
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 20}
+  note: null
+- id: 66185
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 25}
+  note: null
+- id: 66186
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs18_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 18, snr: 30}
+  note: null
+- id: 66190
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 0}
+  note: null
+- id: 66191
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 5}
+  note: null
+- id: 66192
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 10}
+  note: null
+- id: 66193
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 15}
+  note: null
+- id: 66194
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 20}
+  note: null
+- id: 66195
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 25}
+  note: null
+- id: 66196
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs19_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 19, snr: 30}
+  note: null
+- id: 66200
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 0}
+  note: null
+- id: 66201
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 5}
+  note: null
+- id: 66202
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 10}
+  note: null
+- id: 66203
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 15}
+  note: null
+- id: 66204
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 20}
+  note: null
+- id: 66205
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 25}
+  note: null
+- id: 66206
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs20_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 20, snr: 30}
+  note: null
+- id: 66210
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 0}
+  note: null
+- id: 66211
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 5}
+  note: null
+- id: 66212
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 10}
+  note: null
+- id: 66213
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 15}
+  note: null
+- id: 66214
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 20}
+  note: null
+- id: 66215
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 25}
+  note: null
+- id: 66216
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs21_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 21, snr: 30}
+  note: null
+- id: 66220
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 0}
+  note: null
+- id: 66221
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 5}
+  note: null
+- id: 66222
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 10}
+  note: null
+- id: 66223
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 15}
+  note: null
+- id: 66224
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 20}
+  note: null
+- id: 66225
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 25}
+  note: null
+- id: 66226
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs22_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 22, snr: 30}
+  note: null
+- id: 66230
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 0}
+  note: null
+- id: 66231
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 5}
+  note: null
+- id: 66232
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 10}
+  note: null
+- id: 66233
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 15}
+  note: null
+- id: 66234
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 20}
+  note: null
+- id: 66235
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 25}
+  note: null
+- id: 66236
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs23_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 23, snr: 30}
+  note: null
+- id: 66240
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 0}
+  note: null
+- id: 66241
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 5}
+  note: null
+- id: 66242
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 10}
+  note: null
+- id: 66243
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 15}
+  note: null
+- id: 66244
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 20}
+  note: null
+- id: 66245
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 25}
+  note: null
+- id: 66246
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs24_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 24, snr: 30}
+  note: null
+- id: 66250
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 0}
+  note: null
+- id: 66251
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 5}
+  note: null
+- id: 66252
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 10}
+  note: null
+- id: 66253
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 15}
+  note: null
+- id: 66254
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 20}
+  note: null
+- id: 66255
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 25}
+  note: null
+- id: 66256
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs25_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 25, snr: 30}
+  note: null
+- id: 66260
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 0}
+  note: null
+- id: 66261
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 5}
+  note: null
+- id: 66262
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 10}
+  note: null
+- id: 66263
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 15}
+  note: null
+- id: 66264
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 20}
+  note: null
+- id: 66265
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 25}
+  note: null
+- id: 66266
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs26_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 26, snr: 30}
+  note: null
+- id: 66270
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr0
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 0}
+  note: null
+- id: 66271
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr5
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 5}
+  note: null
+- id: 66272
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr10
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 10}
+  note: null
+- id: 66273
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr15
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 15}
+  note: null
+- id: 66274
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr20
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 20}
+  note: null
+- id: 66275
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr25
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 25}
+  note: null
+- id: 66276
+  channel: PUSCH
+  group: grid_mcs_snr
+  name: grid_mcs_snr_mcs27_snr30
+  params: {nUE: 1, total_prb: 136, layers: 2, retx: none, alloc: equal, mcs: 27, snr: 30}
+  note: null
+- id: 67000
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb3_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 3, spread: ue1}
+  note: null
+- id: 67001
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb3_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 3, spread: ue4}
+  note: null
+- id: 67010
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb6_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 6, spread: ue1}
+  note: null
+- id: 67011
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb6_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 6, spread: ue4}
+  note: null
+- id: 67020
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb10_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 10, spread: ue1}
+  note: null
+- id: 67021
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb10_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 10, spread: ue4}
+  note: null
+- id: 67030
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb15_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 15, spread: ue1}
+  note: null
+- id: 67031
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb15_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 15, spread: ue4}
+  note: null
+- id: 67040
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb20_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 20, spread: ue1}
+  note: null
+- id: 67041
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb20_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 20, spread: ue4}
+  note: null
+- id: 67050
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb30_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 30, spread: ue1}
+  note: null
+- id: 67051
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb30_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 30, spread: ue4}
+  note: null
+- id: 67060
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb40_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 40, spread: ue1}
+  note: null
+- id: 67061
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb40_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 40, spread: ue4}
+  note: null
+- id: 67070
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb50_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 50, spread: ue1}
+  note: null
+- id: 67071
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb50_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 50, spread: ue4}
+  note: null
+- id: 67080
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb60_spreadue1
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 60, spread: ue1}
+  note: null
+- id: 67081
+  channel: PUSCH
+  group: grid_cb
+  name: grid_cb_nCb60_spreadue4
+  params: {mcs: 16, snr: 20, layers: 2, retx: none, nCb: 60, spread: ue4}
+  note: null
+- id: 68000
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue1_prb34_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, retx: none, alloc: equal, nUE: 1, total_prb: 34}
+  note: min
+- id: 68001
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue2_prb68_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, retx: none, alloc: equal, nUE: 2, total_prb: 68}
+  note: null
+- id: 68002
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue4_prb136_l4_mcs27_snr30
+  params:
+    layers: 4
+    mcs: 27
+    snr: 30
+    retx: none
+    alloc: equal
+    nUE: 4
+    total_prb: 136
+    snr_fallback: [35, 40]
+  note: null
+- id: 68003
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue6_prb204_l4_mcs27_snr30
+  params:
+    layers: 4
+    mcs: 27
+    snr: 30
+    retx: none
+    alloc: equal
+    nUE: 6
+    total_prb: 204
+    snr_fallback: [35, 40]
+  note: null
+- id: 68004
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue8_prb272_l4_mcs27_snr30
+  params:
+    layers: 4
+    mcs: 27
+    snr: 30
+    retx: none
+    alloc: equal
+    nUE: 8
+    total_prb: 272
+    snr_fallback: [35, 40]
+  note: peak
+- id: 68005
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue1_prb273_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, retx: none, alloc: equal, nUE: 1, total_prb: 273}
+  note: peak_1ue
+- id: 68006
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue4_prb272_l4_mcs27_snr30
+  params:
+    layers: 4
+    mcs: 27
+    snr: 30
+    retx: none
+    alloc: equal
+    nUE: 4
+    total_prb: 272
+    snr_fallback: [35, 40]
+  note: peak_4ue
+- id: 68007
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue8_prb272_l4_mcs27_snr30_uci8h22c
+  params:
+    layers: 4
+    mcs: 27
+    snr: 30
+    retx: none
+    alloc: equal
+    nUE: 8
+    total_prb: 272
+    uci: {harq_bits: 8, csi1_bits: 22, csi2_bits: 0}
+    snr_fallback: [35, 40]
+  note: peak_uci
+- id: 68008
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue8_prb272_l2_mcs27_snr30
+  params: {layers: 2, mcs: 27, snr: 30, retx: none, alloc: equal, nUE: 8, total_prb: 272}
+  note: peak_2l
+- id: 68009
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue8_prb272_l4_mcs27_snr20
+  params: {layers: 4, mcs: 27, snr: 20, retx: none, alloc: equal, nUE: 8, total_prb: 272, allow_crc_fail: true}
+  note: peak_snr20
+- id: 68010
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue4_prb136_l4_mcs27_snr35_keptfrom68002
+  params: {layers: 4, mcs: 27, snr: 35, retx: none, alloc: equal, nUE: 4, total_prb: 136, no_retry: true, copy_of: 68002}
+  note: kept_snr35
+- id: 68011
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue6_prb204_l4_mcs27_snr35_keptfrom68003
+  params: {layers: 4, mcs: 27, snr: 35, retx: none, alloc: equal, nUE: 6, total_prb: 204, no_retry: true, copy_of: 68003}
+  note: kept_snr35
+- id: 68012
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue8_prb272_l4_mcs27_snr35_keptfrom68004
+  params: {layers: 4, mcs: 27, snr: 35, retx: none, alloc: equal, nUE: 8, total_prb: 272, no_retry: true, copy_of: 68004}
+  note: kept_snr35
+- id: 68013
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue4_prb272_l4_mcs27_snr35_keptfrom68006
+  params: {layers: 4, mcs: 27, snr: 35, retx: none, alloc: equal, nUE: 4, total_prb: 272, no_retry: true, copy_of: 68006}
+  note: kept_snr35
+- id: 68014
+  channel: PUSCH
+  group: ladder_pusch
+  name: ladder_pusch_ue8_prb272_l4_mcs27_snr35_uci8h22c_keptfrom68007
+  params:
+    layers: 4
+    mcs: 27
+    snr: 35
+    retx: none
+    alloc: equal
+    nUE: 8
+    total_prb: 272
+    uci: {harq_bits: 8, csi1_bits: 22, csi2_bits: 0}
+    no_retry: true
+    copy_of: 68007
+  note: kept_snr35
+- id: 68100
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue1_prb34_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 1, total_prb: 34}
+  note: min
+- id: 68101
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue2_prb68_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 2, total_prb: 68}
+  note: null
+- id: 68102
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue4_prb136_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 4, total_prb: 136}
+  note: null
+- id: 68103
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue6_prb204_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 6, total_prb: 204}
+  note: null
+- id: 68104
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue8_prb272_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 8, total_prb: 272}
+  note: peak
+- id: 68105
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue16_prb272_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 16, total_prb: 272}
+  note: peak_16ue
+- id: 68106
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue8_prb272_l4_mcs27_snr30_prcdper_ue
+  params:
+    layers: 4
+    mcs: 27
+    snr: 30
+    precoding: per_ue
+    alloc: equal
+    nUE: 8
+    total_prb: 272
+    pm_cycle: [11, 12]
+    prg_request: 2
+  note: peak_prcd
+- id: 68107
+  channel: PDSCH
+  group: ladder_pdsch
+  name: ladder_pdsch_ue1_prb273_l4_mcs27_snr30
+  params: {layers: 4, mcs: 27, snr: 30, precoding: 'off', alloc: equal, nUE: 1, total_prb: 273}
+  note: peak_1ue

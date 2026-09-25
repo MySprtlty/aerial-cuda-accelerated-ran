@@ -28,3 +28,16 @@ cuPHY-CP/dapp_hook/models/*
 
 # dapp_est replay/live outputs
 cuPHY-CP/dapp_hook/estimator/out/
+
+# dapp_hook sweep harness: run outputs (nsys traces, tens of GB), TV library index, delivered TV packages
+cuPHY-CP/dapp_hook/sweep/runs/
+cuPHY-CP/dapp_hook/sweep/tv_index*.csv
+cuPHY-CP/dapp_hook/sweep/tv_index.log
+cuPHY-CP/dapp_hook/sweep/__pycache__/
+testVectors/GPU_test_input/
+testVectors/*.bak_*
+testVectors/TVnr_6[0-8][0-9][0-9][0-9]_gNB_FAPI_s*.h5
+/sweep_tvs_*.tgz
+/ladder_tvs_*.tgz
+/ladder_tvs_*/
+!cuPHY-CP/dapp_hook/models/build_engines.sh

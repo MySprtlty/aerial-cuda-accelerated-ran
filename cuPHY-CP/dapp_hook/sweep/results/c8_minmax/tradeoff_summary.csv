@@ -1,0 +1,3 @@
+tenant,batch,stat,safe_cap_lowest,safe_cap_highest,static_safe_cap,load_with_headroom,fps_static_cap,fps_load_aware,gain_pct
+yolo26n,1,p99_99,100,100,100,lowest,709.9,709.9,0.0
+yolo26x,1,p99_99,100,100,100,lowest,308.5,308.5,0.0

@@ -104,13 +104,17 @@ def make_run(m, prof, pname, pdef, tenant, cap, batch, prio, rep):
     tdef = dict(m["tenants"][tenant])
     ten = {"name": tenant}
     if tenant != "none":
-        ten.update(engine=tdef["engine_template"].format(batch=batch, cap=cap), batch=batch, cap_pct=cap, priority=prio)
+        tmpl = p.get("engine_template") or tdef["engine_template"]      # a profile may name its own engines (MIG)
+        ten.update(engine=tmpl.format(tenant=tenant, batch=batch, cap=cap), batch=batch, cap_pct=cap, priority=prio)
+    bench = dict(c["bench"])
+    for k, v in (p.get("bench") or {}).items():                      # profile overrides, e.g. the SM list for a 64-SM MIG instance
+        bench[k] = dict(bench.get(k, {}), **v) if isinstance(v, dict) else v
     run_id = "%s__%s" % (pname, "none%d" % rep if tenant == "none" else "%s_cap%03d_b%d_p%d" % (tenant, cap, batch, prio))
     spec = {"run_id": run_id, "profile": prof, "point_name": pname, "runner": c["runner"],
             "point": {"cells": cells, "cell_skew": skew, "channels": chans, "light_channels": c.get("light_channels", {}), "meta": meta},
             "tenant": ten, "tenant_cores": c.get("tenant_cores", "48-51"),
             "duration_s": p.get("duration_s", c["duration_s"]), "warmup_s": p.get("warmup_s", c["warmup_s"]),
-            "nsys_window_s": p.get("nsys_window_s", c["nsys_window_s"]), "bench": c["bench"], "_order": (list(m["points"]).index(pname) if pname in m["points"] else 1000, cap, batch, prio, rep)}
+            "nsys_window_s": p.get("nsys_window_s", c["nsys_window_s"]), "bench": bench, "mig": p.get("mig"), "_order": (list(m["points"]).index(pname) if pname in m["points"] else 1000, cap, batch, prio, rep)}
     # TV availability
     missing = [(ch, tv) for ch, tv in chans.items() if tv and R.tv_file(tv) is None]
     if missing:

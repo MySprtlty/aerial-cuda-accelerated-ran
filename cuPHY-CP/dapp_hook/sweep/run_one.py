@@ -38,6 +38,10 @@ MODELS_DIR = R.CONTAINER_ROOT + "/cuPHY-CP/dapp_hook/models"
 SWEEP_DIR = R.CONTAINER_ROOT + "/cuPHY-CP/dapp_hook/sweep"
 
 
+# environment of every docker exec; main() points the MPS pipe at the RAN instance's daemon when the spec has a `mig` block
+BASE_ENV = {"CUDA_MPS_PIPE_DIRECTORY": "/var", "CUDA_DEVICE_MAX_CONNECTIONS": "8"}
+
+
 def sh(cmd, **kw):
     return subprocess.run(cmd, shell=True, capture_output=True, text=True, **kw)
 
@@ -46,9 +50,12 @@ def dexec(cmd, env=None, user="root", detach=False, stdout=None):
     args = ["docker", "exec"]
     if detach:
         args.append("-d")
-    args += ["-u", user, "-e", "CUDA_MPS_PIPE_DIRECTORY=/var", "-e", "CUDA_DEVICE_MAX_CONNECTIONS=8"]
-    for k, v in (env or {}).items():
-        args += ["-e", "%s=%s" % (k, v)]
+    full_env = dict(BASE_ENV)
+    full_env.update(env or {})
+    args += ["-u", user]
+    for k, v in full_env.items():
+        if v is not None:
+            args += ["-e", "%s=%s" % (k, v)]
     args += [CONTAINER, "bash", "-lc", cmd]
     if detach:
         return subprocess.run(args, capture_output=True, text=True)
@@ -59,6 +66,7 @@ def gpu_snapshot():
     q = "name,driver_version,clocks.sm,clocks.mem,clocks.max.sm,power.limit,temperature.gpu,memory.used,compute_mode,mig.mode.current"
     r = sh("nvidia-smi --query-gpu=%s --format=csv,noheader" % q)
     out = {"nvidia_smi": r.stdout.strip()}
+    out["devices"] = sh("nvidia-smi -L").stdout.strip().splitlines()
     r = dexec("echo get_default_active_thread_percentage | nvidia-cuda-mps-control; echo get_server_list | nvidia-cuda-mps-control; echo get_default_client_priority | nvidia-cuda-mps-control")
     out["mps"] = r.stdout.split()
     out["mps_daemon_running"] = bool(sh("pgrep -x nvidia-cuda-mps-control").stdout.strip())
@@ -73,6 +81,9 @@ def main():
     ap.add_argument("--no-collect", action="store_true")
     a = ap.parse_args()
     spec = yaml.safe_load(open(a.spec))
+    mig = spec.get("mig") or {}
+    if mig:     # the bench (and the MPS queries) talk to the MPS daemon that was started inside the RAN MIG instance
+        BASE_ENV["CUDA_MPS_PIPE_DIRECTORY"] = mig["ran"]["mps_pipe"]
     run_dir = os.path.abspath(a.out)
     os.makedirs(run_dir, exist_ok=True)
     yaml.safe_dump(spec, open(os.path.join(run_dir, "spec.yaml"), "w"), sort_keys=False)
@@ -119,6 +130,8 @@ def main():
                 env["CUDA_MPS_ACTIVE_THREAD_PERCENTAGE"] = str(cap)
             if int(tenant.get("priority", 0)):
                 env["CUDA_MPS_CLIENT_PRIORITY"] = "1"
+            if mig:     # the tenant owns its MIG instance: direct CUDA on that device, no MPS daemon, no cap
+                env = {"CUDA_VISIBLE_DEVICES": mig["tenant"]["uuid"], "CUDA_MPS_PIPE_DIRECTORY": "/var/mig_tenant_no_mps"}
             cores = spec.get("tenant_cores", "48-51")
             wcmd = ("cd %s && taskset -c %s python3 %s/yolo_worker.py --engine %s/%s --input %s/bus_640.npy --batch %d "
                     "--log %s/worker.csv --ready %s --seconds %d > %s/worker.out 2>&1" % (
@@ -147,6 +160,10 @@ def main():
         win = int(spec.get("nsys_window_s", 60))
         nsys = ("nsys profile -t cuda --cuda-graph-trace=node --sample=none --cpuctxsw=none --duration=%d --kill=none "
                 "-o %s/nsys_trace --force-overwrite true " % (win, R.to_container(run_dir))) if win > 0 else ""
+        if nsys and mig.get("nsys_directives"):
+            # with MIG on, nsys counts the MIG devices as GPUs, fails its Grace (TH500) platform check and exits with
+            # "Unexpected TH500 socket configuration"; the directive states the real configuration (1 CPU + 1 GPU)
+            nsys = "NSYS_CONFIG_DIRECTIVES='%s' %s" % (mig["nsys_directives"], nsys)
         # nsys returns when its --duration window ends (--kill=none leaves the bench running), so wait for the
         # bench process itself before declaring the run finished; a leftover bench would contaminate the next run.
         cdir = R.to_container(run_dir)

@@ -87,6 +87,36 @@ x = cuPHY 옆에서의 YOLO 처리량(img/s), y = budget에 가장 가까운 채
 `plots/minmax_latency_isolation.png`이 "부하 최소 vs 최대에서 채널별 파이프라인 latency"(막대 = 평균, 수염 = p99.99, 점선 = NVIDIA budget),
 `minmax_latency_tenants.png`이 세입자·cap별 p99 증가율, `minmax_latency.csv`가 원본 숫자다.
 
+### 16셀 MIG 분할 (2026-09-28, `c16_mig`: cuPHY = 4g.48gb 64 SM, 세입자 = 3g.48gb 60 SM)
+MIG 전환·복구는 GPU 위에 프로세스가 없어야 하고 서버의 다른 사용자에게 영향을 주므로 사람이 직접 한다(컨테이너 안 root).
+```bash
+echo quit | nvidia-cuda-mps-control                 # 기존 MPS 데몬(CUDA_MPS_PIPE_DIRECTORY=/var) 종료
+nvidia-smi -i 0 -mig 1 && nvidia-smi mig -cgi 4g.48gb,3g.48gb -C && nvidia-smi -L     # UUID를 matrix.yaml `mig:`에 적는다(재생성하면 바뀜)
+# 4g 인스턴스 전용 MPS 데몬: CUDA_VISIBLE_DEVICES=<4g UUID> CUDA_MPS_PIPE_DIRECTORY=/var/mig_ran CUDA_MPS_LOG_DIRECTORY=/var/mig_ran nvidia-cuda-mps-control -d
+bash ../models/build_engines_mig.sh <3g UUID>      # 세입자 엔진 4개(모델 2 x 배치 2), 약 22분
+python3 sweep.py --profile c16_mig --out runs/c16_mig --points-file points/c16_points.yaml          # 16런, 약 40분
+python3 sweep.py --profile c16_mig_ladder --out runs/c16_mig_ladder --points-file points/c16_points.yaml   # L2, L3 (세입자 없음)
+python3 sweep.py --profile c16_mig_split --out runs/c16_mig_split --points-file points/c16_points.yaml     # 64 SM의 다른 배분
+python3 mig_report.py --runs runs/c16_mig --out results/c16_mig --ref results/c16_capgrid/capgrid_latency.csv
+```
+- nsys 2025.3.1은 MIG가 켜지면 "Unexpected TH500 socket configuration"으로 시작하지 못한다(MIG 장치를 GPU 개수로 세어 Grace 플랫폼 판별 실패). `NSYS_CONFIG_DIRECTIVES=LinuxPerfTH500Config=1`로 해결하며 프로파일의 `mig.nsys_directives`가 넣어 준다.
+- 기준을 넘어도 p99는 측정된다: 벤치에는 deadline 초과 시 중단·폐기가 없다(그건 실제 L1 cuphydriver의 동작). `mig_validation.csv`가 런마다 종료 코드, 컨텍스트→채널 매핑, 표본 완전성(채널 간 비율과 창 길이 대비)을 확인한다. 18런 모두 통과, 완전성 0.9989 이상.
+- 64 SM 안에서 실제로 부여된 SM(요청 2,5,2,49,48,8): PRACH 8, PDCCH 8, PUCCH 8, PDSCH 50, PUSCH 48, SRS 8.
+
+결과(p99 / deadline, 세입자 없음; 세입자가 있어도 1 % 이내로 같다):
+
+| 부하 | PUSCH | PUCCH | PRACH | SRS | PDSCH | PDCCH |
+|---|---|---|---|---|---|---|
+| MIG 4g, L1(최저) | 332 us (22 %) | 113 (8 %) | 202 (16 %) | 532 (106 %) | 54 (14 %) | 74 (20 %) |
+| MIG 4g, L4(최고) | 2319 (155 %) | 113 (8 %) | 249 (20 %) | 572 (114 %) | 370 (99 %) | 136 (36 %) |
+| 공유 GPU 132 SM, L1 | 237 (16 %) | 115 (8 %) | 245 (20 %) | 286 (57 %) | 51 (14 %) | 71 (19 %) |
+| 공유 GPU 132 SM, L4 | 1013 (68 %) | 131 (9 %) | 306 (24 %) | 285 (57 %) | 215 (57 %) | 147 (39 %) |
+
+- 격리: 세입자(26n/26x, 배치 1/8)를 3g에서 돌려도 cuPHY p99는 변하지 않고(x0.999~1.011), 세입자도 cuPHY의 영향을 받지 않는다(26x b8 p50 12.86 ms, 단독 12.85 ms). 공유 GPU에서는 같은 조합이 L4에서 PUSCH 126 %, PRACH 145 %, PDSCH 166 %까지 올라갔다.
+- 용량: 64 SM으로는 L4를 감당하지 못한다. 부하 사다리(`mig_ladder.csv`)에서 배분 A(PUSCH 48, SRS 8)는 PUSCH가 L3까지 83 %로 들어오지만 SRS가 모든 단계에서 106~114 %, 배분 B(PUSCH 40, SRS 16, PDCCH 10)는 SRS 55~62 %로 들어오지만 PUSCH가 L3에서 112 %. 두 배분 모두 통과하는 최대 단계는 배분 B의 L2(셀당 2 UE)이고, 공유 GPU는 L4(셀당 6 UE)까지 통과한다.
+- 세입자 성능(3g, 60 SM, p50): 26n b1 1.08 ms, 26n b8 3.39 ms, 26x b1 3.00 ms, 26x b8 12.86 ms. 부하와 무관하게 일정하다.
+- 한계: 벤치 슬롯 배치(UL 0~1 ms, DL 1~4 ms)가 NVIDIA 배치와 달라 UL·DL 시간 겹침이 적다는 점은 이 측정에도 그대로다. MPS의 SM 수는 상한이지 분할이 아니어서 64 SM 안의 컨텍스트들은 SM을 공유한다.
+
 ### 세입자 latency와 한 장 요약 (2026-09-27)
 ```bash
 python3 tenant_latency.py --runs runs/c16_capgrid --out results/c16_capgrid      # YOLO p50/p99 vs cap, 최저·최고 부하, 점선 = YOLO 단독
@@ -157,6 +187,7 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 | `plot.py` | 그림·집계 CSV |
 | `pick_minmax.py` | 스캔 결과에서 채널별 최소/최대 latency TV를 골라 c8_min/c8_max 점 생성 |
 | `tenant_latency.py` | 세입자(YOLO) latency vs SM cap. `worker.csv`의 1초 창 중 벤치가 실제로 돌던 구간만 집계 → `tenant_latency.csv`, 모델·배치별 그림, 요약 그림(ms, 슬롯) |
+| `mig_report.py` | MIG 스윕 검증(`mig_validation.csv`)과 집계(`mig_latency.csv`), 공유 GPU 대비 그림(`mig_p99_channels.png`) |
 | `capgrid_overview.py` | `capgrid_latency.csv`를 읽어 세입자 구성 전체를 한 장에(행 = 구성, 열 = 채널), y축 슬롯 단위 |
 | `tv_index.py`, `tv_pick.py` | 기존 TV 라이브러리 인덱스와 선택기 (TV 생성 전에 쓰던 도구) |
 

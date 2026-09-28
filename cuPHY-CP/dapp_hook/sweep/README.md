@@ -87,6 +87,15 @@ x = cuPHY 옆에서의 YOLO 처리량(img/s), y = budget에 가장 가까운 채
 `plots/minmax_latency_isolation.png`이 "부하 최소 vs 최대에서 채널별 파이프라인 latency"(막대 = 평균, 수염 = p99.99, 점선 = NVIDIA budget),
 `minmax_latency_tenants.png`이 세입자·cap별 p99 증가율, `minmax_latency.csv`가 원본 숫자다.
 
+### 세입자 latency와 한 장 요약 (2026-09-27)
+```bash
+python3 tenant_latency.py --runs runs/c16_capgrid --out results/c16_capgrid      # YOLO p50/p99 vs cap, 최저·최고 부하, 점선 = YOLO 단독
+python3 capgrid_overview.py --dir results/c16_capgrid [--stat p99_99_us]         # cuPHY 채널 latency, 4개 구성 통합, 슬롯 단위
+```
+둘 다 기존 기록만 읽는다(GPU 불필요). 세입자 통계는 추론별 표본이 없으므로 1초 창 p50/p99의 중앙값이다.
+주의: `collect.py`의 세입자 요약(`tenant_fps`, tradeoff의 fps 축)은 벤치 시작 전·종료 후의 창까지 평균해 부하 중 fps를 과대평가한다(c16_capgrid에서 중앙값 +14 %, 범위 +4~+24 %). 부하 중 값은 `tenant_latency.csv`의 `fps`를 쓴다.
+결과(16셀, p50): cuPHY와 함께 돌면 YOLO는 1.2~2.0배 느려지고, 늘어나는 시간은 cap 20~100에서 거의 일정하다(26x b8 +5~6 ms, 26x b1 +2.2 ms, 26n b8 +1.5~1.8 ms, 26n b1 +0.6~0.7 ms). cap 10에서만 더 크다.
+
 ## YOLO26 엔진
 
 ```bash
@@ -147,6 +156,8 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 | `collect.py` | 원시 로그 → 표 |
 | `plot.py` | 그림·집계 CSV |
 | `pick_minmax.py` | 스캔 결과에서 채널별 최소/최대 latency TV를 골라 c8_min/c8_max 점 생성 |
+| `tenant_latency.py` | 세입자(YOLO) latency vs SM cap. `worker.csv`의 1초 창 중 벤치가 실제로 돌던 구간만 집계 → `tenant_latency.csv`, 모델·배치별 그림, 요약 그림(ms, 슬롯) |
+| `capgrid_overview.py` | `capgrid_latency.csv`를 읽어 세입자 구성 전체를 한 장에(행 = 구성, 열 = 채널), y축 슬롯 단위 |
 | `tv_index.py`, `tv_pick.py` | 기존 TV 라이브러리 인덱스와 선택기 (TV 생성 전에 쓰던 도구) |
 
 ## 저장소에 남기는 것 / 남기지 않는 것

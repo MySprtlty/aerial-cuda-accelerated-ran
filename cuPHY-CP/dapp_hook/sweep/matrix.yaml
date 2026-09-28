@@ -253,11 +253,43 @@ profiles:
     warmup_s: 30
     nsys_window_s: 60
     engine_template: "{tenant}_b{batch}_fp16_mig3g.engine"     # built inside the 3g instance: models/build_engines_mig.sh
-    bench: {sm: {PRACH: 2, PDCCH: 5, PUCCH: 2, PDSCH: 49, PUSCH: 48, SRS: 8}}    # the 132-SM list scaled by 64/132
+    bench: {sm: {PRACH: 2, PDCCH: 5, PUCCH: 2, PDSCH: 49, PUSCH: 48, SRS: 8}}    # the 132-SM list scaled by 64/132; granted: 8, 8, 8, 50, 48, 8
     mig:                      # device UUIDs come from `nvidia-smi -L`; they change every time the instances are re-created
       ran:    {profile: 4g.48gb, sm: 64, uuid: MIG-1cd6d0a5-f26d-5e8b-818a-8cd6e0bd3294, mps_pipe: /var/mig_ran}
       tenant: {profile: 3g.48gb, sm: 60, uuid: MIG-3071919d-a8fe-5a51-ba53-9bf050f2e85d}
       nsys_directives: "LinuxPerfTH500Config=1"    # nsys 2025.3.1 refuses to start under MIG on Grace without it (1 = one CPU + one GPU)
+  c16_mig_ladder:             # the load levels between lowest and highest inside the 4g instance, no tenant, SM split of c16_mig
+    cells: 16
+    points: [c16_L2, c16_L3]
+    tenants: [none]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    repeat_none: 1
+    duration_s: 120
+    warmup_s: 0
+    nsys_window_s: 60
+    bench: {sm: {PRACH: 2, PDCCH: 5, PUCCH: 2, PDSCH: 49, PUSCH: 48, SRS: 8}}
+    mig:
+      ran:    {profile: 4g.48gb, sm: 64, uuid: MIG-1cd6d0a5-f26d-5e8b-818a-8cd6e0bd3294, mps_pipe: /var/mig_ran}
+      tenant: {profile: 3g.48gb, sm: 60, uuid: MIG-3071919d-a8fe-5a51-ba53-9bf050f2e85d}
+      nsys_directives: "LinuxPerfTH500Config=1"
+  c16_mig_split:              # same MIG layout, no tenant: a different split of the 64 SMs (SRS and PDCCH keep their full-GPU caps, PUSCH gives up 8)
+    cells: 16
+    points: [c16_L1, c16_L2, c16_L3, c16_L4]
+    tenants: [none]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    repeat_none: 1
+    duration_s: 120
+    warmup_s: 0
+    nsys_window_s: 60
+    bench: {sm: {PRACH: 2, PDCCH: 10, PUCCH: 2, PDSCH: 49, PUSCH: 40, SRS: 16}}
+    mig:
+      ran:    {profile: 4g.48gb, sm: 64, uuid: MIG-1cd6d0a5-f26d-5e8b-818a-8cd6e0bd3294, mps_pipe: /var/mig_ran}
+      tenant: {profile: 3g.48gb, sm: 60, uuid: MIG-3071919d-a8fe-5a51-ba53-9bf050f2e85d}
+      nsys_directives: "LinuxPerfTH500Config=1"
   sweep:                      # every stage-1 point x {none, 26n, 26x} x cap {100, 40}, batch 1, 2 min  (84 x 5 = 420 runs, ~19 h)
     points: all
     tenants: [none, yolo26n, yolo26x]

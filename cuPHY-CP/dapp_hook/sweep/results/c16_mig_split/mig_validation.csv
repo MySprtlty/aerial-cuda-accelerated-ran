@@ -1,0 +1,3 @@
+run_id,state,bench_exit_file,nsys_exit,mapping_source,mapping_mismatch,patterns_traced,pattern_period_us,patterns_after_cut,patterns_expected_after_cut,n_PUSCH,stdout_vs_trace_mean_PUSCH,n_PUCCH,stdout_vs_trace_mean_PUCCH,n_PRACH,stdout_vs_trace_mean_PRACH,n_SRS,stdout_vs_trace_mean_SRS,n_PDSCH,stdout_vs_trace_mean_PDSCH,n_PDCCH,stdout_vs_trace_mean_PDCCH,sample_completeness_min,p99_measurable
+c16_L1__none0,ok,done,0,names,[],11056,5033.408,9513,9516,19026,1.057,19026,1.21,9513,1.01,9513,,57072,1.07,57072,1.045,0.9996,1
+c16_L4__none0,ok,done,0,names,[],10013,5038.784,9495,9486,18990,1.021,18990,1.279,9495,1.018,9495,,56970,1.017,56970,1.031,1.0,1

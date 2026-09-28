@@ -85,12 +85,21 @@ def main():
         row = {"run_id": r["run_id"], "state": r["status"].get("state", "?"), "bench_exit_file": read(os.path.join(r["dir"], "bench.exit")),
                "nsys_exit": read(os.path.join(r["dir"], "nsys.exit")), "mapping_source": n.get("mapping_source"),
                "mapping_mismatch": json.dumps(n.get("mapping_mismatch")), "patterns_traced": P, "pattern_period_us": n.get("pattern_period_us")}
-        worst = 1.0
+        # collect.py drops the first seconds of the trace, so the reference is the pattern count after that cut:
+        # the channel with the most complete patterns, cross-checked against (window - cut) / pattern period
+        per = {ch: s["channels"][ch]["nsys"]["n"] / float(r["per_pattern"][ch]) for ch in ORDER
+               if s["channels"].get(ch, {}).get("nsys") and ch in r["per_pattern"]}
+        Pref = max(per.values()) if per else 0.0
+        cut_s = (n.get("t_cut_ns", 0) - n.get("t_first_ns", 0)) / 1e9
+        expect = (n.get("window_s", 0) - cut_s) * 1e6 / n["pattern_period_us"] if n.get("pattern_period_us") else 0.0
+        row["patterns_after_cut"] = int(round(Pref))
+        row["patterns_expected_after_cut"] = int(round(expect))
+        worst = min(1.0, Pref / expect) if expect else 0.0
         for ch in ORDER:
             c = s["channels"].get(ch, {}).get("nsys")
             if not c or ch not in r["per_pattern"]:
                 continue
-            comp = c["n"] / float(P * r["per_pattern"][ch]) if P else 0.0
+            comp = per[ch] / Pref if Pref else 0.0
             worst = min(worst, comp)
             row["n_" + ch] = c["n"]
             sm = s["channels"][ch].get("stdout_mean_us")
@@ -167,8 +176,7 @@ def main():
             d = DEADLINE_US[c] / S
             ax.axhline(d, color=INK2, lw=1.3, zorder=1)
             handles["deadline (NVIDIA check_cell_capacity.py constraint)"] = plt.Line2D([], [], color=INK2, lw=1.3)
-            if i == 0:
-                ax.annotate("deadline %g slots" % d, (-0.4, d), textcoords="offset points", xytext=(0, 3), fontsize=7.5, color=INK2)
+            ends, drawn = [], []
             for lbl, col, key in SCHEMES:
                 ys = []
                 for tn, b in TENANTS:
@@ -183,8 +191,23 @@ def main():
                 ln, = ax.plot(xs, ys, "-o", color=col, lw=1.8, ms=5.5, mec=SURFACE, mew=1.2, zorder=3)
                 handles[lbl] = ln
                 ok = [k for k in range(len(ys)) if not np.isnan(ys[k])]
-                ax.annotate(("%.2f" % ys[ok[-1]]) if ys[ok[-1]] < 10 else ("%.1f" % ys[ok[-1]]), (xs[ok[-1]], ys[ok[-1]]), textcoords="offset points",
-                            xytext=(6, -3), fontsize=7.5, color=INK2, zorder=4)
+                ends.append((xs[ok[-1]], ys[ok[-1]]))
+                drawn += [ys[k] for k in ok]
+            # end-of-line value labels, pushed apart when the two lines end close together
+            dy = [-3] * len(ends)
+            if len(ends) == 2 and abs(ends[0][1] - ends[1][1]) < 0.09 * ytop[c]:
+                hi_i = 0 if ends[0][1] >= ends[1][1] else 1
+                dy[hi_i], dy[1 - hi_i] = 3, -9
+            for (ex, ey), off in zip(ends, dy):
+                ax.annotate(("%.2f" % ey) if ey < 10 else ("%.1f" % ey), (ex, ey), textcoords="offset points", xytext=(6, off), fontsize=7.5, color=INK2, zorder=4)
+            if i == 0:
+                # deadline label on the side of the line that has no data next to it; none when both sides are taken (the legend names the line)
+                above = any(d < v < d + 0.12 * ytop[c] for v in drawn)
+                below = any(d - 0.12 * ytop[c] < v <= d for v in drawn)
+                if not above:
+                    ax.annotate("deadline %g slots" % d, (-0.4, d), textcoords="offset points", xytext=(0, 3), fontsize=7.5, color=INK2)
+                elif not below:
+                    ax.annotate("deadline %g slots" % d, (-0.4, d), textcoords="offset points", xytext=(0, -10), fontsize=7.5, color=INK2)
             ax.set_ylim(0, ytop[c])
             ax.set_xlim(-0.5, len(TENANTS) - 0.1)
             ax.set_xticks(xs)

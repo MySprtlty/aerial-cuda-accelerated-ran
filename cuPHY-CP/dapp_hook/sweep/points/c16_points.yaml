@@ -1,0 +1,87 @@
+note: '16-cell load ladder. Data channels from the x86 ladder set (68000+ PUSCH 4L
+  MCS27, 68100+ PDSCH 4L MCS27), control channels moderate (PUCCH default F1 2bit
+  x4, PRACH B4 1 occasion, SRS 4UE 1port 1sym) so that the data channels bind first;
+  *_ctlmax variants put PUCCH/PRACH/SRS at their c8_max TVs. Non-64C build: <=128
+  PDSCH UEs and <=128 PUSCH TBs per cell group -> 8 UE x 16 cells is the limit (68105
+  16 UE excluded).'
+points:
+  c16_L1:
+    _cells: 16
+    PUSCH: 68000
+    PDSCH: 68100
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L2:
+    _cells: 16
+    PUSCH: 68001
+    PDSCH: 68101
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L3:
+    _cells: 16
+    PUSCH: 68002
+    PDSCH: 68102
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L4:
+    _cells: 16
+    PUSCH: 68003
+    PDSCH: 68103
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L5:
+    _cells: 16
+    PUSCH: 68004
+    PDSCH: 68104
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L5_ctlmax:
+    _cells: 16
+    PUSCH: 68004
+    PDSCH: 68104
+    PUCCH: 63052
+    PRACH: 64007
+    SRS: 65014
+    PDCCH: 62004
+  c16_L5_2L:
+    _cells: 16
+    PUSCH: 68008
+    PDSCH: 68104
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L5_uci:
+    _cells: 16
+    PUSCH: 68007
+    PDSCH: 68104
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c16_L5_crcfail:
+    _cells: 16
+    PUSCH: 68012
+    PDSCH: 68104
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000
+  c8_L5:
+    _cells: 8
+    PUSCH: 68004
+    PDSCH: 68104
+    PUCCH: 63000
+    PRACH: 64000
+    SRS: 65000
+    PDCCH: 62000

@@ -1,0 +1,13 @@
+tenant,batch,load,cap_pct,tenant_fps,worst_util_pct,worst_channel,worst_util_p99_pct,worst_channel_p99,run_id,stat,within_budget
+yolo26n,1,lowest,10,471.62410714285716,34.4,SRS,32.6,SRS,c8_min__yolo26n_cap010_b1_p0,p99_99,1
+yolo26n,1,lowest,40,642.2845238095239,34.2,SRS,33.6,SRS,c8_min__yolo26n_cap040_b1_p0,p99_99,1
+yolo26n,1,lowest,100,709.8739644970415,34.5,SRS,33.9,SRS,c8_min__yolo26n_cap100_b1_p0,p99_99,1
+yolo26n,1,highest,10,428.4885964912282,58.9,SRS,57.7,SRS,c8_max__yolo26n_cap010_b1_p0,p99_99,1
+yolo26n,1,highest,40,581.1134897360703,59.9,SRS,57.9,SRS,c8_max__yolo26n_cap040_b1_p0,p99_99,1
+yolo26n,1,highest,100,625.3041055718476,60.4,SRS,58.9,SRS,c8_max__yolo26n_cap100_b1_p0,p99_99,1
+yolo26x,1,lowest,10,109.87433628318584,35.1,SRS,33.5,SRS,c8_min__yolo26x_cap010_b1_p0,p99_99,1
+yolo26x,1,lowest,40,239.057100591716,37.9,SRS,34.8,SRS,c8_min__yolo26x_cap040_b1_p0,p99_99,1
+yolo26x,1,lowest,100,308.45621301775145,41.6,SRS,37.3,SRS,c8_min__yolo26x_cap100_b1_p0,p99_99,1
+yolo26x,1,highest,10,105.38688046647229,98.1,SRS,58.6,SRS,c8_max__yolo26x_cap010_b1_p0,p99_99,1
+yolo26x,1,highest,40,215.6857142857143,69.1,SRS,61.1,SRS,c8_max__yolo26x_cap040_b1_p0,p99_99,1
+yolo26x,1,highest,100,270.49795918367346,71.0,SRS,64.1,SRS,c8_max__yolo26x_cap100_b1_p0,p99_99,1

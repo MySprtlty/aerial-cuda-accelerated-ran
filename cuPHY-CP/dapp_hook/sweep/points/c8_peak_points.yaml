@@ -1,0 +1,20 @@
+points:
+  c8_peak:
+    _cells: 8
+    PUSCH: TVnr_7304_PUSCH_gNB_CUPHY_s0p0.h5
+    PDSCH: TVnr_3304_PDSCH_gNB_CUPHY_s0p0.h5
+    PUCCH: 63052
+    PRACH: 64007
+    SRS: 65014
+    PDCCH: 62004
+  c8_peak_mu:
+    _cells: 8
+    PUSCH: TVnr_0535_PUSCH_gNB_CUPHY_s0p1.h5
+    PDSCH: TVnr_DLMIX_11592_PDSCH_gNB_CUPHY_s0p5.h5
+    PUCCH: 63052
+    PRACH: 64007
+    SRS: 65014
+    PDCCH: 62004
+note: 'c8_peak: 1 UE 273 PRB 4 layer MCS 27 (PUSCH 152 CB / PDSCH 152 CB); c8_peak_mu:
+  PUSCH 2 UE 273 PRB 2x2 layer MCS 27 (116 CB), PDSCH = NVIDIA 20-cell DLMIX peak
+  6 UE x 4 layer MCS 27 (129 CB). Control channels at c8_max.'

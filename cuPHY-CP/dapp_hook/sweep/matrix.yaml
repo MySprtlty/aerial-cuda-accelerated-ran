@@ -1,0 +1,257 @@
+# Sweep matrix for the cuPHY channel-time vs load x YOLO-cap experiment.
+# TV ids refer to testVectors/sweep_tv_manifest.yaml (generated 2026-09-17).
+# sweep.py expands `profiles.<name>` into a run queue; a point is a channel->TV map
+# (missing channels are not scheduled), a run is point x tenant x cap x batch x priority.
+
+common:
+  runner: testbench
+  cells: 4
+  cell_skew: uniform
+  bench: {mode: 0, w_us: 850, pattern_ms: 5.0, cpu: 44, group: true,     # w_us 850 -> ~5.0 ms per 8-slot pattern = one 10-slot TDD period
+          sm: {PRACH: 2, PDCCH: 10, PUCCH: 2, PDSCH: 102, PUSCH: 100, SRS: 16}}   # mirrors cuphycontroller mps_sm_*
+  tenant_cores: "48-51"          # isolated Grace cores unused by the DU (4-19) and RU emulator (20-42)
+  duration_s: 900
+  warmup_s: 30
+  nsys_window_s: 60              # kernel trace window inside the run (distribution source); 0 = no nsys
+  default_channels: {PUSCH: 60000, PUCCH: 63000, PDSCH: 61200, PDCCH: 62000}
+  # light TVs for the "one heavy cell" skew: cell 0 keeps the point's TVs, other cells get these
+  light_channels: {PUSCH: 60011, PUCCH: 63010, PDSCH: 61211, PDCCH: 62001}
+
+# A TensorRT engine only runs reliably under the MPS cap it was built with (tactics are picked for the SM
+# count the builder saw: an engine built at 10 % fails at 40/100 % with "Cask Gemm invalid argument" and one
+# built at 40 % fails at 10 %), so there is one engine per (model, batch, cap): models/build_engines.sh.
+tenants:
+  none:    {name: none}
+  yolo26n: {name: yolo26n, engine_template: "yolo26n_b{batch}_fp16_atp{cap}.engine"}
+  yolo26x: {name: yolo26x, engine_template: "yolo26x_b{batch}_fp16_atp{cap}.engine"}
+
+# ---- stage-1 points: one axis at a time, everything else at the default ----
+points:
+  default: {}
+  # PUSCH
+  pusch_ue_1: {PUSCH: 60001}
+  pusch_ue_2: {PUSCH: 60002}
+  pusch_ue_8: {PUSCH: 60004}
+  pusch_prb_34: {PUSCH: 60011}
+  pusch_prb_68: {PUSCH: 60012}
+  pusch_prb_273: {PUSCH: 60014}
+  pusch_layers_1: {PUSCH: 60021}
+  pusch_layers_4: {PUSCH: 60023}
+  pusch_mcs_4: {PUSCH: 60031}
+  pusch_mcs_10: {PUSCH: 60032}
+  pusch_mcs_22: {PUSCH: 60034}
+  pusch_mcs_27: {PUSCH: 60035}
+  pusch_snr_0: {PUSCH: 60041}
+  pusch_snr_5: {PUSCH: 60042}
+  pusch_snr_10: {PUSCH: 60043}
+  pusch_snr_15: {PUSCH: 60044}
+  pusch_snr_25: {PUSCH: 60046}
+  pusch_snr_30: {PUSCH: 60047}
+  pusch_retx_20pct: {PUSCH: 60052}
+  pusch_skew_1ue70pct: {PUSCH: 60062}
+  pusch_cb03_1ue: {PUSCH: 67000}      # CB-grid extremes reused as load extremes (67080/67081 use 4 layers)
+  pusch_cb60_1ue: {PUSCH: 67080}
+  pusch_cb60_4ue: {PUSCH: 67081}
+  # PDSCH
+  pdsch_ue_1: {PDSCH: 61201}
+  pdsch_ue_4: {PDSCH: 61202}
+  pdsch_ue_16: {PDSCH: 61204}
+  pdsch_prb_34: {PDSCH: 61211}
+  pdsch_prb_68: {PDSCH: 61212}
+  pdsch_prb_273: {PDSCH: 61214}
+  pdsch_layers_1: {PDSCH: 61221}
+  pdsch_layers_4: {PDSCH: 61223}
+  pdsch_mcs_4: {PDSCH: 61231}
+  pdsch_mcs_27: {PDSCH: 61233}
+  pdsch_precoding_on: {PDSCH: 61242}
+  # PDCCH
+  pdcch_dci_1: {PDCCH: 62001}
+  pdcch_dci_8: {PDCCH: 62003}
+  pdcch_dci_16: {PDCCH: 62004}
+  pdcch_al_1: {PDCCH: 62011}
+  pdcch_al_16: {PDCCH: 62013}
+  # PUCCH: 6301x F1 2bit, 6302x F2 11bit, 6303x F2 22bit, 6304x F3 11bit, 6305x F3 22bit; last digit 0/1/2 = 2/8/16 UCIs
+  pucch_f1_2bit_n2: {PUCCH: 63010}
+  pucch_f1_2bit_n8: {PUCCH: 63011}
+  pucch_f1_2bit_n16: {PUCCH: 63012}
+  pucch_f2_11bit_n2: {PUCCH: 63020}
+  pucch_f2_11bit_n8: {PUCCH: 63021}
+  pucch_f2_11bit_n16: {PUCCH: 63022}
+  pucch_f2_22bit_n2: {PUCCH: 63030}
+  pucch_f2_22bit_n8: {PUCCH: 63031}
+  pucch_f2_22bit_n16: {PUCCH: 63032}
+  pucch_f3_11bit_n2: {PUCCH: 63040}
+  pucch_f3_11bit_n8: {PUCCH: 63041}
+  pucch_f3_11bit_n16: {PUCCH: 63042}
+  pucch_f3_22bit_n2: {PUCCH: 63050}
+  pucch_f3_22bit_n8: {PUCCH: 63051}
+  pucch_f3_22bit_n16: {PUCCH: 63052}
+  # PRACH (added to the default point): 64000-3 B4, 64004-7 format 0; +2 = 4 FDM occasions, +1 = 4 preambles
+  prach_b4_occ1_ra1: {PRACH: 64000}
+  prach_b4_occ1_ra4: {PRACH: 64001}
+  prach_b4_occ4_ra1: {PRACH: 64002}
+  prach_b4_occ4_ra4: {PRACH: 64003}
+  prach_f0_occ1_ra1: {PRACH: 64004}
+  prach_f0_occ1_ra4: {PRACH: 64005}
+  prach_f0_occ4_ra1: {PRACH: 64006}
+  prach_f0_occ4_ra4: {PRACH: 64007}
+  # SRS (added to the default point): 65000 + 9*(ue 4->0, 8->1) + 3*(ports 1,2,4 -> 0,1,2) + (sym 1,2,4 -> 0,1,2)
+  srs_ue4_p1_s1: {SRS: 65000}
+  srs_ue4_p1_s2: {SRS: 65001}
+  srs_ue4_p1_s4: {SRS: 65002}
+  srs_ue4_p2_s1: {SRS: 65003}
+  srs_ue4_p2_s2: {SRS: 65004}
+  srs_ue4_p2_s4: {SRS: 65005}
+  srs_ue4_p4_s1: {SRS: 65006}
+  srs_ue4_p4_s2: {SRS: 65007}
+  srs_ue4_p4_s4: {SRS: 65008}
+  srs_ue8_p1_s1: {SRS: 65009}
+  srs_ue8_p1_s2: {SRS: 65010}
+  srs_ue8_p1_s4: {SRS: 65011}
+  srs_ue8_p2_s1: {SRS: 65012}
+  srs_ue8_p2_s2: {SRS: 65013}
+  srs_ue8_p2_s4: {SRS: 65014}
+  srs_ue8_p4_s1: {SRS: 65015}
+  srs_ue8_p4_s2: {SRS: 65016}
+  srs_ue8_p4_s4: {SRS: 65017}
+  # cells (default TVs in every cell) and cell skew
+  cells_1: {_cells: 1}
+  cells_2: {_cells: 2}
+  cells_8: {_cells: 8}
+  skew_cell0_2: {_cells: 2, _cell_skew: cell0}
+  skew_cell0_4: {_cells: 4, _cell_skew: cell0}
+  skew_cell0_8: {_cells: 8, _cell_skew: cell0}
+
+# ---- characterisation grids (PUSCH only, other channels at default) ----
+grids:
+  mcs_snr:  {channel: PUSCH, id: "66000 + 10*mcs + snr_idx", mcs: [0, 27], snr_db: [0, 5, 10, 15, 20, 25, 30]}
+  cb_count: {channel: PUSCH, id: "67000 + 10*cb_idx + dist", cb: [3, 6, 10, 15, 20, 30, 40, 50, 60], dist: {0: 1ue, 1: 4ue}}
+
+# ---- stage-2 interference grid ----
+interference:
+  caps: [100, 80, 60, 40, 20, 10]
+  batches: [1, 8]
+  priorities: [0, 1]      # 0 = env unset (normal), 1 = CUDA_MPS_CLIENT_PRIORITY=1 (below normal) for the tenant
+
+# ---- run profiles ----
+profiles:
+  pilot:                      # default point x tenant {none x2, 26n, 26x} x cap {100, 40}, plus one priority arm
+    points: [default]
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 40]
+    batches: [1]
+    priorities: [0]
+    extra: [{point: default, tenant: yolo26x, cap: 40, batch: 1, priority: 1}]
+    repeat_none: 2
+    tenant_alone: true          # also run each tenant/cap/batch alone (no RAN) for the fps reference
+    tenant_alone_s: 40
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+  interference:               # default point x full tenant grid, 15 min each  (1 + 2*6*2*2 = 49 runs, ~13 h)
+    points: [default]
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 80, 60, 40, 20, 10]
+    batches: [1, 8]
+    priorities: [0, 1]
+    duration_s: 900
+    tenant_alone: true
+    tenant_alone_s: 60
+  interference_8c:            # same grid at 8 cells (the full-stack lab's recommended cell count), priority axis dropped (null in the pilot)
+    points: [cells_8]
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 80, 60, 40, 20, 10]
+    batches: [1, 8]
+    priorities: [0]
+    duration_s: 900
+    tenant_alone: true
+    tenant_alone_s: 60
+  c8_scan:                    # 8 cells, no tenant: lightest/heaviest candidates of every channel, to pick the measured min/max (pick_minmax.py)
+    cells: 8
+    points: [default, pusch_prb_34, pusch_mcs_4, pusch_cb03_1ue, pusch_prb_273, pusch_layers_4, pusch_mcs_27, pusch_snr_0, pusch_cb60_1ue, pusch_cb60_4ue,
+             pdsch_prb_34, pdsch_mcs_4, pdsch_ue_1, pdsch_prb_273, pdsch_layers_4, pdsch_mcs_27, pdsch_ue_16, pdsch_precoding_on,
+             pdcch_dci_1, pdcch_al_1, pdcch_dci_16, pdcch_al_16, pucch_f1_2bit_n2, pucch_f2_22bit_n16, pucch_f3_22bit_n16,
+             prach_b4_occ1_ra1, prach_b4_occ4_ra4, prach_f0_occ4_ra4, srs_ue4_p1_s1, srs_ue4_p4_s4, srs_ue8_p2_s4]
+    tenants: [none]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    duration_s: 60
+    warmup_s: 0
+    nsys_window_s: 40
+  c8_minmax:                  # 8 cells: measured lightest point (c8_min) vs heaviest point (c8_max); points come from --points-file points/c8_minmax_points.yaml
+    cells: 8
+    points: [c8_min, c8_max]
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 40, 10]
+    batches: [1]
+    priorities: [0]
+    repeat_none: 2
+    tenant_alone: true
+    tenant_alone_s: 40
+    duration_s: 300
+    warmup_s: 30
+    nsys_window_s: 60
+  c8_capgrid:                 # 8 cells, c8_min vs c8_max x {26n, 26x} x cap 10..100 step 10 x batch {1, 8}; 2 min runs (4 + 80 + 40 alone = 124 runs, ~5 h). Needs engines for every cap: models/build_engines.sh 90 70 50 30
+    cells: 8
+    points: [c8_min, c8_max]
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]
+    batches: [1, 8]
+    priorities: [0]
+    repeat_none: 2
+    tenant_alone: true
+    tenant_alone_s: 40
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+  c8_peak_probe:              # 8 cells, no tenant: data channels at the shipped library's physical peak TVs (points file points/c8_peak_points.yaml)
+    cells: 8
+    points: [c8_peak, c8_peak_mu]
+    tenants: [none]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    duration_s: 60
+    warmup_s: 0
+    nsys_window_s: 40
+  c16_scan:                   # 16 cells, no tenant: load ladder L1..L5 + peak variants (points file points/c16_points.yaml), 1 min each
+    cells: 16
+    points: [c8_L5, c16_L1, c16_L2, c16_L3, c16_L4, c16_L5, c16_L5_2L, c16_L5_uci, c16_L5_crcfail, c16_L5_ctlmax]
+    tenants: [none]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    repeat_none: 2
+    duration_s: 60
+    warmup_s: 0
+    nsys_window_s: 40
+  c16_capgrid:                # 16 cells: lowest load = c16_L1, highest = c16_L4 (points/c16_points.yaml) x {26n, 26x} x cap 10..100 x batch {1, 8}; 2 min runs (124 runs, ~5 h)
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]
+    batches: [1, 8]
+    priorities: [0]
+    repeat_none: 2
+    tenant_alone: true
+    tenant_alone_s: 40
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+  sweep:                      # every stage-1 point x {none, 26n, 26x} x cap {100, 40}, batch 1, 2 min  (84 x 5 = 420 runs, ~19 h)
+    points: all
+    tenants: [none, yolo26n, yolo26x]
+    caps: [100, 40]
+    batches: [1]
+    priorities: [0]
+    duration_s: 120
+    nsys_window_s: 60
+  grids:                      # characterisation grids, no tenant, 1 min each  (196 + 17 = 213 runs, ~5 h)
+    points: grids
+    tenants: [none]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    duration_s: 60
+    nsys_window_s: 40

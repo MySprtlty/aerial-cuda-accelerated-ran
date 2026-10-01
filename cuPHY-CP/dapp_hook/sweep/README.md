@@ -126,6 +126,19 @@ python3 capgrid_overview.py --dir results/c16_capgrid [--stat p99_99_us]        
 주의: `collect.py`의 세입자 요약(`tenant_fps`, tradeoff의 fps 축)은 벤치 시작 전·종료 후의 창까지 평균해 부하 중 fps를 과대평가한다(c16_capgrid에서 중앙값 +14 %, 범위 +4~+24 %). 부하 중 값은 `tenant_latency.csv`의 `fps`를 쓴다.
 결과(16셀, p50): cuPHY와 함께 돌면 YOLO는 1.2~2.0배 느려지고, 늘어나는 시간은 cap 20~100에서 거의 일정하다(26x b8 +5~6 ms, 26x b1 +2.2 ms, 26n b8 +1.5~1.8 ms, 26n b1 +0.6~0.7 ms). cap 10에서만 더 크다.
 
+### 16셀 full stack 격리 런 (2026-10-01, `fullstack/`, 결과 `results/c16_fullstack/`)
+RU 에뮬레이터 + cuphycontroller + testMAC(59c, DDDSUUDDDD, F08_CG1 루프백), nsys 없음. 벤치가 아니라 FAPI·훅·타이밍이 실제로 도는 조건이다.
+```bash
+bash fullstack/fullstack_run.sh <name> <slots> [dl_cores] [nvlog_tag_ids] [full|summary|off]   # RECORD=1 링 기록, RU_HIST=1 RU 히스토그램
+python3 fullstack/e_analysis.py e_on e_sum e_off      # tag 311(L2A.PROCESSING_TIMES) → tick 기준 L2A end/enqueue 지연, 드롭, 위치별
+python3 fullstack/parse_phylog.py prof/run61/phy_a.log prof/run61/phy_a.csv && python3 fullstack/compare_ab.py prof/run61/phy_a.csv prof/run61/phy_b.csv
+python3 fullstack/analyze_run.py a                    # L1 WRN/ERR, 드롭, testMAC Err.ind, RU 늦은 패킷(TDD 위치별), 링 SLOT_END, DCGM
+```
+통계는 첫 1초를 제외한다. 드롭 기준은 `nv_phy_module.cpp` `check_time_threshold`: `l2a_end − l1_slot_ind_tick > 500 + l2a_allowed_latency(100) µs`.
+- ⑥-1 (a) DL 워커 3코어 vs (b) 6코어, 각 10분: CPU 단계 동일, RU 늦은 패킷 비율(위치 6/7) 변화 없음 → DL 워커 CPU는 원인에서 제외 (`analysis_a.txt`, `analysis_b.txt`).
+- E 훅 비용 (`e_hook_cost.txt`, 각 5분 = 600k 슬롯): 훅 on(PDU 포함) − off = L2A end − tick p50 +20.2 / p99 +25.5 / p99.9 +28.8 / max +34.7 µs; UL 슬롯(위치 4·5) +38~45, DL 슬롯 +15~30. 훅 on은 600 µs 선까지 여유 5 µs(드롭 1), off는 40 µs(드롭 0). 레코드당 ~100 ns × 슬롯당 133~457 레코드(UL 슬롯 UL_PDU 384~440)라 비용은 PDU 수에 비례한다. → PDU 내보내기를 L2A 스레드 밖(디스크립터 큐 + 복사 스레드)으로 옮기는 안을 제안, 구현 전까지 full-stack 신뢰성 런은 `export_pdus: 0`.
+- 주의: `e_sum`(요약 모드)과 `d` 런은 스크립트가 직전 런의 `enable: 0`을 되돌리지 않아 훅 off로 돌았다(이후 모드마다 훅 라인 전체를 다시 쓰도록 수정). `e_sum`은 훅-off 반복 런으로만 쓴다(런 간 차이 ≤ 1.5 µs).
+
 ## YOLO26 엔진
 
 ```bash
@@ -189,6 +202,8 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 | `tenant_latency.py` | 세입자(YOLO) latency vs SM cap. `worker.csv`의 1초 창 중 벤치가 실제로 돌던 구간만 집계 → `tenant_latency.csv`, 모델·배치별 그림, 요약 그림(ms, 슬롯) |
 | `mig_report.py` | MIG 스윕 검증(`mig_validation.csv`)과 집계(`mig_latency.csv`), 공유 GPU 대비 그림(`mig_p99_channels.png`) |
 | `capgrid_overview.py` | `capgrid_latency.csv`를 읽어 세입자 구성 전체를 한 장에(행 = 구성, 열 = 채널), y축 슬롯 단위 |
+| `design_points.py` | ③ 정적 설계점: 사다리(A) + 단일축(B) + 2^(6−2) 분할요인(C) → `points/design_points.csv`(feature 열 = 훅 필드 이름), `design_points.yaml`(sweep 점), `design_schedule.csv`(실행 시간표) |
+| `fullstack/` | 16셀 full-stack 격리 런 스크립트와 분석(위 절) |
 | `tv_index.py`, `tv_pick.py` | 기존 TV 라이브러리 인덱스와 선택기 (TV 생성 전에 쓰던 도구) |
 
 ## 저장소에 남기는 것 / 남기지 않는 것

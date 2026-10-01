@@ -1,0 +1,60 @@
+== e_on: 16 cells, 600000 slots (300 s), dl cores '', nvlog tags '311', hook full, record 0, ru_hist 0 07:15:10
+15:dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+nvlog INFO for tags ['311']
+   L1 ready 07:15:44; starting DCGM + testMAC (recorder: 0)
+22:21:43.952014 CON 193270 0 [MAC.FAPI] Finished running 600000 slots test. slot
+RAN down
+-rw-r--r-- 1 aerial aerial 8053327551 Sep 30 22:22 phy_e_on.log
+-rw-r--r-- 1 aerial aerial  293899781 Sep 30 22:22 ru_e_on.log
+-rw-r--r-- 1 aerial aerial  226516819 Sep 30 22:22 testmac_e_on.log
+== e_on done 07:22:56
+== e_off: 16 cells, 600000 slots (300 s), dl cores '', nvlog tags '311', hook off, record 0, ru_hist 0 07:23:11
+15:dapp_hook: {enable: 0, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+nvlog INFO for tags ['311']
+   L1 ready 07:23:49; starting DCGM + testMAC (recorder: 0)
+22:29:54.840514 CON 195134 0 [MAC.FAPI] Finished running 600000 slots test. slot
+RAN down
+-rw-r--r-- 1 aerial aerial 8053023669 Sep 30 22:31 phy_e_off.log
+-rw-r--r-- 1 aerial aerial  255502644 Sep 30 22:31 ru_e_off.log
+-rw-r--r-- 1 aerial aerial  226515359 Sep 30 22:31 testmac_e_off.log
+== e_off done 07:31:01
+== e_sum: 16 cells, 600000 slots (300 s), dl cores '', nvlog tags '311', hook summary, record 0, ru_hist 0 07:31:16
+15:dapp_hook: {enable: 0, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 0}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+nvlog INFO for tags ['311']
+   L1 ready 07:31:53; starting DCGM + testMAC (recorder: 0)
+22:37:56.120514 CON 196986 0 [MAC.FAPI] Finished running 600000 slots test. slot
+RAN down
+-rw-r--r-- 1 aerial aerial 8052926365 Sep 30 22:39 phy_e_sum.log
+-rw-r--r-- 1 aerial aerial  266133934 Sep 30 22:39 ru_e_sum.log
+-rw-r--r-- 1 aerial aerial  226515359 Sep 30 22:39 testmac_e_sum.log
+== e_sum done 07:39:05
+E_RUNS_DONE
+== d: 16 cells, 1200000 slots (600 s), dl cores '', nvlog tags '216,240,311,503', hook full, record 0, ru_hist 1 07:39:20
+341:  timing_histogram: 1
+342:  timing_histogram_bin_size: 1000
+15:dapp_hook: {enable: 0, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 0}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+nvlog INFO for tags ['216', '240', '311', '503']
+   L1 ready 07:39:58; starting DCGM + testMAC (recorder: 0)
+22:50:57.764015 CON 198854 0 [MAC.FAPI] Finished running 1200000 slots test. slo
+RAN down
+-rw-r--r-- 1 aerial aerial 16104839534 Sep 30 22:52 phy_d.log
+-rw-r--r-- 1 aerial aerial 17350534028 Sep 30 22:52 ru_d.log
+-rw-r--r-- 1 aerial aerial   452881623 Sep 30 22:52 testmac_d.log
+== d done 07:52:15
+D_RUN_DONE

@@ -15,7 +15,9 @@ def q(v, p): return np.percentile(v, p)
 res = {}
 for name in sys.argv[1:]:
     ticks, enq, fapi, l2est, pos, l2a_start, l2a_end = [], [], [], [], [], [], []
-    with open(os.path.join(R, "phy_%s.log" % name), errors="replace") as f:
+    src = os.path.join(R, "phy_%s.log" % name)
+    if not os.path.exists(src): src = os.path.join(R, "l2a_%s.log" % name)      # KEEP_RAW=0 runs keep only the 311 lines
+    with open(src, errors="replace") as f:
         for ln in f:
             if "[L2A.PROCESSING_TIMES]" not in ln: continue
             t = num(ln, "l1_slot_ind_tick="); e = num(ln, "l1_enqueue_complete_time="); s0 = num(ln, "l2a_start_time="); s1 = num(ln, "l2a_end_time=")

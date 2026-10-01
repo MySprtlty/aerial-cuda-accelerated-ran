@@ -1,0 +1,45 @@
+CPU-cause check for E and D (2026-10-02 KST 08:32-09:04), 4 runs of 5 min (600k slots), hook off, nsys off, raw logs not kept.
+cpu_runs.sh -> cpu_report.py (cpu_report.txt). Statistics exclude the first second; mpstat window = 60..290 s.
+
+1. Core map / isolation (host): /proc/cmdline = isolcpus=managed_irq,domain,4-64 nohz_full=4-64 rcu_nocbs=4-64 irqaffinity=0
+   (identical to the NVIDIA GH200 guide, docs 24-3 installing_tools_gh). 72 cores; housekeeping 0-3, 65-71.
+   L1: low/dpdk 4 (44 helper threads incl. 16 event_engine, 8 cuda-EvtHandlr), h2d 5, UL workers 6-7, DL workers 8-10,
+       L2A timer 11, L2A msg_processing (hook runs here) 12, debug 13, pcap 14/19.
+   testMAC: low 15 (50 helper threads), sched 16, recv 17, builder 18.
+   RU emulator: UL cplane_core0-10 on 20-30, DL uplane_proc-0..9 on 31-40 (64 flows / 10 threads), low 41, dpdk 42;
+       24 helper threads unpinned (0-71) but resident on the isolated core 42 (no load balancing on isolcpus=domain).
+       dl_rx_core_list lists cores 68..106 (do not exist) but is unused (enable_dl_proc_mt: 0).
+   PTP: ptp4l + phc2sys taskset to core 20 (= RU cplane_core0; SCHED_OTHER, 0.3 % CPU), phc2sys-cx7 on core 64.
+       NVIDIA's guide puts PTP on core 41. Only overlap found between components.
+   NIC IRQs: all 256 mlx5 IRQs (CX7 0000:01:00.0/.1, BF3 0002:01:00.0/.1) on cores 0-3, 65-71; none on isolated cores.
+   DCGM nv-hostengine: unpinned, housekeeping cores. dApp: not running (hook inline in the L2A thread).
+   Our core assignment == NVIDIA's shipped F08_CG1 yaml / phase4 physical_cores_{du,ru}.yaml (HEAD). The setup scripts
+   (setup1_DU.sh) themselves set shm_level 5 (INFO) on tags 216/217/224/225/238/243/311/312/409, so "default logging"
+   after setup already includes the per-slot L2A timing line (311) and ~8 GB of L1 log per 5 min.
+
+2. Per-core load (16 cells): L1 workers 6-10 and L2A msg thread 12 = 100 % (99 % even before traffic: polling loops);
+   L1 debug 89 %; RU DL 62-65 %; RU UL 21-37 %; testMAC builder 37 %, recv 16 %, sched 6 %.
+   No emulator / testMAC core >= 90 %.
+
+3. Cell scaling (hook off), L2A end - tick (us) and RU DL U-plane late share:
+   cells  p50/p99/p99.9/max      margin 600-p99.9/-max  drops  late%  pos6/7/8/9
+   8      497.8/502.8/504.2/510.9   95.8/89.1            0      0.005  0.034/0.006/0.000/0.000
+   12     519.9/525.9/527.6/532.5   72.4/67.5            0      0.021  0.114/0.044/0.010/0.003
+   16     543.0/551.1/553.2/557.9   46.8/42.1            0      0.047  0.092/0.105/0.046/0.109
+   16 RU2 543.3/550.9/553.1/581.4   46.9/18.6            0      0.374  0.447/1.120/0.385/0.799   (RU cores x2)
+   E grows ~6 us per cell (p99.9 504 -> 528 -> 553); the first FAPI message arrives ~458 us after the tick at every
+   cell count, the growth is the serial per-cell processing in the single L2A msg_processing thread.
+   Ring (a) (16 cells, hook on): testMAC sends the 16 cells' messages within 17 us (p50), the L2A processes them over
+   97 us; queueing delay by message rank 4.9, 12.8, ... 85.5 us (p50), i.e. ~5.4 us per cell-message. => E is
+   L2A-thread (core 12) CPU-bound, not testMAC- or RU-bound. Without the hook ~4 us/cell, with the hook +1.3-2.5 us/cell.
+   Extrapolation: 20 cells ~578 us p99.9 without hook (margin ~22 us); with the hook over 600 us.
+
+4. RU emulator cores x2 (UL 11 -> 22 threads on 20-41, DL 10 -> 16 threads on 42-57 (64 flows / 20 cores = 4 per
+   thread), low 62, dpdk 63): E unchanged (p99.9 553.1; one outlier max 581), D 8x WORSE (0.047 -> 0.374 %; pos 7
+   1.12 %, pos 9 0.80 %, pos 0 0.22 %). RU per-core load halves (UL 13-24 %, DL 38-40 %), so this is not RU CPU
+   saturation; the RU's transmission pattern (22 UL threads sending in parallel) changes the DU-side DL send lateness.
+   D's level is therefore a testbed (emulator threading) artifact; its mechanism stays on the DU GPU/NIC send path.
+   Confirmation would need tag 224 (DRV.MAP_UL: order kernel timing) in both RU configurations.
+
+Verdict: E = CPU (one L2A thread, linear in cells; hook adds to it). D = not CPU (no saturated core, posting on time,
+RU timestamps are NIC hardware); D depends on the UL traffic pattern reaching the DU.

@@ -138,6 +138,7 @@ python3 fullstack/analyze_run.py a                    # L1 WRN/ERR, 드롭, test
 - ⑥-1 (a) DL 워커 3코어 vs (b) 6코어, 각 10분: CPU 단계 동일, RU 늦은 패킷 비율(위치 6/7) 변화 없음 → DL 워커 CPU는 원인에서 제외 (`analysis_a.txt`, `analysis_b.txt`).
 - E 훅 비용 (`e_hook_cost.txt`, 각 5분 = 600k 슬롯): 훅 on(PDU 포함) − off = L2A end − tick p50 +20.2 / p99 +25.5 / p99.9 +28.8 / max +34.7 µs; UL 슬롯(위치 4·5) +38~45, DL 슬롯 +15~30. 훅 on은 600 µs 선까지 여유 5 µs(드롭 1), off는 40 µs(드롭 0). 레코드당 ~100 ns × 슬롯당 133~457 레코드(UL 슬롯 UL_PDU 384~440)라 비용은 PDU 수에 비례한다. → PDU 내보내기를 L2A 스레드 밖(디스크립터 큐 + 복사 스레드)으로 옮기는 안을 제안, 구현 전까지 full-stack 신뢰성 런은 `export_pdus: 0`.
 - 주의: `e_sum`(요약 모드)과 `d` 런은 스크립트가 직전 런의 `enable: 0`을 되돌리지 않아 훅 off로 돌았다(이후 모드마다 훅 라인 전체를 다시 쓰도록 수정). `e_sum`은 훅-off 반복 런으로만 쓴다(런 간 차이 ≤ 1.5 µs).
+- D 확정 (`d_ru_late.txt`, `d_match.txt`, 10분, RU.LATE_PACKETS INFO + 히스토그램): `ru_late.py`로 RU 슬롯·셀별 도착 창과 늦은 패킷의 심볼 분포를 뽑고 `d_match.py`로 L1 슬롯과 t0(500 µs 격자, SFN mod 256·슬롯 확인)로 1:1 대응. 늦은 슬롯 294개(위치 6: 0.073 %, 7: 0.059 %, 9: 0.042 %)에서 L1 CPU 단계(압축 완료, U-plane 준비·tx 종료 ≤ t0 −587 µs)는 정상 슬롯과 같고, 늦은 패킷은 심볼 0~1 집중(20 %)이 아니라 위치별 패턴(7 = 머리 0~3, 6/8/9 = 꼬리 12~13)으로 퍼진다. 송신은 GPU 커널(`gpu_init_comms_dl: 1`, `mps_sm_gpu_comms: 16`)이 하며, 늦은 슬롯의 60~80 %는 같은 패턴의 UL GPU 작업(order/PUSCH)이 p99를 넘긴 경우와 겹친다(정상 슬롯 3.8 %). → D = GPU 발신 커널의 지연·늘어짐(다른 cuPHY GPU 작업과의 경합), CPU·선로 아님.
 
 ## YOLO26 엔진
 

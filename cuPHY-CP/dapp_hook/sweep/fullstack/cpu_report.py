@@ -15,12 +15,13 @@ OWNER[15] = "testMAC low"; OWNER[16] = "testMAC sched"; OWNER[17] = "testMAC rec
 for c in range(20, 31): OWNER[c] = "RU UL"
 for c in range(31, 41): OWNER[c] = "RU DL"
 OWNER[41] = "RU low"; OWNER[42] = "RU dpdk"
+OWNER[43] = "dApp export (async)"
 def owner(c, ru2=False):
     if ru2:
         if 20 <= c <= 41: return "RU UL (x2)"
-        if 43 <= c <= 62: return "RU DL (x2)"
-        if c == 63: return "RU low (x2)"
-        if c == 64: return "RU dpdk (x2)"
+        if 42 <= c <= 61: return "RU DL (x2)"
+        if c == 62: return "RU low (x2)"
+        if c == 63: return "RU dpdk (x2)"
     return OWNER.get(c, "housekeeping" if c < 4 or c > 64 else "free isolated")
 
 def num(s, key, end=" "):
@@ -100,7 +101,7 @@ def threads(name):
     return out
 
 names = sys.argv[1:]
-print("== E (L2A path, hook off; us after the slot-indication tick; drop line = 600)")
+print("== E (L2A path; us after the slot-indication tick; drop line = 600)")
 print("  %-9s %7s  %-34s %-34s %-24s %s" % ("run", "slots", "L2A end-tick p50/p99/p99.9/max", "enqueue-tick p50/p99/p99.9/max", "margin 600-p99.9 / -max", "drops>1s ; last FAPI msg-tick p50/p99.9"))
 E = {}
 for n in names:

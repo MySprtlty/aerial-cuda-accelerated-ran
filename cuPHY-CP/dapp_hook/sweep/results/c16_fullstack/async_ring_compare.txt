@@ -1,0 +1,9 @@
+ref: prof/ring_16C_a.bin  records 40880000, slot blocks 200000, seq gaps 0, types {1: 16480000, 2: 640000, 3: 21000000, 4: 2560000, 5: 200000}
+   structure: every block = [cell: PDUs, TTI]... then SLOT_END; SLOT_END.num_cells != cells seen in 0 blocks
+new: prof/ring_16C_as_pilot.bin  records 40880000, slot blocks 200000, seq gaps 0, types {1: 16480000, 2: 640000, 3: 21000000, 4: 2560000, 5: 200000}
+   structure: every block = [cell: PDUs, TTI]... then SLOT_END; SLOT_END.num_cells != cells seen in 0 blocks
+ref: content is periodic with P = 80 slots
+records per slot block (count: blocks)  ref {129: 70000, 145: 5000, 161: 67500, 177: 17500, 401: 20000, 449: 10000, 465: 10000}
+                                         new {129: 70000, 145: 5000, 161: 67500, 177: 17500, 401: 20000, 449: 10000, 465: 10000}
+content + order: 0 of 200000 new slot blocks differ from the reference at the same pattern position
+RESULT: EQUIVALENT (same records, same order, no gaps)

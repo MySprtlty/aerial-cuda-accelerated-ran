@@ -31,6 +31,7 @@
 #include "cuphyoam.hpp"
 #ifdef ENABLE_DAPP_HOOK
 #include "dapp_hook/dapp_ring.hpp"
+#include "dapp_hook/dapp_async.hpp"
 #endif
 
 #include <unistd.h> // usleep(), temporary!
@@ -449,6 +450,31 @@ PHY_module::PHY_module(yaml::node node_config) :
                            pcfg.name, pcfg.ring_len, nv::dapp::producer()->bytes(), nv::dapp::producer()->mlocked(),
                            nv::dapp::g_export_ul, nv::dapp::g_export_dl, nv::dapp::g_export_pdus,
                            pcfg.slot_advance, pcfg.mu, pcfg.num_cells);
+
+                // async_export: 1 moves the PDU walk and every ring write to a
+                // dedicated thread (export_cpu); the msg_processing thread then
+                // only queues one descriptor per TTI request. Default 0 = inline.
+                const bool async_export = dcfg.has_key("async_export") ? (dcfg["async_export"].as<uint32_t>() != 0) : false;
+                if (async_export)
+                {
+                    const int export_cpu  = dcfg.has_key("export_cpu") ? dcfg["export_cpu"].as<int>() : -1;
+#ifdef ENABLE_SCHED_FIFO_ALL_RT
+                    const int export_prio = dcfg.has_key("export_prio") ? dcfg["export_prio"].as<int>() : 90;
+#else
+                    const int export_prio = 0;
+#endif
+                    std::string aerr;
+                    if (nv::dapp::install_async_exporter(export_cpu, export_prio, aerr))
+                    {
+                        NVLOGC_FMT(TAG, "dApp hook async export enabled: export_cpu={} export_prio={} queue={} max_held={}{}{}",
+                                   export_cpu, export_prio, nv::dapp::AsyncExporter::kQueueLen, nv::dapp::AsyncExporter::kMaxHeld,
+                                   aerr.empty() ? "" : " warning: ", aerr);
+                    }
+                    else
+                    {
+                        NVLOGE_FMT(TAG, AERIAL_CONFIG_EVENT, "dApp hook async export could not be enabled, exporting inline: {}", aerr);
+                    }
+                }
             }
             else
             {
@@ -615,14 +641,43 @@ void PHY_module::start()
     }
 }
 
+#ifdef ENABLE_DAPP_HOOK
+////////////////////////////////////////////////////////////////////////
+// dApp hook, asynchronous export: a TTI request handed to the export thread
+// keeps its nvIPC buffer until that thread has written the records. The
+// release still happens here, on the msg_processing thread.
+static inline bool dapp_defer_release(phy_mac_msg_desc& desc)
+{
+    nv::dapp::AsyncExporter* ax = nv::dapp::async_exporter();
+    return (ax != nullptr) && ax->take_claim(desc.msg_buf, static_cast<const nv_ipc_msg_t*>(&desc), sizeof(nv_ipc_msg_t));
+}
+
+static inline void dapp_release_exported(phy_mac_transport_wrapper& transport)
+{
+    nv::dapp::AsyncExporter* ax = nv::dapp::async_exporter();
+    if (ax == nullptr) { return; }
+    phy_mac_msg_desc desc;
+    while (ax->pop_releasable(static_cast<nv_ipc_msg_t*>(&desc), sizeof(nv_ipc_msg_t)))
+    {
+        transport.rx_release(desc);
+    }
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////
 // PHY_module::recv_msg()
 #ifdef ENABLE_L2_SLT_RSP
 bool PHY_module::recv_msg()
 {
     phy_mac_msg_desc smsg;
+#ifdef ENABLE_DAPP_HOOK
+    dapp_release_exported(transport_wrapper());
+#endif
     while(transport_wrapper().rx_recv(smsg) >= 0)
     {
+#ifdef ENABLE_DAPP_HOOK
+        dapp_release_exported(transport_wrapper());
+#endif
         if(simulated_cpu_stall_checkpoint(L2A_MSG_THREAD,-1))
             NVLOGI_FMT(TAG, "Simulate CPU Stall on L2A msg thread");
 
@@ -648,6 +703,9 @@ bool PHY_module::recv_msg()
         if(phy_refs_[smsg.cell_id].get().on_msg(smsg))
         {
             // Release the NVIPC buffers if FAPI message handle finished in on_msg()
+#ifdef ENABLE_DAPP_HOOK
+            if(!dapp_defer_release(smsg))
+#endif
             transport_wrapper().rx_release(smsg);
         }
 
@@ -671,6 +729,9 @@ bool PHY_module::recv_msg()
                 if(phy_refs_[desc.cell_id].get().on_msg(desc))
                 {
                     // The IPC message handle finished, release the buffers explicitly
+#ifdef ENABLE_DAPP_HOOK
+                    if(!dapp_defer_release(desc))
+#endif
                     transport_wrapper().rx_release(desc);
                 }
             }
@@ -702,6 +763,9 @@ bool PHY_module::recv_msg()
                 if(phy_refs_[smsg.cell_id].get().on_msg(smsg))
                 {
                     // The IPC message handle finished, release the buffers explicitly
+#ifdef ENABLE_DAPP_HOOK
+                    if(!dapp_defer_release(smsg))
+#endif
                     transport_wrapper().rx_release(smsg);
                 }
             } else {
@@ -723,9 +787,15 @@ bool PHY_module::recv_msg()
         {
             for (uint i = 0; i < num_msgs; i++) {
                 auto& desc = slot_msgs_received[i];
+#ifdef ENABLE_DAPP_HOOK
+                dapp_release_exported(transport_wrapper());
+#endif
                 if(phy_refs_[desc.cell_id].get().on_msg(desc))
                 {
                     // The IPC message handle finished, release the buffers explicitly
+#ifdef ENABLE_DAPP_HOOK
+                    if(!dapp_defer_release(desc))
+#endif
                     transport_wrapper().rx_release(desc);
                 }
             }
@@ -1204,31 +1274,79 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
         {
             const uint16_t dapp_sfn  = slot_cmd.cell_groups.slot.slot_3gpp.sfn_;
             const uint16_t dapp_slot = slot_cmd.cell_groups.slot.slot_3gpp.slot_;
-            dapp_rec_t*      drec = dapp_ring->begin(DAPP_REC_SLOT_END, dapp_sfn, dapp_slot, 0xFFFF);
-            dapp_slot_end_t& d    = drec->u.slot_end;
-            d.enqueued            = dapp_enqueued ? 1u : 0u;
-            d.slot_end_rcvd       = slot_end_rcvd ? 1u : 0u;
-            d.is_ul               = is_ul_slot_ ? 1u : 0u;
-            d.is_dl               = is_dl_slot_ ? 1u : 0u;
-            d.is_csirs            = is_csirs_slot_ ? 1u : 0u;
-            d.enqueue_ret         = ret;
-            // cells that sent a UL/DL TTI request for this slot (tracked by the
-            // TTI hooks); phy_list_size only counts the PDSCH cells and the
-            // per-cell channel_array_size stays 0 in cell-group mode
-            d.num_cells           = dapp_ring->take_cells(dapp_sfn, dapp_slot);
-            d.cmd_size            = static_cast<uint32_t>(cells_size);
-            d.tick_original_ns    = slot_cmd.tick_original.count();
-            d.t0_ns               = slot_cmd.tick_original.count() +
-                                    static_cast<int64_t>(tick_updater_.slot_advance_) *
-                                        static_cast<int64_t>(nv::mu_to_ns(tick_updater_.mu_highest_));
-            d.l1_slot_ind_tick_ns = l1_slot_ind_tick_[ss_curr.u16.slot % 10].count();
-            d.l2a_latency_ns      = (now - l1_slot_ind_tick_[ss_curr.u16.slot % 10]).count();
-            d.l2a_start_ns        = l2a_start_tick_.count();
-            d.l2a_end_ns          = l2a_end_tick_.count();
-            dapp_ring->commit(drec);
-            dapp_ring->count_slot_end();
-            if (!dapp_enqueued) { dapp_ring->count_slot_dropped(); }
-            dapp_ring->heartbeat();
+            nv::dapp::AsyncExporter*       dapp_async = nv::dapp::async_exporter();
+            nv::dapp::AsyncExporter::Item* ditem      = nullptr;
+            dapp_rec_t*                    drec       = nullptr;
+            if (dapp_async != nullptr)
+            {
+                // async_export: the export thread writes the record, after the
+                // TTI records of this slot (same queue, so the order is kept)
+                ditem = dapp_async->reserve(false);
+            }
+            else
+            {
+                drec = dapp_ring->begin(DAPP_REC_SLOT_END, dapp_sfn, dapp_slot, 0xFFFF);
+            }
+            if (ditem != nullptr || drec != nullptr)
+            {
+                dapp_slot_end_t  dlocal{};
+                dapp_slot_end_t& d    = (drec != nullptr) ? drec->u.slot_end : dlocal;
+                d.enqueued            = dapp_enqueued ? 1u : 0u;
+                d.slot_end_rcvd       = slot_end_rcvd ? 1u : 0u;
+                d.is_ul               = is_ul_slot_ ? 1u : 0u;
+                d.is_dl               = is_dl_slot_ ? 1u : 0u;
+                d.is_csirs            = is_csirs_slot_ ? 1u : 0u;
+                d.enqueue_ret         = ret;
+                // cells that sent a UL/DL TTI request for this slot (tracked by the
+                // TTI hooks); phy_list_size only counts the PDSCH cells and the
+                // per-cell channel_array_size stays 0 in cell-group mode.
+                // In async mode the export thread fills it (it owns that state).
+                d.num_cells           = (drec != nullptr) ? dapp_ring->take_cells(dapp_sfn, dapp_slot) : 0u;
+                d.cmd_size            = static_cast<uint32_t>(cells_size);
+                d.tick_original_ns    = slot_cmd.tick_original.count();
+                d.t0_ns               = slot_cmd.tick_original.count() +
+                                        static_cast<int64_t>(tick_updater_.slot_advance_) *
+                                            static_cast<int64_t>(nv::mu_to_ns(tick_updater_.mu_highest_));
+                d.l1_slot_ind_tick_ns = l1_slot_ind_tick_[ss_curr.u16.slot % 10].count();
+                d.l2a_latency_ns      = (now - l1_slot_ind_tick_[ss_curr.u16.slot % 10]).count();
+                d.l2a_start_ns        = l2a_start_tick_.count();
+                d.l2a_end_ns          = l2a_end_tick_.count();
+                if (drec != nullptr)
+                {
+                    dapp_ring->commit(drec);
+                    dapp_ring->count_slot_end();
+                    if (!dapp_enqueued) { dapp_ring->count_slot_dropped(); }
+                    dapp_ring->heartbeat();
+                }
+                else
+                {
+                    ditem->fn            = nv::dapp::async_slot_end_handler;
+                    ditem->ts_rx_ns      = nv::dapp::now_ns();
+                    ditem->ts_l2_send_ns = 0;
+                    ditem->fapi_msg      = nullptr;
+                    ditem->kind          = nv::dapp::AsyncExporter::KIND_SLOT_END;
+                    ditem->cell_id       = 0xFFFF;
+                    ditem->sfn           = dapp_sfn;
+                    ditem->slot          = dapp_slot;
+                    ditem->slot_dropped  = dapp_enqueued ? 0u : 1u;
+                    ditem->slot_end      = dlocal;
+                    dapp_async->publish(ditem, nullptr);
+                }
+            }
+            if (dapp_async != nullptr)
+            {
+                // one console line every ~10 s: export health without touching the ring ABI
+                static uint32_t dapp_async_log_cnt = 0;
+                if (++dapp_async_log_cnt >= 20000)
+                {
+                    dapp_async_log_cnt = 0;
+                    const nv::dapp::AsyncExporter::Stats st = dapp_async->stats();
+                    NVLOGC_FMT(TAG, "dApp async export: submitted={} done={} dropped={} orphans={} max_depth={} max_held={} write_delay_us avg={:.1f} max={:.1f} n={}",
+                               st.submitted, st.done, st.dropped, st.orphans, st.max_depth, st.max_held,
+                               st.delay_n ? static_cast<double>(st.delay_sum_ns) / static_cast<double>(st.delay_n) / 1e3 : 0.0,
+                               static_cast<double>(st.delay_max_ns) / 1e3, st.delay_n);
+                }
+            }
         }
 #endif
 

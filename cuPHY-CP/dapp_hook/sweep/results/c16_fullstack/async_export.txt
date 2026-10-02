@@ -1,0 +1,76 @@
+Asynchronous hook export - verification (2026-10-03 04:00-05:50 KST), branch hotfix/fullstack-e-d-design.
+16 cells, 59c DDDSUUDDDD, F08_CG1 loopback, no nsys, one binary for every mode (dapp_hook yaml: enable / async_export).
+Scripts: fullstack/fullstack_run.sh (hook modes off | full | async), async_runs.sh, async_runs2.sh, cpu_report.py,
+ring_compare.py. Statistics exclude the first second. Drop line: L2A end - tick > 600 us (check_time_threshold).
+
+Change: with async_export: 1 the L2A msg_processing thread (core 12) queues one descriptor per TTI request and per
+SLOT_END; the dapp_export thread (core 43, SCHED_FIFO 90, polling) walks the message and writes the same records.
+The request's nvIPC buffer is released by the msg_processing thread once the export thread has passed it.
+CPU assignment before/after: core 43 was unused (isolated); now dapp_export, 100 % busy by polling. Nothing else moved.
+
+1. Unit checks: dapp_export_test PASS (new case 5: async path = inline records byte for byte, order, record time =
+   hook time, deferred release in hand-off order, refusal instead of waiting when the held budget is full, orphan
+   counter), dapp_ring_selftest PASS (2,000,001 records, 0 gaps/torn), estimator tests 24/24.
+
+2. Pilot, async, 2 min, ring recorded (as_pilot): 49,055,600 records, 0 seq gaps. Export health (console line every
+   10 s): dropped 0, orphans 0, max queue depth 2, max held buffers 2, write delay avg 0.8 us, max 7.8 us (first
+   interval), <= 3.6 us afterwards. No WRN/ERR after start-up, no nvIPC errors.
+
+3. Equivalence with the inline hook (ring_compare.py prof/ring_16C_a.bin prof/ring_16C_as_pilot.bin --slots 200000):
+   ref and new: 40,880,000 records each, 200,000 slot blocks, 0 gaps, identical type counts
+   (UL_PDU 16,480,000 / UL_TTI 640,000 / DL_PDU 21,000,000 / DL_TTI 2,560,000 / SLOT_END 200,000);
+   every block = [cell: PDUs, TTI]... then SLOT_END; SLOT_END.num_cells always equals the cells seen;
+   content periodic with P = 80 slots; 0 of 200,000 blocks differ (payload compared byte for byte, in order, with
+   the time fields masked). RESULT: EQUIVALENT.
+   Estimator replay (replay.py, 20,000 slots each): both rings decode, 20,000 decisions, stale 0; all 59 non-time
+   columns of the decision log identical row by row (only ts_ns, t0_ns, proc_us differ).
+   Inline regression with the new binary (as_inl_pilot, 2 min, recorded): see the last section.
+
+4. Timing, 5 min each (600k slots), L2A end - tick in us (p50 / p99 / p99.9 / max), margin = 600 - p99.9 / 600 - max:
+   run        mode    p50    p99    p99.9  max     margin        drops>1s  RU DL-U late %  (pos 6 / 7 / 8 / 9 / 0)
+   as_off     off     543.0  550.7  553.2  563.7   46.8 / 36.3   0         0.026  (0.060 / 0.054 / 0.020 / 0.064 / 0.010)
+   as_off2    off     544.9  553.5  556.1  561.3   43.9 / 38.7   0         0.074  (0.149 / 0.151 / 0.070 / 0.171 / 0.051)
+   as_off3    off     543.8  552.3  555.0  567.3   45.0 / 32.7   0         0.056  (0.125 / 0.107 / 0.049 / 0.131 / 0.039)
+   as_inline  inline  564.8  578.5  584.3  599.9   15.7 /  0.1   122       0.426  (1.773 / 1.578 / 0.036 / 0.001 / 0.025)
+   as_async   async   545.3  553.4  555.6  562.7   44.4 / 37.3   0         0.077  (0.152 / 0.154 / 0.067 / 0.199 / 0.043)
+   as_async2  async   546.8  555.0  557.4  564.3   42.6 / 35.7   0         0.072  (0.164 / 0.147 / 0.064 / 0.165 / 0.036)
+   as_async3  async   547.6  556.4  559.5  567.2   40.5 / 32.8   0         0.091  (0.211 / 0.175 / 0.077 / 0.176 / 0.080)
+   as_soak    async   546.0  553.7  556.7  576.0   43.3 / 24.0   0         0.063  (0.109 / 0.106 / 0.061 / 0.174 / 0.050)   10 min
+   Means: off 543.9 / 552.2 / 554.8; async 546.4 / 554.6 / 557.3 -> async - off = +2.5 / +2.4 / +2.5 us
+   (inline - off = +20.9 / +26.3 / +29.5 us). UL slots (positions 4, 5) p50: off 525-528, inline 566-569, async 528-530.
+   Inline drops: 122 after the first second, all at UL positions (4: 66, 5: 57; one at 6).
+   testMAC error indications: 0 in every run.
+
+   Pass criteria: async - off p99.9 <= +5 us: PASS (+2.5). No drop after the first second: PASS (0 in 4 async runs,
+   3.0M slots). Max <= ~570 us: PASS in the three 5-min runs (562.7-567.2), 576.0 in the 10-min soak (one tail event
+   at position 5; the off runs reach 561-567).
+   RU DL U-plane late share: off 0.026-0.074 % (mean 0.052, n=3), async 0.063-0.091 % (mean 0.076, n=4), inline 0.426 %.
+   The off and async ranges overlap and the adjacent pairs are 0.074 vs 0.072 and 0.056 vs 0.091; with this spread a
+   worsening of up to ~1.5x by async cannot be excluded, a worsening like inline's (8x) can.
+   The inline hook itself moves the late share from 0.05 % to 0.43 % (positions 6/7: 1.6-1.8 %) under identical
+   logging, i.e. the 20-40 us later enqueue does reach the DL send; this answers the question left open in
+   d_ru_late.txt (runs a/b had the inline hook on).
+
+5. Soak, async, 10 min (as_soak, 1,197,998 slots): 20,060,000 descriptors, dropped 0, orphans 0, max depth 1,
+   max held 1, write delay avg 0.8 us, max 8.1 us (first interval) / <= 3.5 us later; no WRN/ERR after start-up, no
+   nvIPC or pool errors; drops 0. Core 43 100 % (polling), core 12 99.5 % (polling, as before).
+
+6. Lab state after the runs: hook line {enable: 1, export_ul: 1, export_dl: 0, export_pdus: 1} (no async keys: the
+   default stays inline until the user switches it), RU cores 20-30 / 31-40 / 41 / 42, timing_histogram 0.
+   To enable: add "async_export: 1, export_cpu: 43" to the dapp_hook block of the l2 adapter yaml.
+
+Remaining risks / notes
+ - The export thread needs its own isolated core (43 here) and polls at 100 %.
+ - A message is not exported when the queue (1024) or the held budget (256) is full; never observed (max depth 2).
+   The counter is only on the console line, not in the ring header (ABI untouched).
+ - Residual L2A cost is +2.5 us per slot at 16 cells (16-17 descriptors); it scales with the number of TTI requests,
+   not with the number of PDUs.
+ - Record ts_ns now is the hook time for every record of a message (inline: each record's own write time, ~100 ns
+   apart); the write itself is 0.8 us later.
+ - Start-up behaviour is unchanged: the first UL/DL slot is dropped by NVIDIA's warm-up branch in every mode.
+
+7. Inline mode with the new binary (as_inl_pilot, 2 min, recorded, async_export absent):
+   ring_compare vs prof/ring_16C_a.bin over 200,000 slot blocks: same record counts, 0 gaps, structure intact;
+   5 blocks differ, and they are exactly the 5 slots L1 dropped in this run (SFN 180.5, 964.14, 566.4, 225.14, 900.4,
+   all UL positions): SLOT_END enqueued 0 / enqueue_ret -1, their PDU and TTI records identical to the reference.
+   So the inline path writes what it wrote before, and it still drops slots at 16 cells.

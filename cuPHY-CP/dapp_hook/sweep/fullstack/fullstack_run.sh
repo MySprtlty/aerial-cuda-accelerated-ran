@@ -1,5 +1,5 @@
 #!/bin/bash
-# fullstack_run.sh <name> <num_slots> [dl_worker_cores] [nvlog_tag_ids] [hook: full|summary|off]
+# fullstack_run.sh <name> <num_slots> [dl_worker_cores] [nvlog_tag_ids] [hook: full|summary|off|async]
 #   env RECORD=1  record the hook ring on the host (prof/ring_16C_<name>.bin)
 #   env RU_HIST=1 RU emulator timing_histogram: 1
 #   env FS_OUT    directory for console logs, config snapshots and DCGM (default prof/run61, gitignored)
@@ -43,12 +43,14 @@ grep -q "total $N cells" $S/test_config_$NAME.log || { echo "test_config failed"
 # back up the lab files this script edits; restored at the end of the run
 for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml; do cp $f $S/before_$NAME.$(basename $f); done
 restore_lab() { for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml; do cp $S/before_$NAME.$(basename $f) $f; done; }
-# hook: full = UL+DL+PDUs, summary = UL+DL without PDUs, off = disabled
+# hook: full = UL+DL+PDUs inline, summary = UL+DL without PDUs, off = disabled,
+#       async = full, exported by the dApp export thread on core EXPORT_CPU (default 43)
 # every mode rewrites the whole line: the file keeps the previous run's values (the 10/01 e_sum and d runs ran with enable: 0)
 case "$HOOK" in
   full)    HOOKLINE='dapp_hook: {enable: 1, shm_name: \/aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}' ;;
   summary) HOOKLINE='dapp_hook: {enable: 1, shm_name: \/aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 0}' ;;
   off)     HOOKLINE='dapp_hook: {enable: 0, shm_name: \/aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}' ;;
+  async)   HOOKLINE="dapp_hook: {enable: 1, shm_name: \/aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1, async_export: 1, export_cpu: ${EXPORT_CPU:-43}}" ;;
 esac
 sed -i "s/^dapp_hook: {.*}/$HOOKLINE/" cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml
 if [ "$RU_HIST" = "1" ]; then sed -i 's/^  timing_histogram: 0/  timing_histogram: 1/' cuPHY-CP/ru-emulator/config/config.yaml; grep -n "timing_histogram" cuPHY-CP/ru-emulator/config/config.yaml; fi

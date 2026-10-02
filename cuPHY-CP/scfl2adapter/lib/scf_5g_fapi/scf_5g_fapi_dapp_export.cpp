@@ -2,8 +2,9 @@
  * dApp hook: export UL_TTI.request / DL_TTI.request contents to the
  * shared-memory ring. See scf_5g_fapi_dapp_export.hpp.
  *
- * Runs on the L2 adapter msg_processing thread: no allocation, no locking,
- * no syscalls, and every read of the nvIPC buffer is bounded by msg_len.
+ * Runs on the L2 adapter msg_processing thread (inline mode) or on the dApp
+ * export thread (async mode): no allocation, no locking, no syscalls, and
+ * every read of the nvIPC buffer is bounded by msg_len.
  */
 #ifdef ENABLE_DAPP_HOOK
 
@@ -442,6 +443,63 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     ring.count_dl_tti();
     ring.note_cell(sfn, slot, cell_id);
     if (w.truncated) { ring.count_pdu_truncated(); }
+}
+
+//----------------------------------------------------------------------------
+// Asynchronous hand-off (L2A thread) and the handlers the export thread runs.
+//----------------------------------------------------------------------------
+namespace
+{
+
+static_assert(sizeof(nv_ipc_msg_t) <= nv::dapp::AsyncExporter::kIpcBytes, "nv_ipc_msg_t does not fit the async descriptor");
+
+void async_ul_handler(nv::dapp::Producer& ring, const nv::dapp::AsyncExporter::Item& it)
+{
+    nv_ipc_msg_t ipc;
+    std::memcpy(&ipc, it.ipc, sizeof(ipc));
+    dapp_export_ul_tti(ring, it.cell_id, *static_cast<const scf_fapi_ul_tti_req_t*>(it.fapi_msg), ipc, it.ts_l2_send_ns);
+}
+
+void async_dl_handler(nv::dapp::Producer& ring, const nv::dapp::AsyncExporter::Item& it)
+{
+    nv_ipc_msg_t ipc;
+    std::memcpy(&ipc, it.ipc, sizeof(ipc));
+    dapp_export_dl_tti(ring, it.cell_id, *static_cast<const scf_fapi_dl_tti_req_t*>(it.fapi_msg), ipc, it.ts_l2_send_ns);
+}
+
+inline bool submit(nv::dapp::AsyncExporter& ax, nv::dapp::AsyncExporter::Handler fn, uint16_t kind, uint16_t cell_id,
+                   uint16_t sfn, uint16_t slot, const void* fapi_msg, const nv_ipc_msg_t& ipc, int64_t ts_l2_send_ns)
+{
+    // Without a message buffer there is nothing whose release could be deferred.
+    if (ipc.msg_buf == nullptr) { return false; }
+    nv::dapp::AsyncExporter::Item* it = ax.reserve(true);
+    if (it == nullptr) { return false; }
+    it->fn            = fn;
+    it->ts_rx_ns      = nv::dapp::now_ns();
+    it->ts_l2_send_ns = ts_l2_send_ns;
+    it->fapi_msg      = fapi_msg;
+    it->kind          = kind;
+    it->cell_id       = cell_id;
+    it->sfn           = sfn;
+    it->slot          = slot;
+    it->slot_dropped  = 0;
+    std::memcpy(it->ipc, &ipc, sizeof(ipc));
+    ax.publish(it, ipc.msg_buf);
+    return true;
+}
+
+} // namespace
+
+bool dapp_submit_ul_tti(nv::dapp::AsyncExporter& ax, uint16_t cell_id, const scf_fapi_ul_tti_req_t& msg,
+                        const nv_ipc_msg_t& ipc, int64_t ts_l2_send_ns)
+{
+    return submit(ax, async_ul_handler, nv::dapp::AsyncExporter::KIND_UL_TTI, cell_id, msg.sfn, msg.slot, &msg, ipc, ts_l2_send_ns);
+}
+
+bool dapp_submit_dl_tti(nv::dapp::AsyncExporter& ax, uint16_t cell_id, const scf_fapi_dl_tti_req_t& msg,
+                        const nv_ipc_msg_t& ipc, int64_t ts_l2_send_ns)
+{
+    return submit(ax, async_dl_handler, nv::dapp::AsyncExporter::KIND_DL_TTI, cell_id, msg.sfn, msg.slot, &msg, ipc, ts_l2_send_ns);
 }
 
 } // namespace scf_5g_fapi

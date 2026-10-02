@@ -1112,7 +1112,16 @@ void phy::on_dl_tti_request(scf_fapi_dl_tti_req_t &msg, nv_ipc_msg_t& ipc_msg, u
                 dapp_ts_send = 0;
             }
         }
-        dapp_export_dl_tti(*dapp_ring, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+        if (nv::dapp::AsyncExporter* dapp_async = nv::dapp::async_exporter())
+        {
+            // async_export: the export thread walks the message; its buffer is
+            // released later by PHY_module::recv_msg() (see dapp_async.hpp)
+            (void)dapp_submit_dl_tti(*dapp_async, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+        }
+        else
+        {
+            dapp_export_dl_tti(*dapp_ring, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+        }
     }
 #endif
 
@@ -1399,7 +1408,14 @@ void phy::on_ul_tti_request(scf_fapi_ul_tti_req_t& msg, nv_ipc_msg_t& ipc_msg)
                 dapp_ts_send = 0;
             }
         }
-        dapp_export_ul_tti(*dapp_ring, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+        if (nv::dapp::AsyncExporter* dapp_async = nv::dapp::async_exporter())
+        {
+            (void)dapp_submit_ul_tti(*dapp_async, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+        }
+        else
+        {
+            dapp_export_ul_tti(*dapp_ring, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);
+        }
     }
 #endif
 

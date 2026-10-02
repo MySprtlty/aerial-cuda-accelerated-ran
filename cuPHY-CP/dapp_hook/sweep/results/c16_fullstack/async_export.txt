@@ -74,3 +74,8 @@ Remaining risks / notes
    5 blocks differ, and they are exactly the 5 slots L1 dropped in this run (SFN 180.5, 964.14, 566.4, 225.14, 900.4,
    all UL positions): SLOT_END enqueued 0 / enqueue_ret -1, their PDU and TTI records identical to the reference.
    So the inline path writes what it wrote before, and it still drops slots at 16 cells.
+
+8. After this verification the default was switched to asynchronous export (2026-10-03): code default async_export: 1
+   (inline with a warning when the block has no export_cpu), l2_adapter_config_F08_CG1.yaml carries
+   "async_export: 1, export_cpu: 43", fullstack_run.sh defaults to hook mode "async" ("full" = inline).
+   Check with the committed yaml line (def_keep, 60 s) and with a pre-async block (def_legacy, 60 s): see default_check.txt.

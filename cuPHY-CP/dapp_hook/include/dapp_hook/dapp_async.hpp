@@ -82,7 +82,8 @@ public:
 
     static std::unique_ptr<AsyncExporter> create(Producer* ring) { return std::unique_ptr<AsyncExporter>(new AsyncExporter(ring)); }
 
-    // Starts the export thread. cpu < 0: no pinning; fifo_prio <= 0: scheduling policy left alone.
+    // Starts the export thread. cpu < 0: no pinning (tests only: the thread polls, so in the L1 it
+    // must be pinned to a core of its own); fifo_prio <= 0: scheduling policy left alone.
     bool start(int cpu, int fifo_prio, std::string& err)
     {
         try {
@@ -287,7 +288,8 @@ inline void async_slot_end_handler(Producer& ring, const AsyncExporter::Item& it
 }
 
 //----------------------------------------------------------------------------
-// Process-wide exporter. Null unless the yaml asks for async_export: 1.
+// Process-wide exporter. Null when the export is inline (async_export: 0, or no
+// export_cpu given for the export thread).
 // The object is intentionally never freed: the L2A thread may still be inside
 // submit when the process exits. Only the export thread is stopped, before the
 // producer (defined earlier, so destroyed later) unmaps the ring.

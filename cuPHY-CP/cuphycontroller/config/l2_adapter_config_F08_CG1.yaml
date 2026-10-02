@@ -15,7 +15,9 @@ l2a_allowed_latency: 100000
 # dApp FAPI hook: export UL_TTI.request (and optionally DL_TTI.request) to a
 # shared-memory ring for an external consumer. See cuPHY-CP/dapp_hook/README.md.
 # Remove this block or set enable: 0 to switch the hook off completely.
-dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 0, export_pdus: 1}
+# async_export: 1 = records are written by the dapp_export thread on export_cpu
+# (an isolated core nothing else uses); 0 = inline on the msg_processing thread.
+dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 0, export_pdus: 1, async_export: 1, export_cpu: 43}
 enableTickDynamicSfnSlot: 0
 staticPucchSlotNum: 0
 staticPuschSlotNum: 0

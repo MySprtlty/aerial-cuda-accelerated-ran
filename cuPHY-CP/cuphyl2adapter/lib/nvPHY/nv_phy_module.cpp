@@ -451,13 +451,19 @@ PHY_module::PHY_module(yaml::node node_config) :
                            nv::dapp::g_export_ul, nv::dapp::g_export_dl, nv::dapp::g_export_pdus,
                            pcfg.slot_advance, pcfg.mu, pcfg.num_cells);
 
-                // async_export: 1 moves the PDU walk and every ring write to a
-                // dedicated thread (export_cpu); the msg_processing thread then
-                // only queues one descriptor per TTI request. Default 0 = inline.
-                const bool async_export = dcfg.has_key("async_export") ? (dcfg["async_export"].as<uint32_t>() != 0) : false;
-                if (async_export)
+                // Asynchronous export (default): the PDU walk and every ring write
+                // run on a dedicated thread pinned to export_cpu; the msg_processing
+                // thread only queues one descriptor per TTI request. That thread
+                // polls at real-time priority, so it must have a core of its own:
+                // without export_cpu (or with async_export: 0) the export is inline.
+                const bool async_export = dcfg.has_key("async_export") ? (dcfg["async_export"].as<uint32_t>() != 0) : true;
+                const int  export_cpu   = dcfg.has_key("export_cpu") ? dcfg["export_cpu"].as<int>() : -1;
+                if (async_export && export_cpu < 0)
                 {
-                    const int export_cpu  = dcfg.has_key("export_cpu") ? dcfg["export_cpu"].as<int>() : -1;
+                    NVLOGW_FMT(TAG, "dApp hook: async_export needs export_cpu (a dedicated isolated core); exporting inline on the msg_processing thread");
+                }
+                else if (async_export)
+                {
 #ifdef ENABLE_SCHED_FIFO_ALL_RT
                     const int export_prio = dcfg.has_key("export_prio") ? dcfg["export_prio"].as<int>() : 90;
 #else

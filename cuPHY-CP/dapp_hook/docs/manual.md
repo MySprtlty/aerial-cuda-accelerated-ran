@@ -19,7 +19,8 @@ Aerial 바이너리와 TensorRT는 컨테이너 안에만 있으므로 그쪽 �
 | 호스트 도구 | Python 3.10.12 + PyYAML, `dcgmi`(`sudo nv-hostengine` 필요), `~/.venvs/dapp_yolo`(ultralytics: ONNX 내보내기, replay 그림) |
 
 코어 배정(`testBenches/phase4_test_scripts/physical_cores_du.yaml`, `physical_cores_ru.yaml`):
-L1 4–14, testMAC 15–18, RU 에뮬레이터 19–42. **43–64가 비어 있다.** 스케줄러·세입자는 이 범위에 둔다
+L1 4–14, testMAC 15–18, RU 에뮬레이터 19–42, **훅 내보내기 스레드 `dapp_export` 43**(10/03부터 기본, 폴링이라 100 %로 보임).
+**44–63이 비어 있다**(64는 `phc2sys-cx7`). 스케줄러·세입자는 이 범위에 둔다
 (`isolcpus=domain`이라 `taskset -c 44-47`처럼 범위를 줘도 첫 코어에만 머문다. 코어 하나를 지정할 것).
 
 ## 1) 훅 모듈 빌드
@@ -73,17 +74,21 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_LOG_DIRECTORY=/v
 훅 스위치는 `cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml:15`의 한 줄이다.
 
 ```yaml
-dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1, async_export: 1, export_cpu: 43}
 ```
+
+`async_export: 1`(기본)이면 레코드를 L2A 스레드가 아니라 코어 `export_cpu`의 `dapp_export` 스레드가 쓴다.
+`export_cpu`가 없으면 경고를 내고 인라인으로 돈다. 인라인을 원하면 `async_export: 0`(`README.md`의 "Inline or asynchronous export").
 
 스크립트 한 번으로 실행 **[스크립트]** — 설정 생성, 훅 줄 기록, RU → L1 → testMAC 기동, DCGM 1초 기록, 종료,
 로그 복사, 랩 설정 원복까지 한다. 산출물은 `prof/run61/`(`FS_OUT`으로 변경).
 
 ```bash
-# fullstack_run.sh <name> <num_slots> [dl_worker_cores] [nvlog_tag_ids] [full|summary|off]
-#   600000 슬롯 = 300 s. 훅 모드: full = UL+DL+PDU, summary = export_pdus 0, off = enable 0
+# fullstack_run.sh <name> <num_slots> [dl_worker_cores] [nvlog_tag_ids] [async|full|summary|off|legacy|keep]
+#   600000 슬롯 = 300 s. 훅 모드: async(기본) = UL+DL+PDU를 dapp_export 스레드(코어 43)가 기록,
+#   full = 같은 내용을 인라인으로, summary = 인라인·export_pdus 0, off = enable 0, keep = yaml 줄을 그대로 사용
 #   환경변수: NCELLS(기본 16), RECORD=1(링을 prof/ring_16C_<name>.bin에 기록), KEEP_RAW=0(8~16 GB 원시 로그 생략)
-bash cuPHY-CP/dapp_hook/sweep/fullstack/fullstack_run.sh myrun 600000 "" "311" full
+bash cuPHY-CP/dapp_hook/sweep/fullstack/fullstack_run.sh myrun 600000 "" "311" async
 ```
 
 같은 일을 손으로 할 때 **[스크립트]** (`fullstack_run.sh:39-41, 87-98`이 실행하는 명령):
@@ -142,7 +147,7 @@ taskset -c 44 python3 live.py --profile profiles/yolo26n_b1.yaml --rules rules.y
 ```
 
 - 옵션: `--ring /aerial_dapp_ring`, `--ctrl /aerial_dapp_ctrl`, `--cells cells.yaml`, `--seconds N`, `--spin`, `--quiet`.
-- 초안의 코어 40은 루프백 구성에서 RU 에뮬레이터 DL 스레드(31–40)가 쓰므로 43 이상을 쓴다.
+- 초안의 코어 40은 루프백 구성에서 RU 에뮬레이터 DL 스레드(31–40)가, 43은 `dapp_export`가 쓰므로 44 이상을 쓴다.
 - 순수 Python이라 50 µs 예산을 못 지킨다(오늘 가짜 L1 8셀×6UE: p50 36 µs, p99 317 µs, 40 % 초과, 유실 0).
 
 ### 2-5. 세입자 서버와 요청 보내기
@@ -217,7 +222,8 @@ cd cuPHY-CP/dapp_hook/estimator && ~/.venvs/dapp_yolo/bin/python replay.py --dum
 
 ## 알아둘 것
 
-- 16셀에서 훅 `full` 모드는 600 µs 드롭 선까지 여유가 5 µs였다(10/01, 600k 슬롯에 드롭 1). 신뢰성 런은
-  `summary`(`export_pdus: 0`)로 돌리기로 되어 있고, 이때 estimator는 요약 합계만으로 일감을 추정한다(`summary_only`).
+- 16셀에서 인라인 훅(`full`)은 600 µs 드롭 선까지 여유가 0~16 µs라 슬롯을 드롭한다(10/01 5분에 1건, 10/03 5분에 122건).
+  10/03부터 기본인 비동기 내보내기는 훅 off 대비 +2.5 µs, 300만 슬롯 드롭 0이다(`sweep/results/c16_fullstack/async_export.txt`).
+  신뢰성 런도 `async`로 돌린다(PDU 레코드 포함). `summary`는 더 이상 필요하지 않다.
 - 측정 런 안에서 nsys를 시작·종료하지 않는다. 통계는 첫 1초를 뺀다(CONTEXT.md §9).
 - `fullstack_run.sh` + `live.py` + `dapp_sched`를 한꺼번에 돌린 16셀 런은 아직 없다. 9/11에 8셀에서 손으로 같은 순서로 확인한 것이 전부다.

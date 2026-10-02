@@ -19,8 +19,9 @@ message.
 | `DL_PDU`, `DL_TTI` | `scf_5g_fapi::phy::on_dl_tti_request`, after the state/validate guards | `msg_processing` |
 | `SLOT_END` | `nv::PHY_module::process_phy_commands`, after `l1_enqueue_phy_work` and on the drop path | `msg_processing` |
 
-With `async_export: 1` the hook sites only hand the message over; the records
-are written by the `dapp_export` thread (see *Inline or asynchronous export*).
+By default (asynchronous export) the hook sites only hand the message over and
+the records are written by the `dapp_export` thread; the table above is where
+the message is observed (see *Inline or asynchronous export*).
 
 ### What each record carries (ABI v2)
 
@@ -91,20 +92,25 @@ dapp_hook:
   export_ul: 1                  # UL_TTI.request (the prediction input)
   export_dl: 0                  # DL_TTI.request
   export_pdus: 1                # per-PDU records in addition to the per-cell summary
-  async_export: 0               # 1: records are written by a dedicated export thread (see below)
-  export_cpu: 43                # core of that thread (isolated, otherwise unused); -1 = not pinned
-  export_prio: 90               # its SCHED_FIFO priority (below msg_processing's 95)
+  async_export: 1               # default 1: records are written by a dedicated export thread (see below)
+  export_cpu: 43                # core of that thread: isolated and used by nothing else. Required for async.
+  export_prio: 90               # its SCHED_FIFO priority (default 90, below msg_processing's 95)
 ```
 
 ### Inline or asynchronous export
 
-Inline (`async_export: 0`, the default) the `msg_processing` thread walks every
+Asynchronous export is the default. It needs `export_cpu`: the export thread
+polls at real-time priority and must not share a core, so a block without
+`export_cpu` (e.g. a yaml written before this option existed) logs a warning
+and exports inline. `async_export: 0` selects inline explicitly.
+
+Inline, the `msg_processing` thread walks every
 PDU and writes the records itself: about 100 ns per record, i.e. 130..460
 records = 20..45 us per slot at 16 cells, on the path whose budget is 600 us
 (tick -> slot command). At 16 cells that leaves 0..16 us of margin and slots get
 dropped (`sweep/results/c16_fullstack/e_hook_cost.txt`, `async_export.txt`).
 
-With `async_export: 1` the `msg_processing` thread only queues one descriptor
+Asynchronous, the `msg_processing` thread only queues one descriptor
 per TTI request (and one per SLOT_END); the `dapp_export` thread walks the
 message and writes the same records, in the same order, with the record time
 set to the time the hook saw the message. Cost on the L2A path: about 2.5 us
@@ -115,8 +121,7 @@ is then released by the `msg_processing` thread as before
 if the queue (1024 descriptors) or the held-buffer budget (256) is full the
 message is not exported and the `dropped` counter of the console line
 `dApp async export: ...` (one every ~10 s) goes up. The export thread polls, so
-its core shows 100 % busy. Use async export at 16 cells; at a few cells either
-mode fits the budget.
+its core shows 100 % busy. At a few cells inline also fits the budget.
 
 Sizing: one UL slot with C cells and U PUSCH PDUs per cell produces
 `C * (U + 1) + 1` records. At mu=1 with 16 cells, 2 UEs per cell and 4 UL slots

@@ -1,0 +1,20 @@
+=== L1 (b): first tick 21:38:09.080036, WRN/ERR after it: 36
+  cluster +    0.000 .. +    0.013 s  n=36
+      x12   [AERIAL_CUPHY_EVENT] [CUPHY] Number of batches for batched copy is #, 
+      x5    [AERIAL_NVIPC_API_EVENT] [SCF.PHY] Send Err.ind for SFN #.# cell_id=# 
+      x4    [DRV.FH] sendCPlane_timingCheck : sendCPlane Timing error for DLC star
+      x4    [DRV.FH] sendCPlane_timingCheck: Error at oframe_id_ # osfid_ # osloti
+      x4    [AERIAL_CUPHYDRV_API_EVENT] [DRV.FUNC_DL] DL C-plane send error for ta
+  drops: 2  [(0.002, ('0', '5')), (0.002, ('0', '6'))]
+  PrePrepare                   0  (after first second: 0)
+  waiting for order kernel     0  (after first second: 0)
+  sendCPlane Timing error      4  (after first second: 0)
+  L2+L2A processing taking     0  (after first second: 0)
+=== testMAC: 599 stat seconds, Err.ind total 5, in the first second 5, later 0
+=== RU: DL U late slots/cell (3673, 3773) (of 957999 on-time+late per cell -> 0.390 %), DL C late/cell (1660, 1691)
+    below-100% slot indices by TDD position: {0: '7 idx, worst 99.91%', 1: '3 idx, worst 99.98%', 6: '8 idx, worst 97.34%', 7: '8 idx, worst 97.46%', 8: '7 idx, worst 99.88%', 9: '4 idx, worst 99.98%'}
+=== ring: 245069545 records, 1198971 SLOT_END (600.0 s); not enqueued: 2 total, 0 after the first second
+    dropped slots: [((0, 5), 0.0), ((0, 6), 0.001)]
+    L2 latency (first request - tick), us: p50 -296959537 p99 462 p99.9 465 max 470  | enqueue - tick: p50 584 p99 599 p99.9 605 max 618 (budget 600)
+    enqueue - tick by TDD position (p50/p99 us): {0: '584/597', 1: '587/601', 2: '577/592', 3: '576/587', 4: '582/592', 5: '590/601', 6: '586/602', 7: '584/597', 8: '585/600', 9: '586/600'}
+=== DCGM: 669 samples, SMACT mean 0.32 p95 0.36 max 0.36, POWER mean 276 W

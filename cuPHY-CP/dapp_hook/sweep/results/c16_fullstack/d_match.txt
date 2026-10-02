@@ -1,0 +1,79 @@
+RU DL slots 958397, L1 DL rows 958398, paired 958397, SFN/slot agree 958397
+
+== pos 6: normal 119704, late 96 slots.  RU latest-packet offset (us): normal p50 -321 p99.9 -313 | late p50 -207 p90 -116 max 193
+   stage               n p50  n p99.9    n max | late p50 late p90 late max   (us vs the slot's t0)
+   enq_us             -935.7   -926.6   -921.5 |   -935.6   -931.5   -923.4
+   pdsch_run_end      -841.6   -818.6   -806.1 |   -840.2   -834.7   -828.2
+   pdsch_compl_end     442.7    513.5    540.2 |    428.6    491.5    500.3
+   comp_wait_end      -532.8   -480.1   -461.5 |   -534.2   -506.6   -491.4
+   cplane_end_max     -649.2   -598.6   -572.5 |   -651.4   -634.1   -619.0
+   uprep_end_max      -667.9   -623.0   -606.5 |   -669.7   -639.6   -630.6
+   utx_end_max        -624.3   -578.5   -559.8 |   -626.5   -597.0   -586.9
+   utx_start_min         nan      nan      nan |      nan      nan      nan
+   late-symbol pattern: tail12-13:19, tail13-13:18, mid12-12:14, head0-5:5, mid3-11:4, mid3-12:4, tail2-13:3, mid3-8:3
+   utx_end excess over normal p50 in late slots (us): p50 -2.2 p90 27.3 max 37.4; share > +30 us: 5 %
+
+== pos 7: normal 119714, late 86 slots.  RU latest-packet offset (us): normal p50 -322 p99.9 -308 | late p50 -260 p90 -152 max 173
+   stage               n p50  n p99.9    n max | late p50 late p90 late max   (us vs the slot's t0)
+   enq_us             -938.8   -930.1   -925.3 |   -939.3   -934.8   -929.9
+   pdsch_run_end      -843.3   -824.7   -807.1 |   -844.9   -838.0   -830.4
+   pdsch_compl_end     445.2    489.6    536.8 |    426.9    472.9    488.5
+   comp_wait_end      -534.6   -500.1   -459.0 |   -541.0   -525.0   -514.1
+   cplane_end_max     -668.2   -630.1   -572.6 |   -672.4   -658.7   -648.7
+   uprep_end_max      -676.5   -653.8   -624.9 |   -682.4   -670.3   -661.8
+   utx_end_max        -636.2   -611.5   -577.3 |   -641.1   -628.3   -620.4
+   utx_start_min         nan      nan      nan |      nan      nan      nan
+   late-symbol pattern: mid12-12:21, head0-2:9, head0-1:8, head0-3:7, tail12-13:6, mid3-7:5, tail13-13:5, head0-4:4
+   utx_end excess over normal p50 in late slots (us): p50 -4.9 p90 7.9 max 15.8; share > +30 us: 0 %
+
+== pos 8: normal 119775, late 25 slots.  RU latest-packet offset (us): normal p50 -323 p99.9 -314 | late p50 -281 p90 -245 max -48
+   stage               n p50  n p99.9    n max | late p50 late p90 late max   (us vs the slot's t0)
+   enq_us             -936.3   -927.5   -922.7 |   -937.0   -932.7   -927.1
+   pdsch_run_end      -846.5   -825.8   -809.2 |   -847.8   -838.1   -827.5
+   pdsch_compl_end     439.1    508.7    532.5 |    458.1    492.1    499.1
+   comp_wait_end      -557.2   -483.2   -463.0 |   -541.4   -498.4   -486.3
+   cplane_end_max     -664.3   -609.9   -563.0 |   -660.4   -635.3   -628.9
+   uprep_end_max      -694.1   -625.7   -607.5 |   -673.6   -642.9   -627.2
+   utx_end_max        -655.8   -584.2   -565.6 |   -634.2   -605.2   -588.4
+   utx_start_min         nan      nan      nan |      nan      nan      nan
+   late-symbol pattern: tail12-13:9, mid12-12:8, tail13-13:3, head0-2:2, head0-8:1, all:1, head0-1:1
+   utx_end excess over normal p50 in late slots (us): p50 21.6 p90 50.6 max 67.4; share > +30 us: 36 %
+
+== pos 9: normal 119725, late 75 slots.  RU latest-packet offset (us): normal p50 -323 p99.9 -305 | late p50 -285 p90 -272 max -231
+   stage               n p50  n p99.9    n max | late p50 late p90 late max   (us vs the slot's t0)
+   enq_us             -936.6   -926.0   -922.4 |   -936.6   -932.1   -929.2
+   pdsch_run_end      -845.5   -824.8   -805.3 |   -846.7   -838.8   -830.2
+   pdsch_compl_end     437.9    480.5    491.3 |    421.7    460.1    471.8
+   comp_wait_end      -559.6   -516.7   -471.1 |   -599.1   -537.1   -523.3
+   cplane_end_max     -666.3   -620.7   -574.2 |   -672.6   -651.6   -642.8
+   uprep_end_max      -682.3   -646.1   -603.7 |   -721.6   -663.5   -654.0
+   utx_end_max        -643.4   -604.6   -559.9 |   -681.7   -621.7   -613.5
+   utx_start_min         nan      nan      nan |      nan      nan      nan
+   late-symbol pattern: mid12-12:42, tail12-13:21, tail13-13:10, head0-0:2
+   utx_end excess over normal p50 in late slots (us): p50 -38.3 p90 21.7 max 29.9; share > +30 us: 0 %
+
+== pos 0: normal 119789, late 11 slots.  RU latest-packet offset (us): normal p50 -323 p99.9 -320 | late p50 -278 p90 -275 max -270
+   stage               n p50  n p99.9    n max | late p50 late p90 late max   (us vs the slot's t0)
+   enq_us             -938.6   -929.1   -923.2 |   -938.1   -932.9   -931.6
+   pdsch_run_end      -846.8   -823.2   -810.0 |   -846.0   -841.4   -818.8
+   pdsch_compl_end     422.3    433.9    445.0 |    420.4    423.3    423.7
+   comp_wait_end      -571.2   -501.4   -479.8 |   -604.1   -598.5   -518.4
+   cplane_end_max     -653.2   -607.8   -572.2 |   -672.2   -630.6   -628.2
+   uprep_end_max      -691.4   -628.4   -608.3 |   -724.1   -719.7   -641.8
+   utx_end_max        -652.4   -584.7   -564.4 |   -684.2   -681.7   -597.4
+   utx_start_min         nan      nan      nan |      nan      nan      nan
+   late-symbol pattern: mid12-12:5, head0-1:3, head0-0:2, tail12-13:1
+   utx_end excess over normal p50 in late slots (us): p50 -31.8 p90 -29.3 max 55.0; share > +30 us: 9 %
+
+== pos 1: normal 119798, late 1 slots.  RU latest-packet offset (us): normal p50 -323 p99.9 -321 | late p50 -278 p90 -278 max -278
+   stage               n p50  n p99.9    n max | late p50 late p90 late max   (us vs the slot's t0)
+   enq_us             -936.8   -927.2   -921.7 |   -936.2   -936.2   -936.2
+   pdsch_run_end      -845.5   -824.8   -808.6 |   -849.0   -849.0   -849.0
+   pdsch_compl_end     422.6    432.4    434.9 |    421.5    421.5    421.5
+   comp_wait_end      -576.3   -529.3   -519.2 |   -557.3   -557.3   -557.3
+   cplane_end_max     -659.3   -613.4   -586.8 |   -652.8   -652.8   -652.8
+   uprep_end_max      -695.7   -653.2   -641.4 |   -678.8   -678.8   -678.8
+   utx_end_max        -655.5   -611.5   -600.5 |   -638.4   -638.4   -638.4
+   utx_start_min         nan      nan      nan |      nan      nan      nan
+   late-symbol pattern: tail13-13:1
+   utx_end excess over normal p50 in late slots (us): p50 17.1 p90 17.1 max 17.1; share > +30 us: 0 %

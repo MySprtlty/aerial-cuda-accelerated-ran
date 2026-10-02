@@ -1,0 +1,25 @@
+== a: 16 cells, 1200000 slots (600 s), dl cores '', nvlog tags '216,240,224,311' 06:23:19
+15:dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+nvlog INFO for tags ['216', '224', '240', '311']
+   ring gen=23 06:23:54; L1 up, starting DCGM + recorder + testMAC
+21:35:00.600514 CON 189487 0 [MAC.FAPI] Finished running 1200000 slots test. slo
+recorded 245202275 records (31385.9 MB) in 690.0 s, 19980 snapshots, 3 seq gaps, last seq 245279600, generation 23 -> prof/ring_16C_a.bin
+RAN down
+== a done 06:36:04
+== b: 16 cells, 1200000 slots (600 s), dl cores '8, 9, 10, 42, 43, 44', nvlog tags '216,240,224,311' 06:36:24
+15:dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10, 42, 43, 44]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+nvlog INFO for tags ['216', '224', '240', '311']
+   ring gen=24 06:37:07; L1 up, starting DCGM + recorder + testMAC
+21:48:09.080516 CON 191409 0 [MAC.FAPI] Finished running 1200000 slots test. slo
+recorded 245069545 records (31368.9 MB) in 690.0 s, 19970 snapshots, 3 seq gaps, last seq 245279600, generation 24 -> prof/ring_16C_b.bin
+RAN down
+== b done 06:49:18
+D_RUNS_DONE

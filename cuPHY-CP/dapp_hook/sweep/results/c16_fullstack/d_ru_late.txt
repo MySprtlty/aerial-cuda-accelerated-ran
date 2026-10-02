@@ -1,0 +1,51 @@
+D confirmation run "d" (2026-10-01 07:39-07:52 KST): 16 cells, 59c DDDSUUDDDD, 1,200,000 slots (10 min), no nsys,
+RU emulator RU.LATE_PACKETS (tag 503) at INFO + timing_histogram: 1, L1 tags 216/240/311 at INFO.
+NOTE: the hook was DISABLED in this run (script bug, see e_hook_cost.txt); runs (a)/(b) of 6-1 had it enabled.
+
+ru_late.py prof/run61/ru_d.log prof/run61/ru_d  (first second excluded)
+lines 30719936, (slot, cell) rows 15334352 after the first second, span 599.0 s, cells 16
+DL U-plane arrival vs symbol start (us), per TDD position: max = latest packet of the slot
+  pos  rows    late_rows  late_rows%  late_pkts  max p50   max p99   max p99.9  max max    min p50
+  0   1916800       154     0.008      1976    -323.1    -321.6    -320.1    -270.0    -343.4
+  1   1916784        15     0.001       106    -323.2    -322.3    -321.8    -277.8    -343.4
+  2   1916784         0     0.000         0    -323.3    -322.6    -322.0    -309.5    -343.4
+  3   1916784         0     0.000         0    -323.5    -323.0    -322.9    -307.2    -343.2
+  6   1916800      1404     0.073    114670    -321.5    -316.5    -306.4     193.1    -342.4
+  7   1916800      1135     0.059     92033    -322.2    -320.2    -303.9     173.1    -343.3
+  8   1916800       315     0.016     13003    -323.0    -320.8    -313.2     -48.0    -343.4
+  9   1916800       814     0.042      5961    -323.0    -319.8    -303.2    -230.5    -343.4
+late packets by symbol (all late rows after the first second): total 227749
+  s0:27128 s1:19363 s2:18161 s3:23610 s4:21534 s5:19307 s6:17403 s7:14437 s8:11479 s9:9184 s10:7333 s11:6190 s12:10072 s13:22548
+  share sym 0-1: 20.4 %, sym 2-13: 79.6 %
+late (slot, cell) rows 3837 in 294 distinct slots; cells late per late slot: 1:4 2:6 3:6 4:8 6:6 7:6 8:7 9:9 10:13 11:15 12:11 13:15 14:22 15:30 16:136
+late-symbol span per (slot, cell) row: mid12-12 981, tail13-13 607, tail12-13 535, head0-1 210, head0-2 184, head0-3 148,
+  head0-0 143, mid3-7 99, head0-4 92, all0-13 76, mid3-12 69, head0-8 64
+late slots per 30 s bin: 36 18 29 15 10 16 10 13 11 12 17 11 11 17 12 11 11 17 12 9 13 (uniform after the first minute)
+gap between consecutive late slots: p50 1.1 s, 18.8 % < 5 ms, 48 % < 1 s
+
+RU timing histogram (all cells, all packets, 1 us bins, arrival offset vs symbol start): 4.849e9 packets,
+late (> -294 us) 231704 = 0.0048 %, early (< -345 us) 0; p50 -334, p99 -323, p99.9 -322, p99.99 -317, p99.999 -179 us
+late in (-294,-250] 104357, (-250,-200] 65002, (-200,-100] 39662, (-100,0] 15673, (0,200] 7010
+
+Timing model (F08_CG1): U-plane of symbol s is scheduled at air(s) - T1a_max_up(345) us; arrival at the RU normally
+-343..-323 us (the 16-cell burst of one symbol takes ~20 us on the wire); late threshold -294 us (window 51 us).
+L1 CPU posting of the slot ("U-plane tx" end, d_match.txt) is at t0 -620..-640 us, i.e. ~280 us before symbol 0's
+scheduled transmission; the transmission itself is done by the GPU (cuphycontroller gpu_init_comms_dl: 1,
+mps_sm_gpu_comms: 16).
+
+d_match.py (late slots vs normal slots at the same TDD position, L1 stage times in us vs t0):
+  pos 6: 96 late slots; CPU stages (enqueue, PDSCH run end, compression end, C-plane end, U-plane prepare/tx end) in the
+         late slots are at or below the normal p50 (utx_end late max -587 vs normal p99.9 -579). 82 % of the late slots
+         have at least one UL GPU metric of the same pattern (PUSCH pos-4/5 end, order kernel) above its p99 (normal: 3.8 %).
+  pos 7: 86 late slots; same, CPU stages normal (utx_end late max -620 vs normal p99.9 -612); 63 % with a UL GPU
+         metric above its p99 (order kernel of pos 5: 59 %) vs 3.7 % of normal slots.
+  pos 8: 25, pos 9: 75 (mostly sym 12 only), pos 0: 11, pos 1: 1; CPU stages normal; pos 9 shows no PUSCH coincidence.
+
+Verdict: not a send-start delay from the CPU/GPU pipeline (posting is ~280 us early in every late slot) and not
+concentrated on symbols 0-1 (20 %). The lateness arises after posting, in the GPU-initiated send (symbol chunks
+delayed or stretched: pos 7 = head symbols, pos 6/8/9 = symbols 12-13), coinciding with other cuPHY GPU work
+(UL order/PUSCH kernels, next DL slot's PDSCH). Per the 6-1 classification this is "after GPU completion, in the
+transmission" - but the transmitter is a GPU kernel, so it competes for the GPU like any other channel.
+Open: runs (a)/(b) (hook on + ring recorder) had 2-5x higher late rates at pos 6/7 (0.145/0.335 %) than this
+hook-off run (0.073/0.059 %); the hook cost (20-40 us on the CPU path, 280 us before transmission) cannot explain
+that directly; a paired hook on/off run with identical logging would be needed to attribute it.

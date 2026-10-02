@@ -10,15 +10,22 @@
  *   - PDCCH: a list of DCIs whose stride depends on each DCI's own BF block
  *           and payload size
  *   - truncation: a message cut short must be reported, never over-read
+ *   - asynchronous export (dapp_async.hpp): same records in the same order as
+ *     the inline path, record time = hook time, buffer claim / deferred
+ *     release, and no blocking when the queue or the held budget is full
  *
  * No L1, no GPU, no MPS. Exit code 0 on success.
  */
 #include "scf_5g_fapi_dapp_export.hpp"
 #include "dapp_hook/dapp_ring.hpp"
+#include "dapp_hook/dapp_async.hpp"
 
+#include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace nv::dapp;
@@ -295,6 +302,129 @@ int main()
             CHECK(s.n_pusch == 1 && s.tot_pusch_prb == 30 && s.tot_pusch_prb_layers == 60 && s.tot_pusch_tb_bytes == 3009 && s.tot_pusch_cb == 3,
                   "ul summary pusch=%u prb=%u prb*l=%u tb=%u cb=%u", s.n_pusch, s.tot_pusch_prb, s.tot_pusch_prb_layers, s.tot_pusch_tb_bytes, s.tot_pusch_cb);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Case 5: asynchronous export. One PUSCH UL_TTI per "cell message".
+    // ---------------------------------------------------------------------
+    std::printf("case 5: asynchronous export (queue, order, timestamps, deferred release)\n");
+    {
+        auto build_ul = [](Buf& m, uint16_t sfn, uint16_t slot, uint16_t rnti) -> size_t {
+            scf_fapi_ul_tti_req_t h{};
+            h.msg_hdr.type_id = SCF_FAPI_UL_TTI_REQUEST; h.sfn = sfn; h.slot = slot; h.num_pdus = 1; h.num_ulsch = 1;
+            size_t hoff = m.pos(); m.put(h);
+            size_t off = begin_pdu(m, UL_TTI_PDU_TYPE_PUSCH);
+            scf_fapi_pusch_pdu_t p{};
+            p.pdu_bitmap = 0x1; p.rnti = rnti; p.rb_size = 34; p.num_of_symbols = 14; p.num_of_layers = 4; p.mcs_index = 27; p.qam_mod_order = 8;
+            m.put(p);
+            scf_fapi_pusch_data_t d{}; d.tb_size = 15117; d.num_cb = 15; m.put(d);
+            end_pdu(m, off);
+            m.at<scf_fapi_ul_tti_req_t>(hoff)->msg_hdr.length = static_cast<uint32_t>(m.pos() - hoff);
+            return hoff;
+        };
+        auto same_payload = [](const dapp_rec_t& a, const dapp_rec_t& b) {
+            // everything except seq and ts_ns
+            return std::memcmp(reinterpret_cast<const uint8_t*>(&a) + 16, reinterpret_cast<const uint8_t*>(&b) + 16, sizeof(dapp_rec_t) - 16) == 0;
+        };
+
+        // reference: the inline path on one message
+        Buf ref; size_t ref_off = build_ul(ref, 500, 4, 0x1000);
+        nv_ipc_msg_t ref_ipc{}; ref_ipc.msg_buf = ref.b.data(); ref_ipc.msg_len = static_cast<int32_t>(ref.pos());
+        scf_5g_fapi::dapp_export_ul_tti(*ring, 0, *ref.at<scf_fapi_ul_tti_req_t>(ref_off), ref_ipc, 777);
+        auto ref_recs = drain(*cons);
+        CHECK(ref_recs.size() == 2, "inline reference gave %zu records", ref_recs.size());
+
+        auto ax = AsyncExporter::create(ring.get());
+
+        // (a) export thread not running: the hand-off never blocks, it refuses
+        const unsigned N = AsyncExporter::kMaxHeld;
+        std::vector<Buf> msgs(N + 2);
+        std::vector<size_t> offs(N + 2);
+        std::vector<nv_ipc_msg_t> ipcs(N + 2);
+        unsigned accepted = 0;
+        for (unsigned i = 0; i < N + 1; ++i) {
+            offs[i] = build_ul(msgs[i], 500, 4, 0x1000);       // same content as the reference
+            ipcs[i] = nv_ipc_msg_t{}; ipcs[i].msg_buf = msgs[i].b.data(); ipcs[i].msg_len = static_cast<int32_t>(msgs[i].pos()); ipcs[i].cell_id = static_cast<int32_t>(i % 16);
+            const bool ok = scf_5g_fapi::dapp_submit_ul_tti(*ax, static_cast<uint16_t>(i % 16), *msgs[i].at<scf_fapi_ul_tti_req_t>(offs[i]), ipcs[i], 777);
+            if (ok) {
+                ++accepted;
+                CHECK(ax->take_claim(ipcs[i].msg_buf, &ipcs[i], sizeof(nv_ipc_msg_t)), "claim %u not taken", i);
+                CHECK(!ax->take_claim(ipcs[i].msg_buf, &ipcs[i], sizeof(nv_ipc_msg_t)), "claim %u taken twice", i);
+            }
+        }
+        CHECK(accepted == N, "accepted %u hand-offs with the export thread stopped, want %u (held budget)", accepted, N);
+        nv_ipc_msg_t rel{};
+        CHECK(!ax->pop_releasable(&rel, sizeof(rel)), "a buffer became releasable before the export thread ran");
+        {
+            auto st = ax->stats();
+            CHECK(st.dropped == 1 && st.orphans == 0 && st.done == 0, "stats dropped=%llu orphans=%llu done=%llu",
+                  static_cast<unsigned long long>(st.dropped), static_cast<unsigned long long>(st.orphans), static_cast<unsigned long long>(st.done));
+        }
+        CHECK(drain(*cons).empty(), "records appeared without the export thread");
+
+        // SLOT_END goes through the same queue (no buffer attached)
+        {
+            AsyncExporter::Item* it = ax->reserve(false);
+            CHECK(it != nullptr, "no room for SLOT_END");
+            if (it != nullptr) {
+                it->fn = async_slot_end_handler; it->ts_rx_ns = now_ns(); it->ts_l2_send_ns = 0; it->fapi_msg = nullptr;
+                it->kind = AsyncExporter::KIND_SLOT_END; it->cell_id = 0xFFFF; it->sfn = 500; it->slot = 4; it->slot_dropped = 0;
+                it->slot_end = dapp_slot_end_t{}; it->slot_end.enqueued = 1; it->slot_end.cmd_size = 16;
+                ax->publish(it, nullptr);
+            }
+        }
+
+        // (b) start the thread: everything is written, in hand-off order
+        std::string aerr;
+        CHECK(ax->start(-1, 0, aerr), "export thread start: %s", aerr.c_str());
+        for (int i = 0; i < 2000; ++i) {
+            // not stats(): that would reset the delay figures checked below
+            if (ring->head() >= ref_recs.back().seq + 2ull * N + 1) { break; }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        auto recs = drain(*cons);
+        CHECK(recs.size() == 2 * N + 1, "async wrote %zu records, want %u", recs.size(), 2 * N + 1);
+        if (recs.size() == 2 * N + 1 && ref_recs.size() == 2) {
+            unsigned bad_payload = 0, bad_cell = 0, bad_ts = 0, bad_seq = 0;
+            for (unsigned i = 0; i < N; ++i) {
+                dapp_rec_t a = recs[2 * i], b = recs[2 * i + 1];
+                if (a.cell_id != i % 16 || b.cell_id != i % 16) { ++bad_cell; }
+                if (a.ts_ns != b.ts_ns || (i > 0 && a.ts_ns < recs[2 * i - 1].ts_ns)) { ++bad_ts; }   // one hook time per message
+                if (b.seq != a.seq + 1) { ++bad_seq; }
+                a.cell_id = ref_recs[0].cell_id; b.cell_id = ref_recs[1].cell_id;
+                if (!same_payload(a, ref_recs[0]) || !same_payload(b, ref_recs[1])) { ++bad_payload; }
+            }
+            CHECK(bad_payload == 0, "%u messages differ from the inline records", bad_payload);
+            CHECK(bad_cell == 0 && bad_seq == 0 && bad_ts == 0, "order/time: cell=%u seq=%u ts=%u", bad_cell, bad_seq, bad_ts);
+            const dapp_rec_t& e = recs[2 * N];
+            CHECK(e.type == DAPP_REC_SLOT_END && e.sfn == 500 && e.slot == 4, "last record type=%u %u.%u", e.type, e.sfn, e.slot);
+            CHECK(e.u.slot_end.num_cells == 16 && e.u.slot_end.enqueued == 1 && e.u.slot_end.cmd_size == 16,
+                  "slot_end num_cells=%u enqueued=%u cmd_size=%u", e.u.slot_end.num_cells, e.u.slot_end.enqueued, e.u.slot_end.cmd_size);
+        }
+
+        // (c) buffers come back for release in hand-off order, exactly once
+        unsigned released = 0, wrong = 0;
+        while (ax->pop_releasable(&rel, sizeof(rel))) {
+            if (rel.msg_buf != ipcs[released].msg_buf || rel.cell_id != ipcs[released].cell_id) { ++wrong; }
+            ++released;
+        }
+        CHECK(released == N && wrong == 0, "released %u (want %u), %u out of order", released, N, wrong);
+
+        // (d) room again after the release; an unclaimed hand-off is counted as an orphan
+        offs[N] = build_ul(msgs[N], 501, 5, 0x2000);
+        ipcs[N] = nv_ipc_msg_t{}; ipcs[N].msg_buf = msgs[N].b.data(); ipcs[N].msg_len = static_cast<int32_t>(msgs[N].pos());
+        CHECK(scf_5g_fapi::dapp_submit_ul_tti(*ax, 3, *msgs[N].at<scf_fapi_ul_tti_req_t>(offs[N]), ipcs[N], 0), "hand-off refused after release");
+        offs[N + 1] = build_ul(msgs[N + 1], 501, 5, 0x2001);
+        ipcs[N + 1] = nv_ipc_msg_t{}; ipcs[N + 1].msg_buf = msgs[N + 1].b.data(); ipcs[N + 1].msg_len = static_cast<int32_t>(msgs[N + 1].pos());
+        CHECK(scf_5g_fapi::dapp_submit_ul_tti(*ax, 4, *msgs[N + 1].at<scf_fapi_ul_tti_req_t>(offs[N + 1]), ipcs[N + 1], 0), "second hand-off refused");
+        CHECK(ax->take_claim(ipcs[N + 1].msg_buf, &ipcs[N + 1], sizeof(nv_ipc_msg_t)), "claim not taken");
+        for (int i = 0; i < 2000 && ring->head() < recs.back().seq + 4; ++i) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+        auto st = ax->stats();
+        CHECK(st.orphans == 1 && st.dropped == 1 && st.done == N + 3, "stats orphans=%llu dropped=%llu done=%llu",
+              static_cast<unsigned long long>(st.orphans), static_cast<unsigned long long>(st.dropped), static_cast<unsigned long long>(st.done));
+        CHECK(st.delay_n == N + 3 && st.delay_max_ns >= 0, "delay samples %llu", static_cast<unsigned long long>(st.delay_n));
+        CHECK(drain(*cons).size() == 4, "last two messages not exported");
+        ax->stop_and_join();
     }
 
     Producer::unlink(name);

@@ -3,7 +3,8 @@
  *
  * Producer  - owned by the L1 (cuphycontroller) process. Created once at
  *             startup (not real-time), written from exactly ONE thread
- *             (the L2 adapter msg_processing thread). The real-time path
+ *             (the L2 adapter msg_processing thread, or the export thread of
+ *             dapp_async.hpp when async_export is on). The real-time path
  *             (begin()/commit()) does no allocation, no locking and no
  *             system calls except clock_gettime (vDSO).
  * Consumer  - any process (dApp, dump tool). Read-only mapping, own cursor,
@@ -184,7 +185,7 @@ public:
         dapp_rec_t* r = &recs_[next_seq_ & mask_];
         __atomic_store_n(&r->seq, 0ULL, __ATOMIC_RELAXED); // invalidate for readers
         __atomic_thread_fence(__ATOMIC_RELEASE);            // ... before the payload changes
-        r->ts_ns   = static_cast<uint64_t>(now_ns());
+        r->ts_ns   = ts_override_ns_ != 0 ? ts_override_ns_ : static_cast<uint64_t>(now_ns());
         r->type    = type;
         r->sfn     = sfn;
         r->slot    = slot;
@@ -203,6 +204,11 @@ public:
     }
 
     inline void heartbeat() noexcept { hdr_->heartbeat_ns = static_cast<uint64_t>(now_ns()); }
+
+    // Record timestamp to use instead of "now" (0: off). Set by the asynchronous
+    // exporter so a record keeps the time the hook saw the message on the L2A
+    // thread, not the (slightly later) time the export thread wrote it.
+    inline void set_ts_override(uint64_t ts_ns) noexcept { ts_override_ns_ = ts_ns; }
 
     // Plain (non-atomic) counters: single writer, readers only need approximate values.
     inline void count_ul_tti() noexcept        { hdr_->cnt_ul_tti++; }
@@ -256,6 +262,7 @@ private:
     dapp_rec_t*      recs_     = nullptr;
     uint64_t         mask_     = 0;
     uint64_t         next_seq_ = 1;
+    uint64_t         ts_override_ns_ = 0;
 
     static constexpr unsigned kSlotCells = 32;
     struct SlotCells { uint32_t key = 0xFFFFFFFFu; uint64_t mask = 0; };

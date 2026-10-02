@@ -1,0 +1,11 @@
+== pilot: 16 cells, 240000 slots (120 s), dl cores '', nvlog tags '' 06:15:12
+15:dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+42:  workers_ul: [6, 7]
+43:  workers_dl: [8, 9, 10]
+44:  debug_worker: 13
+82:  enable_cpu_task_tracing: 1
+   ring gen=22 06:15:46; L1 up, starting DCGM + recorder + testMAC
+21:18:49.080513 CON 187637 0 [MAC.FAPI] Finished running 240000 slots test. slot
+recorded 49037157 records (6276.8 MB) in 210.0 s, 3996 snapshots, 1 seq gaps, last seq 49055600, generation 22 -> prof/ring_16C_pilot.bin
+RAN down
+== pilot done 06:19:56

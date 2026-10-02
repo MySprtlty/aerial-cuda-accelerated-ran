@@ -1,0 +1,36 @@
+=== e_on: 597997 slots after the first second; drops total 1, after the first second 1 [('63', '8', 80203.953)]
+    enqueue - tick (us):      p50  582.1  p99  596.6  p99.9  601.7  max  617.4   share > 600 us: 0.2291 %
+    L2A end - tick (us):      p50  563.7  p99  576.9  p99.9  582.4  max  594.8   share > 600 us: 0.0000 %  (drop criterion, check_time_threshold)
+    L2A start - tick (us):    p50  458.5  p99  460.7  p99.9  461.7  max  464.3   (first FAPI message seen by the adapter)
+    last FAPI msg - tick (us): p50  563.0  p99  576.1  p99.9  581.7  max  594.1   (L2A receive time of the slot's last message)
+    FAPI proc dur (us):       p50  105.3  p99  118.2  p99.9  123.6  max  136.6   (L2A parse + hook, overlaps arrivals)
+    enqueue - tick by position p50/p99: {0: '582/592', 1: '584/596', 2: '575/590', 3: '573/583', 4: '582/592', 5: '589/600', 6: '583/599', 7: '582/594', 8: '583/597', 9: '584/596'}
+    L2A end - tick by position p50/p99/p99.9: {0: '564/573/577', 1: '566/578/582', 2: '557/572/578', 3: '556/565/570', 4: '563/573/577', 5: '566/576/580', 6: '565/581/585', 7: '564/575/580', 8: '565/579/584', 9: '566/578/583'}
+=== e_sum: 597998 slots after the first second; drops total 0, after the first second 0 []
+    enqueue - tick (us):      p50  560.2  p99  569.1  p99.9  571.5  max  579.9   share > 600 us: 0.0000 %
+    L2A end - tick (us):      p50  542.6  p99  550.2  p99.9  552.1  max  556.7   share > 600 us: 0.0000 %  (drop criterion, check_time_threshold)
+    L2A start - tick (us):    p50  458.3  p99  460.6  p99.9  461.5  max  464.3   (first FAPI message seen by the adapter)
+    last FAPI msg - tick (us): p50  541.9  p99  549.5  p99.9  551.4  max  556.1   (L2A receive time of the slot's last message)
+    FAPI proc dur (us):       p50   84.3  p99   91.5  p99.9   93.3  max   97.2   (L2A parse + hook, overlaps arrivals)
+    enqueue - tick by position p50/p99: {0: '561/568', 1: '563/570', 2: '558/566', 3: '557/562', 4: '542/547', 5: '550/556', 6: '564/570', 7: '561/567', 8: '563/570', 9: '564/571'}
+    L2A end - tick by position p50/p99/p99.9: {0: '543/549/551', 1: '546/551/553', 2: '541/547/549', 3: '540/544/545', 4: '524/529/530', 5: '526/531/534', 6: '545/550/552', 7: '543/548/550', 8: '546/551/553', 9: '545/551/553'}
+=== e_off: 597998 slots after the first second; drops total 1, after the first second 0 []
+    enqueue - tick (us):      p50  560.8  p99  570.0  p99.9  572.5  max  578.3   share > 600 us: 0.0000 %
+    L2A end - tick (us):      p50  543.5  p99  551.3  p99.9  553.6  max  560.0   share > 600 us: 0.0000 %  (drop criterion, check_time_threshold)
+    L2A start - tick (us):    p50  458.4  p99  460.7  p99.9  461.6  max  464.6   (first FAPI message seen by the adapter)
+    last FAPI msg - tick (us): p50  542.9  p99  550.7  p99.9  552.9  max  559.3   (L2A receive time of the slot's last message)
+    FAPI proc dur (us):       p50   85.2  p99   92.6  p99.9   94.8  max  102.3   (L2A parse + hook, overlaps arrivals)
+    enqueue - tick by position p50/p99: {0: '562/569', 1: '564/571', 2: '558/566', 3: '557/563', 4: '544/550', 5: '550/556', 6: '564/570', 7: '561/568', 8: '564/570', 9: '565/572'}
+    L2A end - tick by position p50/p99/p99.9: {0: '545/551/552', 1: '547/553/555', 2: '541/548/550', 3: '540/545/546', 4: '525/530/547', 5: '526/531/534', 6: '545/551/552', 7: '544/549/551', 8: '547/552/554', 9: '546/552/555'}
+
+=== differences vs 'e_off' (us): enqueue-tick p50 / p99 / p99.9 / max ; FAPI proc dur p50 / p99 ; L2A end-tick p50 / p99 / p99.9 / max
+  e_on    +21.3 /  +26.7 /  +29.2 /  +39.1 ;  +20.1 /  +25.6 ;  +20.2 /  +25.5 /  +28.8 /  +34.7
+         pos 3: L2A end-tick p50  +15.2 p99  +20.4 p99.9  +23.1
+         pos 4: L2A end-tick p50  +38.1 p99  +42.6 p99.9  +29.9
+         pos 5: L2A end-tick p50  +40.0 p99  +45.0 p99.9  +46.5
+         pos 6: L2A end-tick p50  +19.5 p99  +30.0 p99.9  +32.7
+  e_sum    -0.6 /   -0.9 /   -1.0 /   +1.7 ;   -0.9 /   -1.1 ;   -0.9 /   -1.2 /   -1.4 /   -3.4
+         pos 3: L2A end-tick p50   -0.8 p99   -0.9 p99.9   -1.0
+         pos 4: L2A end-tick p50   -1.1 p99   -1.9 p99.9  -17.1
+         pos 5: L2A end-tick p50   +0.4 p99   +0.4 p99.9   -0.2
+         pos 6: L2A end-tick p50   -0.4 p99   -0.4 p99.9   -0.6

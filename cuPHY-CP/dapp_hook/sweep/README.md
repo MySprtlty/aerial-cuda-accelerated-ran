@@ -87,6 +87,14 @@ x = cuPHY 옆에서의 YOLO 처리량(img/s), y = budget에 가장 가까운 채
 `plots/minmax_latency_isolation.png`이 "부하 최소 vs 최대에서 채널별 파이프라인 latency"(막대 = 평균, 수염 = p99.99, 점선 = NVIDIA budget),
 `minmax_latency_tenants.png`이 세입자·cap별 p99 증가율, `minmax_latency.csv`가 원본 숫자다.
 
+### 16셀 cap 격자, YOLO26s (2026-10-03, `c16_capgrid_26s`, `results/c16_capgrid_26s/`)
+26n·26x와 같은 격자(최저 = c16_L1, 최고 = c16_L4, cap 10~100, batch 1·8, 2분 런, 같은 벤치 슬롯 배치)를 YOLO26s로 64런(none ×2 재측정, 단독 20). 엔진은 `models/build_engines.sh`에 `MODELS=yolo26s`로 20개(cap마다 4.5~5.5분). 파일럿 7런 뒤 본 런. 세입자 없는 기준선은 9/25 값과 채널별 p99 1~3 µs 안에서 같다.
+결과(최악 채널 p99 / deadline, 85 % 규칙의 임시 SafeCap): b1은 두 부하 모두 cap 100까지 안전(최고 부하 PUSCH 73~75 %, 26n과 같고 26x 76~80 %보다 낮음). b8 최저 부하는 SRS 59~74 %로 cap 100(90에서 64 %로 내려가는 비단조 점). **b8 최고 부하는 cap 30(82 %)까지 통과, 40·60 86 %, 100 89 %(PUSCH)** — 26n b8(100, 81 %)과 26x b8(20, 100에서 166 %) 사이. 50이 84 %로 다시 통과하는 비단조 점은 재측정 대상. YOLO26s latency(p99, 슬롯): b1 단독 2.2 → 동거 5.0(최저)/6.1(최고) @cap 100, cap 10에서 7.0/7.7; b8 단독 4.5 → 7.5/9.1 @100, cap 10에서 26/28. 처리량(동거, 부하 중 창만): b1 572/482 img/s @100 (단독 895), b8 2381/1948 @100 (단독 3530).
+```bash
+python3 sweep.py --profile c16_capgrid_26s --out runs/c16_capgrid_26s --points-file points/c16_points.yaml
+python3 tenant_latency.py --runs runs/c16_capgrid_26s --out results/c16_capgrid_26s --slot-ms 0.5; python3 capgrid_overview.py --dir results/c16_capgrid_26s
+```
+
 ### 16셀 MIG 분할 (2026-09-28, `c16_mig`: cuPHY = 4g.48gb 64 SM, 세입자 = 3g.48gb 60 SM)
 MIG 전환·복구는 GPU 위에 프로세스가 없어야 하고 서버의 다른 사용자에게 영향을 주므로 사람이 직접 한다(컨테이너 안 root).
 ```bash
@@ -195,7 +203,7 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 
 | 파일 | 역할 |
 |---|---|
-| `matrix.yaml` | 기본점, 점(축별 TV id), 격자, 간섭 격자, 프로필 |
+| `matrix.yaml` | 기본점, 점(축별 TV id), 격자, 간섭 격자, 프로필, 세입자(26n/26s/26x) |
 | `sweep.py` | 매트릭스 → 런 큐, resume, 순서(none → 26n → 26x) |
 | `run_one.py` | 조합 하나: 스냅샷, 텔레메트리, 세입자, nsys+벤치, collect |
 | `runner.py` | `Runner` 인터페이스, `TestBenchRunner`, `FullStackRunner`(stub) |

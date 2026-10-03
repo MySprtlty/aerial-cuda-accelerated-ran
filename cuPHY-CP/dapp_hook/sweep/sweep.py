@@ -9,7 +9,7 @@ runs/<manifest_id>/manifest.yaml lists the queue with the status of each run and
 rewritten after every run, so re-running the same --out resumes: runs whose
 status.yaml says ok are skipped, failed ones are retried. TVs that the sweep
 manifest marks skipped make the run "skipped" with the reason. Order: tenant none
-first, then yolo26n, then yolo26x (so the isolation baseline exists first).
+first, then yolo26n, yolo26s, yolo26x (so the isolation baseline exists first).
 """
 import argparse
 import os
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import runner as R  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TENANT_ORDER = ["none", "yolo26n", "yolo26x"]
+TENANT_ORDER = ["none", "yolo26n", "yolo26s", "yolo26x"]
 
 
 def grid_points(m):

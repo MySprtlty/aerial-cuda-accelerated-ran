@@ -3,6 +3,9 @@ cuphycontroller on the 4g instance (CUDA_VISIBLE_DEVICES=MIG uuid; run2's MPS da
 NVIDIA's MIG 4g.48gb values (docs "E2E gNodeB on MIG": pusch 60, pucch 2, prach 2, ul_order 20, pdsch 62, pdcch 10,
 pbch 2, gpu_comms 16, srs 16; sum 190) for the runs and restored afterwards. Runs: 16 cells 2 min pilot, 16 cells 5 min,
 8 cells 5 min, 12 cells 5 min, 16 cells 2 min with raw logs + testMAC validation (MAC.VALD) at INFO.
+LOAD: the testMAC 59c pattern (per cell: DL 6 UE x 4 layers x 42-45 PRB MCS 27, UL 6 UE x 2 LAYERS x 34-42 PRB MCS 27,
+18 PUCCH F1, PRACH). This is NOT the bench's highest load c16_L4 (UL 6 UE x 4 layers): 59c's UL sits around the bench
+ladder's L2-L3. The L4-class full-stack run (FAPI TVs 68003/68103 exist) has not been done.
 Question: does the 16-cell cuPHY in 64 SMs slow down (late indications, retransmissions, service kept) or stall
 (pool exhaustion -> L1_RECOVERY -> exit, cell down)?  Answer at the 59c load: it SLOWS DOWN; nothing stalls.
 

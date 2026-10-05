@@ -99,7 +99,7 @@ def main():
     procs = []
     tenant = spec.get("tenant") or {}
     # never start on top of a leftover bench/worker/nsys from an earlier run
-    dexec("pkill -9 -x cubb_gpu_test_b; pkill -9 -f 'yolo_worke[r]'; sleep 1; true")
+    dexec("pkill -9 -x cubb_gpu_test_b; pkill -9 -f '(yolo|openloop)_worke[r]'; sleep 1; true")
     try:
         if spec.get("runner", "testbench") == "none":      # tenant alone: no RAN workload
             rn, files, ran_cmd = None, {}, ""
@@ -133,10 +133,11 @@ def main():
             if mig:     # the tenant owns its MIG instance: direct CUDA on that device, no MPS daemon, no cap
                 env = {"CUDA_VISIBLE_DEVICES": mig["tenant"]["uuid"], "CUDA_MPS_PIPE_DIRECTORY": "/var/mig_tenant_no_mps"}
             cores = spec.get("tenant_cores", "48-51")
-            wcmd = ("cd %s && taskset -c %s python3 %s/yolo_worker.py --engine %s/%s --input %s/bus_640.npy --batch %d "
-                    "--log %s/worker.csv --ready %s --seconds %d > %s/worker.out 2>&1" % (
-                        R.to_container(run_dir), cores, SWEEP_DIR, MODELS_DIR, tenant["engine"], MODELS_DIR, int(tenant.get("batch", 1)),
-                        R.to_container(run_dir), R.to_container(ready), int(warm + spec["duration_s"] + 120), R.to_container(run_dir)))
+            # tenant.worker: yolo_worker.py (closed loop, default) or openloop_worker.py (fixed offered rate); tenant.args are appended
+            wcmd = ("cd %s && taskset -c %s python3 %s/%s --engine %s/%s --input %s/%s --batch %d "
+                    "--log %s/worker.csv --ready %s --seconds %d %s > %s/worker.out 2>&1" % (
+                        R.to_container(run_dir), cores, SWEEP_DIR, tenant.get("worker", "yolo_worker.py"), MODELS_DIR, tenant["engine"], MODELS_DIR, tenant.get("input", "bus_640.npy"), int(tenant.get("batch", 1)),
+                        R.to_container(run_dir), R.to_container(ready), int(warm + spec["duration_s"] + 120), tenant.get("args", ""), R.to_container(run_dir)))
             note("tenant: " + wcmd)
             dexec(wcmd, env=env, detach=True)
             t0 = time.time()
@@ -187,7 +188,7 @@ def main():
         note("FAILED: %r" % (e,))
     finally:
         if tenant and tenant.get("name", "none") != "none":
-            dexec("pkill -TERM -f 'yolo_worke[r].py --engine' || true")
+            dexec("pkill -TERM -f '(yolo|openloop)_worke[r].py --engine' || true")
             time.sleep(2)
         for p in procs:
             try:

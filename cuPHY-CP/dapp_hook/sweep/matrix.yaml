@@ -25,6 +25,26 @@ tenants:
   yolo26n: {name: yolo26n, engine_template: "yolo26n_b{batch}_fp16_atp{cap}.engine"}
   yolo26s: {name: yolo26s, engine_template: "yolo26s_b{batch}_fp16_atp{cap}.engine"}
   yolo26x: {name: yolo26x, engine_template: "yolo26x_b{batch}_fp16_atp{cap}.engine"}
+  # 1280x1280 input (4K source at 3x downscale; 4x the FLOPs of 640): models/export_1280.py, engines via build_engines.sh MODELS="yolo26n_1280 ..."
+  yolo26n1280: {name: yolo26n1280, model: yolo26n_1280, engine_template: "yolo26n_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy}
+  yolo26s1280: {name: yolo26s1280, model: yolo26s_1280, engine_template: "yolo26s_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy}
+  yolo26x1280: {name: yolo26x1280, model: yolo26x_1280, engine_template: "yolo26x_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy}
+  # open-loop request streams (openloop_worker.py): fixed offered rates, FIFO, batch 1; the request-rate -> latency curve
+  ol26x1280: {name: ol26x1280, model: yolo26x_1280, engine_template: "yolo26x_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy,
+              worker: openloop_worker.py, args: "--rates 5,10,20,30,40,50,60,80,100 --seconds-per-rate 40"}
+  ol26s1280: {name: ol26s1280, model: yolo26s_1280, engine_template: "yolo26s_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy,
+              worker: openloop_worker.py, args: "--rates 10,20,40,60,80,100,150,200,300 --seconds-per-rate 40"}
+  # rate-limited tenants: ONE offered rate for the whole run (Poisson arrivals, so the stream is not phase-locked to the 5 ms bench
+  # pattern), with the nsys window on -> cuPHY channel p99 at a realistic duty cycle instead of a saturating tenant
+  olr10x1280: {name: olr10x1280, model: yolo26x_1280, engine_template: "yolo26x_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy,
+               worker: openloop_worker.py, args: "--rates 10 --seconds-per-rate 185 --arrivals poisson"}
+  olr20x1280: {name: olr20x1280, model: yolo26x_1280, engine_template: "yolo26x_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy,
+               worker: openloop_worker.py, args: "--rates 20 --seconds-per-rate 185 --arrivals poisson"}
+  # tiled request = one batch-8 inference (4K -> 6 native 1280 tiles + global views); Poisson arrivals
+  olt26x1280: {name: olt26x1280, model: yolo26x_1280, engine_template: "yolo26x_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy,
+               worker: openloop_worker.py, args: "--rates 2,5,10,15,20,25,30 --seconds-per-rate 40 --arrivals poisson"}
+  olt26s1280: {name: olt26s1280, model: yolo26s_1280, engine_template: "yolo26s_1280_b{batch}_fp16_atp{cap}.engine", input: bus_1280.npy,
+               worker: openloop_worker.py, args: "--rates 10,20,40,60,80,100,120 --seconds-per-rate 40 --arrivals poisson"}
 
 # ---- stage-1 points: one axis at a time, everything else at the default ----
 points:
@@ -253,6 +273,118 @@ profiles:
     duration_s: 120
     warmup_s: 30
     nsys_window_s: 60
+  c16_capgrid_1280:           # 16 cells, lowest/highest load x {26n, 26s, 26x at 1280 input} x cap {100, 50, 30} x batch {1, 8}; 2 min runs (2 + 36 + 18 alone = 56 runs, ~3 h)
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [none, yolo26n1280, yolo26s1280, yolo26x1280]
+    caps: [100, 50, 30]
+    batches: [1, 8]
+    priorities: [0]
+    repeat_none: 1
+    tenant_alone: true
+    tenant_alone_s: 40
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+  c16_openloop_1280:          # request-rate -> latency curves: 9 rates x 40 s per run; shared GPU at cap 100/30, lowest/highest load, plus alone (2 x 2 x 2 + 4 = 12 runs, ~1.6 h)
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [ol26x1280, ol26s1280]
+    caps: [100, 30]
+    batches: [1]
+    priorities: [0]
+    tenant_alone: true
+    tenant_alone_s: 400
+    duration_s: 400
+    warmup_s: 10
+    nsys_window_s: 0
+  c16_ratelimit_1280:         # cuPHY channel p99 next to a rate-limited (10 / 20 req/s, Poisson) 26x-1280 batch-1 stream at cap 100: 4 runs
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [olr10x1280, olr20x1280]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+  c16_ratelimit_1280_b8:      # the same with tiled requests (one batch-8 inference per request) at 10 req/s, cap 100 and 50: 4 runs
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [olr10x1280]
+    caps: [100, 50]
+    batches: [8]
+    priorities: [0]
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+  c16_openloop_1280_b8:       # request-rate -> latency for tiled requests (batch 8), shared GPU; 7 rates x 40 s
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [olt26x1280, olt26s1280]
+    caps: [100, 50, 30]
+    batches: [8]
+    priorities: [0]
+    tenant_alone: true
+    tenant_alone_s: 310
+    duration_s: 310
+    warmup_s: 10
+    nsys_window_s: 0
+  c16_openloop_mig_1280_b8:   # tiled requests inside the 3g.48gb instance
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [olt26x1280, olt26s1280]
+    caps: [100]
+    batches: [8]
+    priorities: [0]
+    tenant_alone: true
+    tenant_alone_s: 310
+    duration_s: 310
+    warmup_s: 10
+    nsys_window_s: 0
+    engine_template: "{model}_b{batch}_fp16_mig3g.engine"
+    bench: {sm: {PRACH: 2, PDCCH: 5, PUCCH: 2, PDSCH: 49, PUSCH: 48, SRS: 8}}
+    mig:
+      ran:    {profile: 4g.48gb, sm: 64, uuid: MIG-1cd6d0a5-f26d-5e8b-818a-8cd6e0bd3294, mps_pipe: /var/mig_ran}
+      tenant: {profile: 3g.48gb, sm: 60, uuid: MIG-3071919d-a8fe-5a51-ba53-9bf050f2e85d}
+      nsys_directives: "LinuxPerfTH500Config=1"
+  c16_openloop_mig_1280:      # the same streams inside the 3g.48gb instance (static-MIG baseline capacity), cuPHY in 4g.48gb
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [ol26x1280, ol26s1280]
+    caps: [100]
+    batches: [1]
+    priorities: [0]
+    tenant_alone: true
+    tenant_alone_s: 400
+    duration_s: 400
+    warmup_s: 10
+    nsys_window_s: 0
+    engine_template: "{model}_b{batch}_fp16_mig3g.engine"
+    bench: {sm: {PRACH: 2, PDCCH: 5, PUCCH: 2, PDSCH: 49, PUSCH: 48, SRS: 8}}
+    mig:
+      ran:    {profile: 4g.48gb, sm: 64, uuid: MIG-1cd6d0a5-f26d-5e8b-818a-8cd6e0bd3294, mps_pipe: /var/mig_ran}
+      tenant: {profile: 3g.48gb, sm: 60, uuid: MIG-3071919d-a8fe-5a51-ba53-9bf050f2e85d}
+      nsys_directives: "LinuxPerfTH500Config=1"
+  c16_mig_1280:               # the 1280-input tenants inside the 3g.48gb instance (engines: build_engines_mig.sh <uuid> mig3g yolo26n_1280 ...), cuPHY in 4g.48gb
+    cells: 16
+    points: [c16_L1, c16_L4]
+    tenants: [none, yolo26n1280, yolo26s1280, yolo26x1280]
+    caps: [100]
+    batches: [1, 8]
+    priorities: [0]
+    repeat_none: 1
+    tenant_alone: true
+    tenant_alone_s: 40
+    duration_s: 120
+    warmup_s: 30
+    nsys_window_s: 60
+    engine_template: "{model}_b{batch}_fp16_mig3g.engine"
+    bench: {sm: {PRACH: 2, PDCCH: 5, PUCCH: 2, PDSCH: 49, PUSCH: 48, SRS: 8}}
+    mig:
+      ran:    {profile: 4g.48gb, sm: 64, uuid: MIG-1cd6d0a5-f26d-5e8b-818a-8cd6e0bd3294, mps_pipe: /var/mig_ran}
+      tenant: {profile: 3g.48gb, sm: 60, uuid: MIG-3071919d-a8fe-5a51-ba53-9bf050f2e85d}
+      nsys_directives: "LinuxPerfTH500Config=1"
   c16_mig:                    # 16 cells inside MIG: cuPHY in the 4g.48gb instance (64 SMs, own MPS daemon), tenant in the 3g.48gb instance (60 SMs, no MPS)
     cells: 16
     points: [c16_L1, c16_L4]

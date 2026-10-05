@@ -68,11 +68,12 @@ class TrtRunner:
             else:
                 self.out_name = name
         d_in, h_in, n_in, shp, _ = self.bufs[self.in_name]
-        img = np.load(input_npy).astype(h_in.dtype)
-        if img.ndim == 3:
-            img = img[None]
-        reps = shp[0] // img.shape[0]
-        h_in[...] = np.tile(img, (reps, 1, 1, 1))[: shp[0]]
+        if input_npy:       # None: the input is produced on the device by someone else (e2e/infer_server.py)
+            img = np.load(input_npy).astype(h_in.dtype)
+            if img.ndim == 3:
+                img = img[None]
+            reps = shp[0] // img.shape[0]
+            h_in[...] = np.tile(img, (reps, 1, 1, 1))[: shp[0]]
         self.ev0 = chk(cudart.cudaEventCreateWithFlags(0))
         self.ev1 = chk(cudart.cudaEventCreateWithFlags(0))
         self.in_shape = shp

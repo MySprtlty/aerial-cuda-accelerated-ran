@@ -4,6 +4,8 @@
 #   env RU_HIST=1 RU emulator timing_histogram: 1
 #   env FS_OUT    directory for console logs, config snapshots and DCGM (default prof/run61, gitignored)
 #   env NCELLS    number of cells (default 16)
+#   env PATTERN   official launch pattern id (default 59c = peak, 6 UE x 2 layers UL / 6 UE x 4 layers DL per cell). Heavier 4T4R
+#                 16-cell patterns that need nothing but the name: 59e (UL x1.08), 65c (UL x1.07, PUCCH x4), 65a (UL x1.19)
 #   env KEEP_RAW=0 do not copy the 8-16 GB container logs; keep only the L2A.PROCESSING_TIMES lines (l2a_<name>.log),
 #                 the WRN/ERR lines (phy_warn_<name>.log) and the RU/testMAC console logs (disk)
 #   env MPSTAT=1  mpstat -P ALL 1 on the host during traffic (mpstat_<name>.txt) + a thread placement snapshot
@@ -42,7 +44,7 @@ TRAFFIC_S=$(( SLOTS / 2000 ))
 echo "== $NAME: $N cells, $SLOTS slots (${TRAFFIC_S} s), dl cores '${DLCORES}', nvlog tags '${NVTAGS}', hook $HOOK, record $RECORD, ru_hist $RU_HIST, keep_raw $KEEP_RAW, mpstat $MPSTAT, ru cores ul '${RU_UL_CORES}' dl '${RU_DL_CORES}', mig '${MIG_UUID}' mig_sm $MIG_SM $(date +%T)"
 docker exec -u root c_aerial_troy bash -lc "cd $P && ./setup1_DU.sh --ru-host-type=_LOOPBACK --du-eth0=aerial02 -y F08_CG1 && ./setup2_RU.sh --ru-eth0=aerial03" > $S/setup_$NAME.log 2>&1 || { echo "setup failed"; tail -3 $S/setup_$NAME.log; exit 1; }
 strip_summary
-docker exec -u root c_aerial_troy bash -lc "cd $P && ./test_config.sh 59c --num-cells=$N --num-slots=$SLOTS" > $S/test_config_$NAME.log 2>&1
+docker exec -u root c_aerial_troy bash -lc "cd $P && ./test_config.sh ${PATTERN:-59c} --num-cells=$N --num-slots=$SLOTS" > $S/test_config_$NAME.log 2>&1
 grep -q "total $N cells" $S/test_config_$NAME.log || { echo "test_config failed"; tail -3 $S/test_config_$NAME.log; exit 1; }
 # back up the lab files this script edits; restored at the end of the run
 for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml; do cp $f $S/before_$NAME.$(basename $f); done

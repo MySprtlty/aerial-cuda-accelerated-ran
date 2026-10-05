@@ -1,0 +1,52 @@
+E2E 측정 인프라 조사: 멀티-L2(실 셀 1 + 에뮬레이터 15셀), 16셀 DSUUU 루프백, 실 RU/루프백 L1 설정 차이 (2026-10-04, 코드·설정 읽기만)
+==========================================================================================================================
+
+Q1. L1 하나(cuphycontroller)가 L2 둘(OAI + testMAC)을 동시에 서비스할 수 있나 — 가능(문서·코드), 단 혼합에는 전역 충돌이 있다
+- 문서: testBenches/phase4_test_scripts/README.md:144-214 "Multi-L2 test" (testMAC 두 인스턴스 + cuphycontroller 하나). 자동화 setup1_DU.sh --ml2,
+  test_config.sh:950-1027(셀을 반으로 나눔), run3_testMAC.sh:150-170(--ml2 0 → --cells 0x0F, --ml2 1 → --cells 0xF0 + test_mac_config_1.yaml),
+  코어맵 cubb_scripts/autoconfig/l1_core_config/l1_logical_cores_DU_CG1_RU_CG1_ML2.yaml.
+- 설정: l2_adapter yaml `nvipc_config_file: nvipc_multi_instances.yaml`; 그 파일의 transport[] 각각 transport_id / phy_cells / shm_config.prefix(nvipc, nvipc1)
+  (cuphycontroller/config/nvipc_multi_instances.yaml:19-60). l2_adapter_config_P5G_GH.yaml:109-110에 이미 주석으로 준비돼 있음.
+- 코드: nv_phy_mac_transport.cpp:390-471 (transport 시퀀스마다 nvIPC 인스턴스, phy_cells 합 = cell_group_num 아니면 fatal, L2별 셀 index ↔ L1 셀 index 재매핑 :108-118/:181-187/:255-266,
+  라운드로빈 폴링 :539-552); nv_phy_module.cpp:224-228(transport마다 epoll), :91-132(L2 하나 재시작 시 그 transport 셀만 리셋), :694-707;
+  scf_5g_fapi_phy.cpp:671-692(SLOT.indication을 셀을 시작한 모든 transport에 브로드캐스트).
+- testMAC: --cells <mask>(main.cpp:239-243, launch_pattern.cpp:2271-2299로 패턴 셀 → testMAC 셀 0..n-1 재매핑), prefix/log_name/oam_server_addr 설정 가능(test_mac_config.yaml:5,7,56-58).
+- 구성안: cuphycontroller `cell_group_num: 16`; transport 0 = phy_cells [0], prefix nvipc (OAI); transport 1 = phy_cells [1..15], prefix nvipc1; testMAC --cells 0xFFFE (또는 15C 패턴).
+- 충돌(코드 근거):
+  1) wait_all_cell_config 기본 1 → 첫 tick 전에 16셀 모두 CONFIG 필요 (nv_phy_mac_transport.cpp:518-529, nv_phy_module.cpp:1448-1451). 멀티 yaml에서 0으로 가능.
+  2) 16셀이 한 슬롯 커맨드: 모든 활성 셀의 SLOT.response(0x8F) 또는 루프백 SLOT.indication 후 실행(nv_phy_module.cpp:718-725, ENABLE_L2_SLT_RSP 기본 ON CMakeLists.txt:150).
+     한 L2가 늦으면 그룹 전체 슬롯 드롭(:1086-1109, 1219). OAI nvIPC 통합이 0x8F를 보내는지 미확인.
+  3) **TV 슬롯 오버라이드가 전역**: 루프백 L2A는 static{Pucch,Pusch,Pdcch,Pdsch,CsiRs}SlotNum: 0, enableTickDynamicSfnSlot: 0 (l2_adapter_config_F08_CG1.yaml:16-23; 기본 -1/1,
+     nv_phy_config_option.hpp:42-50; 적용 scf_5g_slot_commands.cpp:158/:658, scf_5g_fapi_phy.cpp:1153, ..._ssb_pbch.cpp:66-79). 0이면 실 셀의 DMRS 슬롯·MIB SFN이 깨지고,
+     -1이면 에뮬레이터 셀의 UL TV(slotIdx 0으로 생성, testCompGenTV_ulmix.m:2224-2250)가 안 맞아 CRC/UCI 실패·RU DL 검증 오류. GPU 부하는 비슷(LDPC 고정 10회, 조기종료 off).
+- cuphycontroller 2개(한 GPU/NIC): 지원·문서 없음. OAM 포트 50051 고정(cuphyoam.cpp:41), 로그 phy.log 고정(cuphycontroller_scf.cpp:189), run2가 MPS를 재시작(run2_cuPHYcontroller.sh:215-239).
+
+Q2. 16셀 루프백의 TDD 패턴 — DDDSUUDDDD. 16셀 DSUUU 패턴·TV는 없다
+- 실제 로드되는 파일은 testVectors/multi-cell/launch_pattern_F08_16C_59c.yaml (testMAC은 multi-cell/에서만 읽음 common_utils.hpp:34, main.cpp:320-322; RU 에뮬레이터 config_parser.hpp:175;
+  run3_mig16.log:11,16으로 확인). 루트의 testVectors/launch_pattern_F08_16C_59c.yaml(재구성본)은 쓰이지 않음(stride 40인데 생성기 make_launch_pattern_4t4r.py:57은 20 가정 → 다른 셀 TV를 집음).
+- 80슬롯, 매 10슬롯 D D D S U U D D D D. UL(UL_TTI) 16/80: x4 = PUSCH 6UE + PUCCH(ULMIX_4471+c / 4551+c), x5 = + PRACH(4511+c / 4591+c). DL 64/80 (S슬롯 x3도 PDSCH/PDCCH, UL 없음).
+  UL TV는 slot 0으로 생성된 것을 4/5/14/15에 놓은 것 → static*SlotNum: 0 덕에 동작.
+- testVectors/multi-cell의 launch_pattern_F08_* 1752개(패턴 39~85)는 전부 DDDSUUDDDD 또는 DDDXUUDDDD/DDDXXXDDDD 변형. UL 최대 2~3/10. DSUUU·DDSUU 없음.
+- DSUUU 재료: nrSim 90025~90029(1~2셀; 90028 = DSUUU 1셀, 90029 = 2셀; TVnr_0603 273PRB 4ant mu1), UL TV 536~541(2셀, SRS). nrSim 최대 8셀(90604). 더 많은 셀은 MATLAB 필요.
+- 현실적 경로: make_launch_pattern_4t4r.py의 DL_SLOTS/UL_SLOTS(:37-38)를 DSUUU로 바꾸고 stride 40으로 고친 뒤 59c의 UL 슬롯 구성 4개를 반복 배치(static 오버라이드로 어느 슬롯이든 가능).
+  미검증: UL 슬롯 3배(6/10)의 GPU 여유와 testMAC UL 인디케이션 창(8슬롯), S슬롯(PDSCH만) 처리.
+- 벤치는 DDDSU/DDDSUUDDDD(-u 5/6)와 -u 4 범용뿐(cubb_gpu_test_bench.cpp:97-100). L1은 ru_type 3 셀에 TDD 표를 강제하지 않고 슬롯별 FAPI가 처리를 결정(scf_5g_fapi_phy.cpp:5981-5989).
+
+Q3. cuphycontroller_P5G_GH.yaml(실 RU) vs cuphycontroller_F08_CG1.yaml(16셀 루프백), 1 실 셀 + 15 에뮬 셀을 한 L1에
+- 호스트 NIC: 0002:01:00.0/.1 BlueField-3 (aerial00/01, Falcon 방향), 0000:01:00.0 ConnectX-7 (aerial02, 루프백 L1 쪽), 0000:01:00.1 (aerial03, RU 에뮬레이터).
+- 전역 차이: l2adapter_filename, cell_group_num 1 vs 16, nics, enable_srs 1 vs 0, fix_beta_dl 0 vs 1 (context.cpp:3320, cell.cpp:648; RU 에뮬레이터는 1 기대), ul_order_timeout_cpu_ns 4 vs 8 ms, 코어 배정.
+  동일: pusch_aggr_per_ctx 3, mps_sm_*, gpu_init_comms_dl 1, dpdk_file_prefix.
+- 셀별(cells[0]): nic, dst_mac(22:04:9B:9E:27:A1 vs 20:04:9B:9E:27:A3), src_mac, vlan(2..21 vs 2), eAxC([0,8,1,9] vs [8,0,1,2]; PRACH [7,15,6,14] vs [15,7,0,1]; SRS), 압축 BFP14 vs BFP9.
+  동일: T1a_max_up 345000, T1a cp ul/dl, Ta4 50000/331000, Tcp_adv_dl 125000, ul_u_plane_tx_offset 280000, fh_len_range 0. (P5G_GH.yaml은 배포본 그대로라 실제 Benetel 값은 미반영.)
+- 셀별 NIC 배정: 지원. yamlparser.cpp:1715-1736(nics 목록), :383-395(셀 nic → nic_index), :415-423(dst_mac 유일), :494-531(셀별 T1a/Ta4/fh_len_range); context.cpp:73-76, cell.cpp:141,
+  task_function_dl_aggr.cpp:110-117(NIC별 DL 버퍼). 배포 예: cuphycontroller_F08_CG1_2_PORT.yaml, cuphycontroller_P5G_2PORTFH.yaml(같은 어댑터의 두 포트).
+- 배치안: nics = [0002:01:00.0, 0000:01:00.0]; cells[0] = BF3 + Benetel MAC/VLAN/eAxC/BFP14; cells[1..15] = CX7 + RU 에뮬레이터 cell_configs[0..14].eth, BFP9; 에뮬레이터는 15C 패턴.
+  미검증: 서로 다른 어댑터(BF3+CX7) 혼합 예 없음, 두 NIC의 PHC 동기(phc2sys-cx7, BF3 PTP), GPU-initiated DL comms의 두 어댑터 동작.
+
+결론
+- "한 L1에 실 셀 1 + 에뮬 15셀"은 설정상 표현 가능하지만 L2A의 전역 static 슬롯 오버라이드 때문에 두 종류 셀이 동시에 정상일 수 없다. 선택지:
+  (a) static -1(실 셀 정상): 에뮬 셀은 CRC 실패·RU DL 검증 오류를 내며 "부하만" 제공(GPU 부하는 거의 같음: LDPC 고정 반복) → 부하원으로는 쓸 수 있으나 에뮬 셀의 KPI는 의미 없음.
+  (b) 에뮬 셀 UL/DL TV를 슬롯별로 재생성(MATLAB) → 정석이지만 비용 큼.
+  (c) 실 셀 L1(1셀, OAI)을 그대로 두고 16셀급 GPU 부하는 cubb_gpu_test_bench를 같은 MPS 데몬의 클라이언트로 함께 돌려 공급 → FAPI는 실 셀 것만 훅에 보임(부하 regime은 벤치 패턴으로 알려짐).
+     E2E의 "MIG 4g 벌점"과 "세입자-RAN SM 공유"는 재현되나 "FAPI로 16셀 부하를 본다"는 부분은 1셀분만 성립.
+- 16셀 DSUUU 루프백은 패턴 생성기 수정으로 만들 수 있으나 UL 3배 부하의 GPU 여유·testMAC 창은 별도 확인 필요.

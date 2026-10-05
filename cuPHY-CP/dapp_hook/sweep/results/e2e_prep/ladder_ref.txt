@@ -1,0 +1,40 @@
+=== ref_59c_16c
+  slots 237999 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1543  p99    1569  max    1653 us   (order kernel run p50  1362 p99  1378, PUSCH GPU run p50  1758 p99  1790; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    1952  p99    1985  max    2027 us   (order kernel run p50   491 p99   508, PUSCH GPU run p50   867 p99   908; n=23800)
+  DL pos 0: PDSCH run end p50    -848 p99    -834 us, compression end p50    -589 p99    -525 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -842 p99    -827 us, compression end p50    -552 p99    -513 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -844 p99    -831 us, compression end p50    -550 p99    -523 (relative to t0; n=23800)
+  L1 WRN/ERR lines 115 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x03 x5 0x06 x11 0x34 x1 0x36 x14
+  L1 counters (2nd half, per cell per s): UL 196.70 Mbps (min 196.70)  DL 1544.14 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 196.70 Mbps (min 196.70)  DL 1544.14 Mbps  ERR max 0  INV median 2400 max 2400  finished=True
+=== ref_59e_16c
+  slots 237998 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1480  p99    1488  max    1790 us   (order kernel run p50  1362 p99  1377, PUSCH GPU run p50  1703 p99  1721; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    1691  p99    1719  max    2072 us   (order kernel run p50   492 p99   510, PUSCH GPU run p50   717 p99   743; n=23799)
+  DL pos 0: PDSCH run end p50    -846 p99    -835 us, compression end p50    -592 p99    -521 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -840 p99    -827 us, compression end p50    -548 p99    -508 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -842 p99    -830 us, compression end p50    -551 p99    -524 (relative to t0; n=23800)
+  L1 WRN/ERR lines 73 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x13
+  L1 counters (2nd half, per cell per s): UL 212.64 Mbps (min 212.64)  DL 1544.14 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 212.64 Mbps (min 212.64)  DL 1544.14 Mbps  ERR max 0  INV median 2400 max 2400  finished=True
+=== ref_65c_16c
+  slots 237998 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1605  p99    1626  max    1751 us   (order kernel run p50  1366 p99  1382, PUSCH GPU run p50  1799 p99  1861; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    2069  p99    2101  max    2175 us   (order kernel run p50   495 p99   513, PUSCH GPU run p50   921 p99   953; n=23799)
+  DL pos 0: PDSCH run end p50    -843 p99    -830 us, compression end p50    -578 p99    -519 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -837 p99    -822 us, compression end p50    -550 p99    -511 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -839 p99    -826 us, compression end p50    -553 p99    -528 (relative to t0; n=23800)
+  L1 WRN/ERR lines 25 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x5
+  L1 counters (2nd half, per cell per s): UL 210.78 Mbps (min 210.78)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 210.78 Mbps (min 210.78)  DL 1561.40 Mbps  ERR max 0  INV median 2500 max 2800  finished=True
+=== ref_65a_16c
+  slots 237998 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1560  p99    1589  max    1835 us   (order kernel run p50  1370 p99  1388, PUSCH GPU run p50  1842 p99  1873; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    2065  p99    2106  max    2338 us   (order kernel run p50   495 p99   510, PUSCH GPU run p50   972 p99   998; n=23799)
+  DL pos 0: PDSCH run end p50    -849 p99    -836 us, compression end p50    -588 p99    -529 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -841 p99    -827 us, compression end p50    -564 p99    -528 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -843 p99    -830 us, compression end p50    -568 p99    -544 (relative to t0; n=23800)
+  L1 WRN/ERR lines 69 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x12
+  L1 counters (2nd half, per cell per s): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  ERR max 0  INV median 2400 max 2400  finished=True

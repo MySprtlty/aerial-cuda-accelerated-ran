@@ -1,0 +1,392 @@
+2026-10-05_09:04:42 == stage 1: baseline without tenant
+2026-10-05_09:04:42 -- capgrid --only c16_L1__none0
+profile c16_capgrid_1280: 1 runs (0 already ok, 0 skipped for missing TVs), ~0.1 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/1] c16_L1__none0
+    -> ok in 144 s
+done: {'ok': 1}
+2026-10-05_09:07:09 -- capgrid --only c16_L4__none0
+profile c16_capgrid_1280: 1 runs (1 already ok, 0 skipped for missing TVs), ~0.0 h remaining at 240 s/run -> runs/c16_capgrid_1280
+done: {'ok': 1}
+2026-10-05_09:07:12 == stage 2: yolo26n1280
+2026-10-05_09:07:12 -- capgrid --only yolo26n1280_cap030
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26n1280_cap030_b1_p0
+    -> ok in 79 s
+=== [2/6] tenant_alone__yolo26n1280_cap030_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26n1280_cap030_b1_p0
+    -> ok in 182 s
+=== [4/6] c16_L1__yolo26n1280_cap030_b8_p0
+    -> ok in 184 s
+=== [5/6] c16_L4__yolo26n1280_cap030_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26n1280_cap030_b8_p0
+    -> ok in 190 s
+done: {'ok': 6}
+2026-10-05_09:22:19 -- capgrid --only yolo26n1280_cap100
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26n1280_cap100_b1_p0
+    -> ok in 78 s
+=== [2/6] tenant_alone__yolo26n1280_cap100_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26n1280_cap100_b1_p0
+    -> ok in 182 s
+=== [4/6] c16_L1__yolo26n1280_cap100_b8_p0
+    -> ok in 186 s
+=== [5/6] c16_L4__yolo26n1280_cap100_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26n1280_cap100_b8_p0
+    -> ok in 191 s
+done: {'ok': 6}
+2026-10-05_09:37:28 == stage 3: yolo26s1280
+2026-10-05_09:37:28 -- capgrid --only yolo26s1280_cap030
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26s1280_cap030_b1_p0
+    -> ok in 78 s
+=== [2/6] tenant_alone__yolo26s1280_cap030_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26s1280_cap030_b1_p0
+    -> ok in 182 s
+=== [4/6] c16_L1__yolo26s1280_cap030_b8_p0
+    -> ok in 185 s
+=== [5/6] c16_L4__yolo26s1280_cap030_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26s1280_cap030_b8_p0
+    -> ok in 191 s
+done: {'ok': 6}
+2026-10-05_09:52:34 -- capgrid --only yolo26s1280_cap100
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26s1280_cap100_b1_p0
+    -> ok in 78 s
+=== [2/6] tenant_alone__yolo26s1280_cap100_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26s1280_cap100_b1_p0
+    -> ok in 182 s
+=== [4/6] c16_L1__yolo26s1280_cap100_b8_p0
+    -> ok in 186 s
+=== [5/6] c16_L4__yolo26s1280_cap100_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26s1280_cap100_b8_p0
+    -> ok in 193 s
+done: {'ok': 6}
+2026-10-05_10:07:45 == stage 4: open loop yolo26s1280
+2026-10-05_10:07:45 -- openloop --only ol26s1280
+profile c16_openloop_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.8 h remaining at 500 s/run -> runs/c16_openloop_1280
+=== [1/6] tenant_alone__ol26s1280_cap030_b1_p0
+    -> ok in 418 s
+=== [2/6] tenant_alone__ol26s1280_cap100_b1_p0
+    -> ok in 418 s
+=== [3/6] c16_L1__ol26s1280_cap030_b1_p0
+    -> ok in 428 s
+=== [4/6] c16_L1__ol26s1280_cap100_b1_p0
+    -> ok in 428 s
+=== [5/6] c16_L4__ol26s1280_cap030_b1_p0
+    -> ok in 436 s
+=== [6/6] c16_L4__ol26s1280_cap100_b1_p0
+    -> ok in 436 s
+done: {'ok': 6}
+2026-10-05_10:50:34 == stage 5: yolo26x1280 (cap 30 first, cap 100 last = the combination that ran when the host went down)
+2026-10-05_10:50:34 -- capgrid --only yolo26x1280_cap030
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26x1280_cap030_b1_p0
+    -> ok in 79 s
+=== [2/6] tenant_alone__yolo26x1280_cap030_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26x1280_cap030_b1_p0
+    -> ok in 183 s
+=== [4/6] c16_L1__yolo26x1280_cap030_b8_p0
+    -> ok in 188 s
+=== [5/6] c16_L4__yolo26x1280_cap030_b1_p0
+    -> ok in 191 s
+=== [6/6] c16_L4__yolo26x1280_cap030_b8_p0
+    -> ok in 194 s
+done: {'ok': 6}
+2026-10-05_11:05:51 -- capgrid --only yolo26x1280_cap100
+profile c16_capgrid_1280: 6 runs (1 already ok, 0 skipped for missing TVs), ~0.3 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/5] tenant_alone__yolo26x1280_cap100_b8_p0
+    -> ok in 79 s
+=== [2/5] c16_L1__yolo26x1280_cap100_b1_p0
+    -> ok in 184 s
+=== [3/5] c16_L1__yolo26x1280_cap100_b8_p0
+    -> ok in 191 s
+=== [4/5] c16_L4__yolo26x1280_cap100_b1_p0
+    -> ok in 190 s
+=== [5/5] c16_L4__yolo26x1280_cap100_b8_p0
+    -> ok in 206 s
+done: {'ok': 6}
+2026-10-05_11:20:04 == stage 6: open loop yolo26x1280
+2026-10-05_11:20:04 -- openloop --only ol26x1280
+profile c16_openloop_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.8 h remaining at 500 s/run -> runs/c16_openloop_1280
+=== [1/6] tenant_alone__ol26x1280_cap030_b1_p0
+    -> ok in 418 s
+=== [2/6] tenant_alone__ol26x1280_cap100_b1_p0
+    -> ok in 419 s
+=== [3/6] c16_L1__ol26x1280_cap030_b1_p0
+    -> ok in 430 s
+=== [4/6] c16_L1__ol26x1280_cap100_b1_p0
+    -> ok in 429 s
+=== [5/6] c16_L4__ol26x1280_cap030_b1_p0
+    -> ok in 437 s
+=== [6/6] c16_L4__ol26x1280_cap100_b1_p0
+    -> ok in 436 s
+done: {'ok': 6}
+2026-10-05_12:02:58 == stage 7: GH200 segment with the real pipeline
+12:02:58 == none_cap100
+offered 150 served 150 lost 0 | rtt ms mean 14.9 p50 13.8 p99 29.8 max 35.1 | schedule->reply p50 13.8 p99 29.8 | server p50 13.5 -> air+transport p50 0.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 15.5 p50 13.9 p99 36.4 max 43.2 | schedule->reply p50 13.9 p99 36.4 | server p50 13.6 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 16.2 p50 14.0 p99 37.7 max 46.0 | schedule->reply p50 14.0 p99 37.7 | server p50 13.7 -> air+transport p50 0.3 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 21.5 p50 15.2 p99 63.9 max 82.8 | schedule->reply p50 15.2 p99 63.9 | server p50 14.5 -> air+transport p50 0.7 ms
+offered 300 served 300 lost 0 | rtt ms mean 7.9 p50 7.5 p99 16.8 max 18.8 | schedule->reply p50 7.5 p99 16.8 | server p50 7.3 -> air+transport p50 0.2 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 8.8 p50 7.5 p99 20.6 max 27.7 | schedule->reply p50 7.5 p99 20.6 | server p50 7.3 -> air+transport p50 0.2 ms
+12:06:17 == none_cap30
+offered 150 served 150 lost 0 | rtt ms mean 20.0 p50 18.3 p99 42.9 max 49.2 | schedule->reply p50 18.3 p99 42.9 | server p50 18.1 -> air+transport p50 0.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 21.1 p50 18.4 p99 50.7 max 60.4 | schedule->reply p50 18.4 p99 50.7 | server p50 18.1 -> air+transport p50 0.2 ms
+offered 600 served 600 lost 0 | rtt ms mean 23.0 p50 18.8 p99 53.8 max 65.9 | schedule->reply p50 18.8 p99 53.8 | server p50 18.3 -> air+transport p50 0.5 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 43.1 p50 32.2 p99 156.3 max 188.4 | schedule->reply p50 32.2 p99 156.3 | server p50 31.2 -> air+transport p50 1.0 ms
+offered 300 served 300 lost 0 | rtt ms mean 8.2 p50 7.7 p99 18.0 max 19.4 | schedule->reply p50 7.7 p99 18.0 | server p50 7.5 -> air+transport p50 0.2 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 9.1 p50 7.8 p99 21.2 max 29.1 | schedule->reply p50 7.8 p99 21.2 | server p50 7.5 -> air+transport p50 0.3 ms
+12:09:36 == c16_L1_cap100
+offered 150 served 150 lost 0 | rtt ms mean 18.3 p50 17.0 p99 37.8 max 43.6 | schedule->reply p50 17.0 p99 37.8 | server p50 16.8 -> air+transport p50 0.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 19.2 p50 17.2 p99 46.1 max 53.6 | schedule->reply p50 17.2 p99 46.1 | server p50 16.9 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 20.8 p50 17.4 p99 48.0 max 59.6 | schedule->reply p50 17.4 p99 48.0 | server p50 17.0 -> air+transport p50 0.3 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 34.8 p50 25.8 p99 122.3 max 157.2 | schedule->reply p50 25.8 p99 122.3 | server p50 24.2 -> air+transport p50 1.6 ms
+offered 300 served 300 lost 0 | rtt ms mean 8.6 p50 8.2 p99 18.7 max 20.8 | schedule->reply p50 8.2 p99 18.7 | server p50 8.0 -> air+transport p50 0.2 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 9.8 p50 8.3 p99 23.0 max 30.3 | schedule->reply p50 8.3 p99 23.0 | server p50 8.1 -> air+transport p50 0.3 ms
+bench patterns: 1
+12:14:35 == c16_L1_cap30
+offered 150 served 150 lost 0 | rtt ms mean 24.9 p50 22.8 p99 55.1 max 66.4 | schedule->reply p50 22.8 p99 55.1 | server p50 22.5 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 26.7 p50 23.0 p99 67.5 max 77.9 | schedule->reply p50 23.0 p99 67.5 | server p50 22.7 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 30.8 p50 23.5 p99 79.5 max 99.8 | schedule->reply p50 23.5 p99 79.5 | server p50 23.0 -> air+transport p50 0.5 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 110.5 p50 75.9 p99 401.9 max 429.4 | schedule->reply p50 75.9 p99 401.9 | server p50 75.7 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 8.9 p50 8.5 p99 19.8 max 21.2 | schedule->reply p50 8.5 p99 19.8 | server p50 8.3 -> air+transport p50 0.2 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 10.2 p50 8.6 p99 25.0 max 34.3 | schedule->reply p50 8.6 p99 25.0 | server p50 8.3 -> air+transport p50 0.3 ms
+bench patterns: 1
+12:19:33 == c16_L4_cap100
+offered 150 served 150 lost 0 | rtt ms mean 20.4 p50 18.9 p99 44.7 max 51.2 | schedule->reply p50 18.9 p99 44.7 | server p50 18.6 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 21.5 p50 19.0 p99 52.3 max 62.6 | schedule->reply p50 19.0 p99 52.3 | server p50 18.7 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 23.6 p50 19.2 p99 56.0 max 69.1 | schedule->reply p50 19.2 p99 56.0 | server p50 18.9 -> air+transport p50 0.3 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 47.5 p50 34.8 p99 174.0 max 199.8 | schedule->reply p50 34.8 p99 174.0 | server p50 33.6 -> air+transport p50 1.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 8.9 p50 8.3 p99 19.3 max 21.2 | schedule->reply p50 8.3 p99 19.3 | server p50 8.1 -> air+transport p50 0.2 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 10.2 p50 8.7 p99 24.7 max 34.0 | schedule->reply p50 8.7 p99 24.7 | server p50 8.3 -> air+transport p50 0.4 ms
+bench patterns: 1
+12:24:39 == c16_L4_cap30
+offered 150 served 150 lost 0 | rtt ms mean 26.5 p50 24.2 p99 60.1 max 71.8 | schedule->reply p50 24.2 p99 60.1 | server p50 23.9 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 28.4 p50 24.3 p99 71.4 max 82.8 | schedule->reply p50 24.3 p99 71.4 | server p50 24.0 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 33.9 p50 25.0 p99 89.7 max 110.0 | schedule->reply p50 25.0 p99 90.6 | server p50 24.5 -> air+transport p50 0.4 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 158.1 p50 105.8 p99 569.2 max 599.4 | schedule->reply p50 105.8 p99 569.2 | server p50 104.9 -> air+transport p50 0.9 ms
+offered 300 served 300 lost 0 | rtt ms mean 9.1 p50 8.6 p99 20.0 max 22.7 | schedule->reply p50 8.6 p99 20.0 | server p50 8.4 -> air+transport p50 0.2 ms
+offered 1200 served 1200 lost 0 | rtt ms mean 10.6 p50 9.0 p99 26.2 max 34.7 | schedule->reply p50 9.0 p99 26.2 | server p50 8.6 -> air+transport p50 0.3 ms
+bench patterns: 1
+GH200_SEGMENT_DONE 12:29:44
+E2E_PREP_ESSENTIAL_DONE 12:29:44
+2026-10-05_12:29:44 == stage 8: cap 50
+2026-10-05_12:29:44 -- capgrid --only yolo26n1280_cap050
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26n1280_cap050_b1_p0
+    -> ok in 78 s
+=== [2/6] tenant_alone__yolo26n1280_cap050_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26n1280_cap050_b1_p0
+    -> ok in 182 s
+=== [4/6] c16_L1__yolo26n1280_cap050_b8_p0
+    -> ok in 184 s
+=== [5/6] c16_L4__yolo26n1280_cap050_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26n1280_cap050_b8_p0
+    -> ok in 191 s
+done: {'ok': 6}
+2026-10-05_12:44:50 -- capgrid --only yolo26s1280_cap050
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26s1280_cap050_b1_p0
+    -> ok in 79 s
+=== [2/6] tenant_alone__yolo26s1280_cap050_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26s1280_cap050_b1_p0
+    -> ok in 183 s
+=== [4/6] c16_L1__yolo26s1280_cap050_b8_p0
+    -> ok in 184 s
+=== [5/6] c16_L4__yolo26s1280_cap050_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26s1280_cap050_b8_p0
+    -> ok in 191 s
+done: {'ok': 6}
+2026-10-05_12:59:59 -- capgrid --only yolo26x1280_cap050
+profile c16_capgrid_1280: 6 runs (0 already ok, 0 skipped for missing TVs), ~0.4 h remaining at 240 s/run -> runs/c16_capgrid_1280
+=== [1/6] tenant_alone__yolo26x1280_cap050_b1_p0
+    -> ok in 79 s
+=== [2/6] tenant_alone__yolo26x1280_cap050_b8_p0
+    -> ok in 79 s
+=== [3/6] c16_L1__yolo26x1280_cap050_b1_p0
+    -> ok in 183 s
+=== [4/6] c16_L1__yolo26x1280_cap050_b8_p0
+    -> ok in 187 s
+=== [5/6] c16_L4__yolo26x1280_cap050_b1_p0
+    -> ok in 189 s
+=== [6/6] c16_L4__yolo26x1280_cap050_b8_p0
+    -> ok in 193 s
+done: {'ok': 6}
+2026-10-05_13:15:12 == analysis (inside the container: matplotlib lives there)
+lowest/highest load points: c16_L1 / c16_L4
+plots -> runs/c16_capgrid_1280/plots (56 runs, 246 rows)
+wrote results/c16_capgrid_1280/tenant_latency_p99_overview.png
+wrote results/c16_capgrid_1280/tenant_latency_p99_overview_slots.png
+wrote results/c16_openloop_1280: openloop_latency.csv (108 rows), openloop_capacity.csv (12), 2 figures
+E2E_PREP_DONE 13:15:33
+2026-10-05_13:15:44 == stage 9: rate-limited tenants (channel p99 at a realistic duty cycle)
+profile c16_ratelimit_1280: 4 runs (0 already ok, 0 skipped for missing TVs), ~0.3 h remaining at 240 s/run -> runs/c16_ratelimit_1280
+=== [1/4] c16_L1__olr10x1280_cap100_b1_p0
+    -> ok in 181 s
+=== [2/4] c16_L4__olr10x1280_cap100_b1_p0
+    -> ok in 187 s
+=== [3/4] c16_L1__olr20x1280_cap100_b1_p0
+    -> ok in 181 s
+=== [4/4] c16_L4__olr20x1280_cap100_b1_p0
+    -> ok in 187 s
+done: {'ok': 4}
+profile c16_ratelimit_1280_b8: 4 runs (0 already ok, 0 skipped for missing TVs), ~0.3 h remaining at 240 s/run -> runs/c16_ratelimit_1280_b8
+=== [1/4] c16_L1__olr10x1280_cap050_b8_p0
+    -> ok in 183 s
+=== [2/4] c16_L1__olr10x1280_cap100_b8_p0
+    -> ok in 183 s
+=== [3/4] c16_L4__olr10x1280_cap050_b8_p0
+    -> ok in 190 s
+=== [4/4] c16_L4__olr10x1280_cap100_b8_p0
+    -> ok in 194 s
+done: {'ok': 4}
+2026-10-05_13:40:37 == stage 10: GH200 segment, tiled requests (batch 8)
+13:40:37 == none_cap100
+offered 60 served 60 lost 0 | rtt ms mean 39.1 p50 36.2 p99 79.7 max 79.7 | schedule->reply p50 36.2 p99 79.7 | server p50 35.9 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 41.2 p50 36.2 p99 96.2 max 120.6 | schedule->reply p50 36.2 p99 96.2 | server p50 35.9 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 46.2 p50 36.5 p99 122.3 max 132.3 | schedule->reply p50 36.5 p99 122.3 | server p50 36.2 -> air+transport p50 0.3 ms
+offered 450 served 450 lost 0 | rtt ms mean 59.6 p50 42.7 p99 182.3 max 224.9 | schedule->reply p50 42.7 p99 182.3 | server p50 40.4 -> air+transport p50 2.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 21.4 p50 18.9 p99 51.6 max 61.7 | schedule->reply p50 18.9 p99 51.6 | server p50 18.6 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 23.5 p50 19.3 p99 56.0 max 67.9 | schedule->reply p50 19.3 p99 56.0 | server p50 18.7 -> air+transport p50 0.6 ms
+13:43:55 == none_cap50
+offered 60 served 60 lost 0 | rtt ms mean 53.6 p50 49.0 p99 117.6 max 117.6 | schedule->reply p50 49.0 p99 117.6 | server p50 48.7 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 57.4 p50 48.9 p99 134.3 max 170.0 | schedule->reply p50 48.9 p99 134.3 | server p50 48.6 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 72.7 p50 49.7 p99 194.3 max 220.9 | schedule->reply p50 49.7 p99 194.3 | server p50 49.3 -> air+transport p50 0.4 ms
+offered 450 served 450 lost 0 | rtt ms mean 129.1 p50 89.2 p99 454.0 max 506.7 | schedule->reply p50 89.2 p99 454.0 | server p50 88.0 -> air+transport p50 1.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 25.6 p50 22.2 p99 64.0 max 74.4 | schedule->reply p50 22.2 p99 64.0 | server p50 21.9 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 29.3 p50 22.7 p99 76.1 max 93.2 | schedule->reply p50 22.7 p99 76.1 | server p50 22.4 -> air+transport p50 0.3 ms
+13:47:14 == none_cap30
+offered 60 served 60 lost 0 | rtt ms mean 79.5 p50 71.2 p99 184.2 max 184.2 | schedule->reply p50 71.2 p99 184.2 | server p50 70.9 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 89.8 p50 71.1 p99 200.9 max 258.5 | schedule->reply p50 71.1 p99 200.9 | server p50 70.9 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 177.3 p50 119.7 p99 665.1 max 713.2 | schedule->reply p50 119.7 p99 665.1 | server p50 119.4 -> air+transport p50 0.3 ms
+offered 450 served 450 lost 0 | rtt ms mean 1354.5 p50 1483.9 p99 2363.2 max 2385.3 | schedule->reply p50 1483.9 p99 2363.2 | server p50 1483.6 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 32.7 p50 27.4 p99 84.8 max 94.8 | schedule->reply p50 27.4 p99 84.8 | server p50 27.1 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 42.1 p50 29.4 p99 123.4 max 160.5 | schedule->reply p50 29.4 p99 123.4 | server p50 27.9 -> air+transport p50 1.5 ms
+13:50:35 == c16_L1_cap100
+offered 60 served 60 lost 0 | rtt ms mean 47.0 p50 42.9 p99 100.6 max 100.6 | schedule->reply p50 43.2 p99 100.6 | server p50 42.7 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 49.9 p50 43.3 p99 115.9 max 147.5 | schedule->reply p50 43.3 p99 115.9 | server p50 43.0 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 58.7 p50 43.7 p99 149.1 max 159.6 | schedule->reply p50 43.7 p99 149.1 | server p50 43.3 -> air+transport p50 0.4 ms
+offered 450 served 450 lost 0 | rtt ms mean 91.2 p50 63.9 p99 310.2 max 381.9 | schedule->reply p50 63.9 p99 310.3 | server p50 61.7 -> air+transport p50 2.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 24.3 p50 21.1 p99 60.2 max 71.1 | schedule->reply p50 21.1 p99 60.2 | server p50 20.8 -> air+transport p50 0.4 ms
+offered 600 served 600 lost 0 | rtt ms mean 27.2 p50 21.6 p99 67.4 max 83.0 | schedule->reply p50 21.6 p99 67.4 | server p50 21.3 -> air+transport p50 0.3 ms
+bench patterns: 1
+13:55:37 == c16_L1_cap50
+offered 60 served 60 lost 0 | rtt ms mean 62.4 p50 56.6 p99 139.1 max 139.1 | schedule->reply p50 56.6 p99 139.1 | server p50 56.3 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 67.8 p50 56.7 p99 156.5 max 200.9 | schedule->reply p50 56.7 p99 156.5 | server p50 56.4 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 98.5 p50 69.1 p99 327.2 max 377.7 | schedule->reply p50 69.1 p99 327.2 | server p50 68.8 -> air+transport p50 0.4 ms
+offered 450 served 450 lost 0 | rtt ms mean 206.1 p50 142.0 p99 699.0 max 739.7 | schedule->reply p50 142.0 p99 699.0 | server p50 141.8 -> air+transport p50 0.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 29.2 p50 24.9 p99 75.0 max 84.1 | schedule->reply p50 24.9 p99 75.0 | server p50 24.6 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 35.5 p50 25.7 p99 96.7 max 116.2 | schedule->reply p50 25.7 p99 96.7 | server p50 25.2 -> air+transport p50 0.5 ms
+bench patterns: 1
+14:00:40 == c16_L1_cap30
+offered 60 served 60 lost 0 | rtt ms mean 91.2 p50 80.8 p99 214.1 max 214.1 | schedule->reply p50 80.8 p99 214.1 | server p50 80.5 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 107.4 p50 81.5 p99 232.0 max 298.8 | schedule->reply p50 81.5 p99 232.0 | server p50 81.2 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 254.3 p50 163.1 p99 959.0 max 975.4 | schedule->reply p50 163.1 p99 959.0 | server p50 162.8 -> air+transport p50 0.3 ms
+offered 450 served 450 lost 0 | rtt ms mean 3486.0 p50 3634.2 p99 6371.5 max 6513.7 | schedule->reply p50 3634.2 p99 6371.5 | server p50 3634.0 -> air+transport p50 0.2 ms
+offered 300 served 300 lost 0 | rtt ms mean 37.7 p50 30.9 p99 98.2 max 107.3 | schedule->reply p50 30.9 p99 98.2 | server p50 30.6 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 55.9 p50 41.1 p99 190.3 max 243.0 | schedule->reply p50 41.1 p99 190.3 | server p50 38.5 -> air+transport p50 2.6 ms
+bench patterns: 1
+14:05:42 == c16_L4_cap100
+offered 60 served 60 lost 0 | rtt ms mean 54.1 p50 49.6 p99 117.4 max 117.4 | schedule->reply p50 49.6 p99 117.4 | server p50 49.3 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 58.2 p50 49.6 p99 138.0 max 170.0 | schedule->reply p50 49.6 p99 138.0 | server p50 49.2 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 74.9 p50 51.3 p99 207.0 max 229.0 | schedule->reply p50 51.3 p99 207.0 | server p50 50.9 -> air+transport p50 0.5 ms
+offered 450 served 450 lost 0 | rtt ms mean 135.7 p50 91.9 p99 489.5 max 531.5 | schedule->reply p50 91.9 p99 489.5 | server p50 91.0 -> air+transport p50 0.9 ms
+offered 300 served 300 lost 0 | rtt ms mean 26.9 p50 23.2 p99 67.8 max 77.9 | schedule->reply p50 23.2 p99 67.8 | server p50 22.9 -> air+transport p50 0.3 ms
+offered 600 served 600 lost 0 | rtt ms mean 31.4 p50 23.7 p99 81.5 max 101.5 | schedule->reply p50 23.7 p99 81.5 | server p50 23.4 -> air+transport p50 0.3 ms
+bench patterns: 1
+14:10:55 == c16_L4_cap50
+offered 60 served 60 lost 0 | rtt ms mean 67.6 p50 60.9 p99 153.2 max 153.2 | schedule->reply p50 60.9 p99 153.3 | server p50 60.6 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 74.4 p50 61.3 p99 170.3 max 218.0 | schedule->reply p50 61.3 p99 170.3 | server p50 61.0 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 120.4 p50 83.3 p99 396.0 max 485.6 | schedule->reply p50 83.3 p99 396.0 | server p50 81.7 -> air+transport p50 1.5 ms
+offered 450 served 450 lost 0 | rtt ms mean 297.3 p50 210.3 p99 964.1 max 1005.8 | schedule->reply p50 210.3 p99 964.1 | server p50 210.1 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 31.4 p50 26.6 p99 79.3 max 91.0 | schedule->reply p50 26.6 p99 79.3 | server p50 26.2 -> air+transport p50 0.4 ms
+offered 600 served 600 lost 0 | rtt ms mean 39.3 p50 27.7 p99 110.8 max 140.3 | schedule->reply p50 27.7 p99 110.8 | server p50 27.2 -> air+transport p50 0.5 ms
+bench patterns: 1
+14:16:03 == c16_L4_cap30
+offered 60 served 60 lost 0 | rtt ms mean 95.4 p50 84.2 p99 224.5 max 224.5 | schedule->reply p50 84.2 p99 224.5 | server p50 83.9 -> air+transport p50 0.3 ms
+offered 150 served 150 lost 0 | rtt ms mean 116.3 p50 85.1 p99 273.5 max 313.6 | schedule->reply p50 85.1 p99 273.5 | server p50 84.8 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 295.3 p50 197.9 p99 1082.9 max 1104.2 | schedule->reply p50 198.1 p99 1082.9 | server p50 197.7 -> air+transport p50 0.2 ms
+offered 450 served 450 lost 0 | rtt ms mean 4302.9 p50 4415.5 p99 7927.8 max 8073.1 | schedule->reply p50 4415.5 p99 7927.8 | server p50 4415.2 -> air+transport p50 0.3 ms
+offered 300 served 300 lost 0 | rtt ms mean 39.1 p50 32.1 p99 99.9 max 113.0 | schedule->reply p50 32.1 p99 99.9 | server p50 31.7 -> air+transport p50 0.4 ms
+offered 600 served 600 lost 0 | rtt ms mean 58.9 p50 43.4 p99 198.2 max 252.2 | schedule->reply p50 43.4 p99 198.2 | server p50 41.1 -> air+transport p50 2.3 ms
+bench patterns: 1
+GH200_SEGMENT_DONE 14:21:13
+2026-10-05_14:21:13 == analysis
+plots -> runs/c16_capgrid_1280/plots (56 runs, 246 rows)
+plots -> runs/c16_ratelimit_1280/plots (6 runs, 36 rows)
+plots -> runs/c16_ratelimit_1280_b8/plots (6 runs, 36 rows)
+wrote results/c16_capgrid_1280/tenant_latency_p99_overview_slots.png
+wrote results/c16_openloop_1280: openloop_latency.csv (108 rows), openloop_capacity.csv (12), 2 figures
+E2E_PREP2_DONE 14:21:42
+2026-10-05_14:22:03 == stage 11: full-stack reference ladder (whole GPU)
+== ref_59c_16c: 16 cells, 240000 slots (120 s), dl cores '', nvlog tags '311,223', hook async, record 0, ru_hist 0, keep_raw 1, mpstat 0, ru cores ul '' dl '', mig '' mig_sm 0 14:22:03
+05:25:43.800514 CON 31257 0 [MAC.FAPI] Finished running 240000 slots test. slot_
+== ref_59c_16c done 14:26:48
+== ladder ref_59c_16c parsed 14:27:02
+== ref_59e_16c: 16 cells, 240000 slots (120 s), dl cores '', nvlog tags '311,223', hook async, record 0, ru_hist 0, keep_raw 1, mpstat 0, ru cores ul '' dl '', mig '' mig_sm 0 14:27:02
+05:30:40.760514 CON 33130 0 [MAC.FAPI] Finished running 240000 slots test. slot_
+== ref_59e_16c done 14:31:47
+== ladder ref_59e_16c parsed 14:32:00
+== ref_65c_16c: 16 cells, 240000 slots (120 s), dl cores '', nvlog tags '311,223', hook async, record 0, ru_hist 0, keep_raw 1, mpstat 0, ru cores ul '' dl '', mig '' mig_sm 0 14:32:00
+05:36:28.920514 CON 35004 0 [MAC.FAPI] Finished running 240000 slots test. slot_
+== ref_65c_16c done 14:36:46
+== ladder ref_65c_16c parsed 14:37:00
+== ref_65a_16c: 16 cells, 240000 slots (120 s), dl cores '', nvlog tags '311,223', hook async, record 0, ru_hist 0, keep_raw 1, mpstat 0, ru cores ul '' dl '', mig '' mig_sm 0 14:37:00
+05:40:24.440514 CON 36875 0 [MAC.FAPI] Finished running 240000 slots test. slot_
+== ref_65a_16c done 14:41:35
+== ladder ref_65a_16c parsed 14:41:48
+LADDER_DONE_ref
+=== ref_59c_16c
+  slots 237999 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1543  p99    1569  max    1653 us   (order kernel run p50  1362 p99  1378, PUSCH GPU run p50  1758 p99  1790; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    1952  p99    1985  max    2027 us   (order kernel run p50   491 p99   508, PUSCH GPU run p50   867 p99   908; n=23800)
+  DL pos 0: PDSCH run end p50    -848 p99    -834 us, compression end p50    -589 p99    -525 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -842 p99    -827 us, compression end p50    -552 p99    -513 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -844 p99    -831 us, compression end p50    -550 p99    -523 (relative to t0; n=23800)
+  L1 WRN/ERR lines 115 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x03 x5 0x06 x11 0x34 x1 0x36 x14
+  L1 counters (2nd half, per cell per s): UL 196.70 Mbps (min 196.70)  DL 1544.14 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 196.70 Mbps (min 196.70)  DL 1544.14 Mbps  ERR max 0  INV median 2400 max 2400  finished=True
+=== ref_59e_16c
+  slots 237998 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1480  p99    1488  max    1790 us   (order kernel run p50  1362 p99  1377, PUSCH GPU run p50  1703 p99  1721; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    1691  p99    1719  max    2072 us   (order kernel run p50   492 p99   510, PUSCH GPU run p50   717 p99   743; n=23799)
+  DL pos 0: PDSCH run end p50    -846 p99    -835 us, compression end p50    -592 p99    -521 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -840 p99    -827 us, compression end p50    -548 p99    -508 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -842 p99    -830 us, compression end p50    -551 p99    -524 (relative to t0; n=23800)
+  L1 WRN/ERR lines 73 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x13
+  L1 counters (2nd half, per cell per s): UL 212.64 Mbps (min 212.64)  DL 1544.14 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 212.64 Mbps (min 212.64)  DL 1544.14 Mbps  ERR max 0  INV median 2400 max 2400  finished=True
+=== ref_65c_16c
+  slots 237998 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1605  p99    1626  max    1751 us   (order kernel run p50  1366 p99  1382, PUSCH GPU run p50  1799 p99  1861; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    2069  p99    2101  max    2175 us   (order kernel run p50   495 p99   513, PUSCH GPU run p50   921 p99   953; n=23799)
+  DL pos 0: PDSCH run end p50    -843 p99    -830 us, compression end p50    -578 p99    -519 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -837 p99    -822 us, compression end p50    -550 p99    -511 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -839 p99    -826 us, compression end p50    -553 p99    -528 (relative to t0; n=23800)
+  L1 WRN/ERR lines 25 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x5
+  L1 counters (2nd half, per cell per s): UL 210.78 Mbps (min 210.78)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 210.78 Mbps (min 210.78)  DL 1561.40 Mbps  ERR max 0  INV median 2500 max 2800  finished=True
+=== ref_65a_16c
+  slots 237998 over 120 s (first second skipped)
+  UL pos 4: PUSCH GPU end after t0  p50    1560  p99    1589  max    1835 us   (order kernel run p50  1370 p99  1388, PUSCH GPU run p50  1842 p99  1873; n=23799)
+  UL pos 5: PUSCH GPU end after t0  p50    2065  p99    2106  max    2338 us   (order kernel run p50   495 p99   510, PUSCH GPU run p50   972 p99   998; n=23799)
+  DL pos 0: PDSCH run end p50    -849 p99    -836 us, compression end p50    -588 p99    -529 (relative to t0; n=23800)
+  DL pos 6: PDSCH run end p50    -841 p99    -827 us, compression end p50    -564 p99    -528 (relative to t0; n=23800)
+  DL pos 7: PDSCH run end p50    -843 p99    -830 us, compression end p50    -568 p99    -544 (relative to t0; n=23800)
+  L1 WRN/ERR lines 69 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x12
+  L1 counters (2nd half, per cell per s): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  ERR max 0  INV median 2400 max 2400  finished=True
+E2E_PREP3_DONE 14:41:53

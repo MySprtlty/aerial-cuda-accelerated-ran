@@ -1,0 +1,91 @@
+12:02:58 == none_cap100
+12:03:00 client 26x1280 rate 5
+offered 150 served 150 lost 0 | rtt ms mean 14.9 p50 13.8 p99 29.8 max 35.1 | schedule->reply p50 13.8 p99 29.8 | server p50 13.5 -> air+transport p50 0.2 ms
+12:03:31 client 26x1280 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 15.5 p50 13.9 p99 36.4 max 43.2 | schedule->reply p50 13.9 p99 36.4 | server p50 13.6 -> air+transport p50 0.3 ms
+12:04:04 client 26x1280 rate 20
+offered 600 served 600 lost 0 | rtt ms mean 16.2 p50 14.0 p99 37.7 max 46.0 | schedule->reply p50 14.0 p99 37.7 | server p50 13.7 -> air+transport p50 0.3 ms
+12:04:37 client 26x1280 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 21.5 p50 15.2 p99 63.9 max 82.8 | schedule->reply p50 15.2 p99 63.9 | server p50 14.5 -> air+transport p50 0.7 ms
+12:05:11 client 26n640 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 7.9 p50 7.5 p99 16.8 max 18.8 | schedule->reply p50 7.5 p99 16.8 | server p50 7.3 -> air+transport p50 0.2 ms
+12:05:44 client 26n640 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 8.8 p50 7.5 p99 20.6 max 27.7 | schedule->reply p50 7.5 p99 20.6 | server p50 7.3 -> air+transport p50 0.2 ms
+12:06:17 == none_cap30
+12:06:19 client 26x1280 rate 5
+offered 150 served 150 lost 0 | rtt ms mean 20.0 p50 18.3 p99 42.9 max 49.2 | schedule->reply p50 18.3 p99 42.9 | server p50 18.1 -> air+transport p50 0.2 ms
+12:06:50 client 26x1280 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 21.1 p50 18.4 p99 50.7 max 60.4 | schedule->reply p50 18.4 p99 50.7 | server p50 18.1 -> air+transport p50 0.2 ms
+12:07:23 client 26x1280 rate 20
+offered 600 served 600 lost 0 | rtt ms mean 23.0 p50 18.8 p99 53.8 max 65.9 | schedule->reply p50 18.8 p99 53.8 | server p50 18.3 -> air+transport p50 0.5 ms
+12:07:56 client 26x1280 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 43.1 p50 32.2 p99 156.3 max 188.4 | schedule->reply p50 32.2 p99 156.3 | server p50 31.2 -> air+transport p50 1.0 ms
+12:08:30 client 26n640 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 8.2 p50 7.7 p99 18.0 max 19.4 | schedule->reply p50 7.7 p99 18.0 | server p50 7.5 -> air+transport p50 0.2 ms
+12:09:03 client 26n640 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 9.1 p50 7.8 p99 21.2 max 29.1 | schedule->reply p50 7.8 p99 21.2 | server p50 7.5 -> air+transport p50 0.3 ms
+12:09:36 == c16_L1_cap100
+12:09:38 bench c16_L1 for 288s (/home/troy/build/aerial-cuda-accelerated-ran/cuPHY-CP/dapp_hook/e2e/../sweep/runs/c16_capgrid_1280/c16_L1__none0/bench.yaml)
+12:10:03 client 26x1280 rate 5
+offered 150 served 150 lost 0 | rtt ms mean 18.3 p50 17.0 p99 37.8 max 43.6 | schedule->reply p50 17.0 p99 37.8 | server p50 16.8 -> air+transport p50 0.2 ms
+12:10:34 client 26x1280 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 19.2 p50 17.2 p99 46.1 max 53.6 | schedule->reply p50 17.2 p99 46.1 | server p50 16.9 -> air+transport p50 0.3 ms
+12:11:07 client 26x1280 rate 20
+offered 600 served 600 lost 0 | rtt ms mean 20.8 p50 17.4 p99 48.0 max 59.6 | schedule->reply p50 17.4 p99 48.0 | server p50 17.0 -> air+transport p50 0.3 ms
+12:11:40 client 26x1280 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 34.8 p50 25.8 p99 122.3 max 157.2 | schedule->reply p50 25.8 p99 122.3 | server p50 24.2 -> air+transport p50 1.6 ms
+12:12:14 client 26n640 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 8.6 p50 8.2 p99 18.7 max 20.8 | schedule->reply p50 8.2 p99 18.7 | server p50 8.0 -> air+transport p50 0.2 ms
+12:12:47 client 26n640 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 9.8 p50 8.3 p99 23.0 max 30.3 | schedule->reply p50 8.3 p99 23.0 | server p50 8.1 -> air+transport p50 0.3 ms
+12:13:20 waiting for the bench to end
+bench patterns: 1
+12:14:35 == c16_L1_cap30
+12:14:37 bench c16_L1 for 288s (/home/troy/build/aerial-cuda-accelerated-ran/cuPHY-CP/dapp_hook/e2e/../sweep/runs/c16_capgrid_1280/c16_L1__none0/bench.yaml)
+12:15:02 client 26x1280 rate 5
+offered 150 served 150 lost 0 | rtt ms mean 24.9 p50 22.8 p99 55.1 max 66.4 | schedule->reply p50 22.8 p99 55.1 | server p50 22.5 -> air+transport p50 0.3 ms
+12:15:32 client 26x1280 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 26.7 p50 23.0 p99 67.5 max 77.9 | schedule->reply p50 23.0 p99 67.5 | server p50 22.7 -> air+transport p50 0.3 ms
+12:16:05 client 26x1280 rate 20
+offered 600 served 600 lost 0 | rtt ms mean 30.8 p50 23.5 p99 79.5 max 99.8 | schedule->reply p50 23.5 p99 79.5 | server p50 23.0 -> air+transport p50 0.5 ms
+12:16:38 client 26x1280 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 110.5 p50 75.9 p99 401.9 max 429.4 | schedule->reply p50 75.9 p99 401.9 | server p50 75.7 -> air+transport p50 0.3 ms
+12:17:12 client 26n640 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 8.9 p50 8.5 p99 19.8 max 21.2 | schedule->reply p50 8.5 p99 19.8 | server p50 8.3 -> air+transport p50 0.2 ms
+12:17:45 client 26n640 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 10.2 p50 8.6 p99 25.0 max 34.3 | schedule->reply p50 8.6 p99 25.0 | server p50 8.3 -> air+transport p50 0.3 ms
+12:18:19 waiting for the bench to end
+bench patterns: 1
+12:19:33 == c16_L4_cap100
+12:19:35 bench c16_L4 for 288s (/home/troy/build/aerial-cuda-accelerated-ran/cuPHY-CP/dapp_hook/e2e/../sweep/runs/c16_capgrid_1280/c16_L4__none0/bench.yaml)
+12:20:00 client 26x1280 rate 5
+offered 150 served 150 lost 0 | rtt ms mean 20.4 p50 18.9 p99 44.7 max 51.2 | schedule->reply p50 18.9 p99 44.7 | server p50 18.6 -> air+transport p50 0.3 ms
+12:20:30 client 26x1280 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 21.5 p50 19.0 p99 52.3 max 62.6 | schedule->reply p50 19.0 p99 52.3 | server p50 18.7 -> air+transport p50 0.3 ms
+12:21:04 client 26x1280 rate 20
+offered 600 served 600 lost 0 | rtt ms mean 23.6 p50 19.2 p99 56.0 max 69.1 | schedule->reply p50 19.2 p99 56.0 | server p50 18.9 -> air+transport p50 0.3 ms
+12:21:37 client 26x1280 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 47.5 p50 34.8 p99 174.0 max 199.8 | schedule->reply p50 34.8 p99 174.0 | server p50 33.6 -> air+transport p50 1.2 ms
+12:22:10 client 26n640 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 8.9 p50 8.3 p99 19.3 max 21.2 | schedule->reply p50 8.3 p99 19.3 | server p50 8.1 -> air+transport p50 0.2 ms
+12:22:43 client 26n640 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 10.2 p50 8.7 p99 24.7 max 34.0 | schedule->reply p50 8.7 p99 24.7 | server p50 8.3 -> air+transport p50 0.4 ms
+12:23:17 waiting for the bench to end
+bench patterns: 1
+12:24:39 == c16_L4_cap30
+12:24:41 bench c16_L4 for 288s (/home/troy/build/aerial-cuda-accelerated-ran/cuPHY-CP/dapp_hook/e2e/../sweep/runs/c16_capgrid_1280/c16_L4__none0/bench.yaml)
+12:25:06 client 26x1280 rate 5
+offered 150 served 150 lost 0 | rtt ms mean 26.5 p50 24.2 p99 60.1 max 71.8 | schedule->reply p50 24.2 p99 60.1 | server p50 23.9 -> air+transport p50 0.3 ms
+12:25:37 client 26x1280 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 28.4 p50 24.3 p99 71.4 max 82.8 | schedule->reply p50 24.3 p99 71.4 | server p50 24.0 -> air+transport p50 0.3 ms
+12:26:10 client 26x1280 rate 20
+offered 600 served 600 lost 0 | rtt ms mean 33.9 p50 25.0 p99 89.7 max 110.0 | schedule->reply p50 25.0 p99 90.6 | server p50 24.5 -> air+transport p50 0.4 ms
+12:26:43 client 26x1280 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 158.1 p50 105.8 p99 569.2 max 599.4 | schedule->reply p50 105.8 p99 569.2 | server p50 104.9 -> air+transport p50 0.9 ms
+12:27:17 client 26n640 rate 10
+offered 300 served 300 lost 0 | rtt ms mean 9.1 p50 8.6 p99 20.0 max 22.7 | schedule->reply p50 8.6 p99 20.0 | server p50 8.4 -> air+transport p50 0.2 ms
+12:27:50 client 26n640 rate 40
+offered 1200 served 1200 lost 0 | rtt ms mean 10.6 p50 9.0 p99 26.2 max 34.7 | schedule->reply p50 9.0 p99 26.2 | server p50 8.6 -> air+transport p50 0.3 ms
+12:28:24 waiting for the bench to end
+bench patterns: 1
+GH200_SEGMENT_DONE 12:29:44

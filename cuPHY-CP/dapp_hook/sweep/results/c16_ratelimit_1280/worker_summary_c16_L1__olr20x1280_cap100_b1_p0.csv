@@ -1,0 +1,2 @@
+rate,arrivals,served,achieved_rate,backlog_end,lat_mean_ms,lat_p50_ms,lat_p99_ms,lat_max_ms,queue_mean_ms,queue_p99_ms,service_p50_ms,service_p99_ms,busy_frac,cap_pct,batch,engine
+20,3241,3241,20.36,0,6.595,6.309,13.163,20.963,0.474,6.566,6.268,7.335,0.125,100,1,yolo26x_1280_b1_fp16_atp100.engine

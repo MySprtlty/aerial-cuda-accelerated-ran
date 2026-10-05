@@ -1,0 +1,48 @@
+nvJPEG hardware decode on the GH200 — probe results (2026-10-04, tools/nvjpeg_probe.cu, container CUDA 12.9 / nvjpeg 12.4)
+=====================================================================================================================
+
+Question: can the AI tenant decode the UE's 4K JPEG without using SMs (so the decode neither competes with
+cuPHY nor depends on the tenant's SM cap), and how long does it take?
+
+Setup: 3840x2160 JPEGs made from four Wikimedia Commons street scenes (models/img4k/uhd_*_q85.jpg, baseline,
+4:2:0, quality 85, 1.61–2.21 MB; variants q95 3.21 MB, 4:4:4 2.30 MB, progressive 1.98 MB). Probe = decoupled
+nvjpeg API, one image at a time, 100–200 iterations, as an MPS client (pipe /var) on the full GPU (MIG off),
+measured with the 1280 engine builds running in the background (so the SM paths carry some noise, the
+hardware path does not).
+
+1. Hardware decoder present and usable from an MPS client
+   nvjpegGetHardwareDecoderInfo: 7 engines x 1 core (= H100 NVJPG), nvjpegDecoderCreate(HARDWARE) SUCCESS,
+   nvjpegDecoderJpegSupported = 0 (supported) for every baseline file.
+
+2. Time per 4K image (total = parse + host + bitstream transfer + engine decode + 1280 letterbox kernel)
+
+   file                 bytes     backend  cap   total p50   device p50   notes
+   uhd_0_q85 (4:2:0)    2079713   hw       100   5.08 ms     4.74 ms      p99 5.09, max 5.09 (no tail)
+   uhd_0_q85            2079713   hw        10   5.36 ms     4.94 ms      cap barely matters: no SM work in the decode
+   uhd_1_q85            1676068   hw       100   4.74 ms
+   uhd_2_q85            1606566   hw       100   4.87 ms
+   uhd_3_q85            2209414   hw       100   5.61 ms
+   uhd_0_q95            3205362   hw       100   6.38 ms                  bigger bitstream -> longer
+   uhd_0_q85_444        2296953   hw       100   8.59 ms                  4:4:4 costs ~70 % more
+   uhd_0_prog           1976032   hw        -    unsupported (supported=2): progressive JPEG is CPU/SM only
+   uhd_0_q85            2079713   hybrid   100   21.85 ms    (CPU Huffman 21.3 ms on one Grace core)
+   uhd_0_q85            2079713   hybrid    10   22.36 ms
+   uhd_0_q85            2079713   gpu      100   8.78 ms     (Huffman on SMs: host 8.1 ms + device)
+   uhd_0_q85            2079713   gpu       10   9.71 ms
+
+   letterbox 3840x2160 RGB -> 1280x1280 float CHW (one SM kernel): 14 us at cap 100.
+   RGBI vs YUV output: same device time (4.735 vs 4.724 ms) -> the colour conversion is inside the engine path.
+
+3. Consequences for the E2E design
+   - Decode cost on the GH200 = ~5 ms per 4K image (q85, 4:2:0), deterministic (p99 = p50 + 0.01 ms), with
+     NO SM usage: it does not depend on the tenant's cap and does not compete with cuPHY for SMs (HBM traffic
+     only). Earlier estimate of ~3 ms was low; use 5 ms.
+   - The UE must send BASELINE JPEG (what cameras/phones produce by default); progressive JPEG falls back to
+     the 22 ms CPU path. 4:2:0 subsampling (the default) is the fast case.
+   - One engine serves one image at a time; 7 engines allow up to ~7 decodes in flight (~1400 img/s), far above
+     any request rate the air interface can deliver, so decode never becomes the bottleneck.
+   - Inside a MIG instance the number of visible engines may be smaller: to be re-checked in the 3g instance
+     (the probe prints the count).
+   - MPS serves ONE user at a time: a client of another uid blocks in CUDA init until the current user's
+     server has no clients (observed: a worker started as the container user waited behind a root trtexec).
+     The inference server must run as the same user as cuPHY/MPS (root in the container).

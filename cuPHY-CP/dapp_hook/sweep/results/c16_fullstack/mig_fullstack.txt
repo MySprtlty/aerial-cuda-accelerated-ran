@@ -1,0 +1,42 @@
+Full stack (testMAC loopback, 59c DDDSUUDDDD, hook async) inside MIG 4g.48gb (64 SMs) - 2026-10-04 21:07-21:41 KST.
+cuphycontroller on the 4g instance (CUDA_VISIBLE_DEVICES=MIG uuid; run2's MPS daemon inherits it), mps_sm_* set to
+NVIDIA's MIG 4g.48gb values (docs "E2E gNodeB on MIG": pusch 60, pucch 2, prach 2, ul_order 20, pdsch 62, pdcch 10,
+pbch 2, gpu_comms 16, srs 16; sum 190) for the runs and restored afterwards. Runs: 16 cells 2 min pilot, 16 cells 5 min,
+8 cells 5 min, 12 cells 5 min, 16 cells 2 min with raw logs + testMAC validation (MAC.VALD) at INFO.
+LOAD: the testMAC 59c pattern (per cell: DL 6 UE x 4 layers x 42-45 PRB MCS 27, UL 6 UE x 2 LAYERS x 34-42 PRB MCS 27,
+18 PUCCH F1, PRACH). This is NOT the bench's highest load c16_L4 (UL 6 UE x 4 layers): 59c's UL sits around the bench
+ladder's L2-L3. The L4-class full-stack run (FAPI TVs 68003/68103 exist) has not been done.
+Question: does the 16-cell cuPHY in 64 SMs slow down (late indications, retransmissions, service kept) or stall
+(pool exhaustion -> L1_RECOVERY -> exit, cell down)?  Answer at the 59c load: it SLOWS DOWN; nothing stalls.
+
+1. L1 overload stages (phy log, whole run): "No available Aggr" 0, "L1 in recovery" 0, "not responsive" 0, FATAL 0,
+   work cancel 0, order-kernel timeout 0 in every run. ERROR.indications: only the start-up ones (0x34 x1, 0x36 at
+   16 cells x13-14). L1 per-second counters: UL 196.70 Mbps, CRC errors 0, at 8/12/16 cells. testMAC ERR 0.
+
+2. What changes: the UL pipeline gets slower (per-slot L1 log, 16 cells, us after the slot's t0):
+                              shared GPU 132 SM (run a)      MIG 4g 64 SM (mig16_vald)
+   U4 PUSCH GPU end p50/p99     1542 / 1568                    2143 / 2276   (+600)
+   U5 PUSCH GPU end p50/p99     1921 / 1998                    3193 / 3303   (+1270)
+   DL PDSCH run end / compression end / U-plane posting: unchanged (-836 / -507 us at pos 6, same as shared).
+   The U5 results therefore reach L2 ~3.2 ms after the slot start instead of ~1.9 ms. testMAC's validator tolerates
+   8 slots between its current slot and the indication's slot (VALD_TOLERANCE_UL_SLOT_WINDOW 8, scf_fapi_handler.cpp
+   :3772-3782, 4247-4251; its slot counter runs slot_advance 3 ahead, so 8 = indication by t0 + 2.5 ms); every U5
+   CRC/RX_DATA/UCI indication at 16 cells is one slot beyond it ("ul_slot=9 > 8", 1,150,664 warnings in 2 min, all at
+   position 5, 1,288 at ul_slot 10). testMAC counts them as invalid (INV 2400 -> 3000 per cell per second = +200 PDUs x
+   3 indications) and leaves their bytes out of its UL throughput (181.95 vs 196.70 Mbps, 92.5 %). At 8 and 12 cells
+   the indications are inside the window (testMAC UL 196.70, INV 2400).
+
+3. E and D in MIG (hook async): L2A end - tick p99.9 506 / 532 / 556 us at 8 / 12 / 16 cells (same as the shared GPU:
+   the CPU path does not see the GPU), drops 0. RU DL U-plane late share 0.010 / 0.011 / 0.030 % (pos 6: 0.056 /
+   0.067 / 0.179 %), i.e. not worse than the shared GPU's 0.026-0.074 % at 16 cells.
+
+4. Reading: the 59c pattern's UL (6 UE x 2 layers per cell) is lighter than the bench's L4 (6 UE x 4 layers), where
+   the 64-SM bench showed PUSCH p99 2319 us and the code analysis predicts pool exhaustion / L1_RECOVERY. At 59c the
+   16-cell UL fits in 64 SMs with ~0.6-1.3 ms more latency and no errors - the "delayed, service kept" case. For a real
+   L2 (OAI) the late CRC/RX_DATA are simply accepted (no timer), so the visible cost is UL HARQ/RLC latency, not loss.
+   A static-MIG baseline for an E2E comparison can therefore be built at this load; the 16-cell GPU-side penalty of
+   MIG is +0.6 ms (U4) / +1.3 ms (U5) on the uplink decode and, for the tenant, whatever the 3g instance costs
+   (batch 1: ~0; batch 8: 26n 3.39 vs 1.3 ms, 26x 12.86 vs 7.2 ms alone on 132 SMs; results/c16_mig).
+
+Files: prof/run61/{run2,run3,run1}_mig*.log (console), phy_warn_mig*.log, l2a_mig*.log, phy_mig16_vald.csv (per-slot
+stages), mig_report_ed.txt. Raw phy/testmac logs of mig16_vald deleted after extraction.

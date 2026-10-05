@@ -308,7 +308,14 @@ def main():
 
     if os.path.exists(os.path.join(rd, "worker.csv")):
         rows = list(csv.DictReader(open(os.path.join(rd, "worker.csv"))))
-        if rows:
+        if rows and "total_ms" in rows[0]:      # openloop_worker.py: one row per request (rate, queue_ms, service_ms, total_ms)
+            tot = np.array([float(r["total_ms"]) for r in rows])
+            svc = np.array([float(r["service_ms"]) for r in rows])
+            span_s = (int(rows[-1]["t_arrival_ns"]) - int(rows[0]["t_arrival_ns"])) / 1e9 if len(rows) > 1 else 0.0
+            summary["tenant"] = {"open_loop": True, "requests": len(rows), "rate_offered": rows[0]["rate"], "rate_served": len(rows) / span_s if span_s > 0 else None,
+                                 "fps_mean": len(rows) / span_s if span_s > 0 else 0.0, "lat_ms_p50": pct(tot, 50), "lat_ms_p99": pct(tot, 99), "lat_ms_max": float(tot.max()),
+                                 "service_ms_p50": pct(svc, 50), "service_ms_p99": pct(svc, 99)}
+        elif rows:
             fps = np.array([float(r["fps"]) for r in rows])
             p50 = np.array([float(r["lat_ms_p50"]) for r in rows])
             p99 = np.array([float(r["lat_ms_p99"]) for r in rows])

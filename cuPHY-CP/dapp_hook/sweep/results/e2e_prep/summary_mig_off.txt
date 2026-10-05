@@ -1,0 +1,79 @@
+E2E scenario preparation - what was measured with the whole GPU (MIG off), 2026-10-04 22:30 - 10-05 14:42 KST
+==========================================================================================================
+Goal: find the scenario (traffic mix, YOLO model, baseline definition) in which our approach (MPS sharing +
+estimator + scheduler + model selection) cuts the UE-to-UE latency of a 4K inference request by >= 10 % against
+static MIG (cuPHY in 4g.48gb, tenant in 3g.48gb). Everything here ran without a UE. The MIG-side runs
+(e2e_prep/e2e_prep_mig.sh: tenant in 3g, full-stack load ladder in 4g) are NOT done yet, so every "MIG 3g"
+number below is an estimate from the cap-50 (66 SM) tenant-alone runs and is marked (est.).
+
+Conditions: 16 cells, cubb_gpu_test_bench DDDSUUDDDD (lowest = c16_L1, highest = c16_L4), 2-min runs (~1.8e4 slots,
+p99 only, provisional), tenant = TensorRT FP16 YOLO26 n/s/x at a 1280x1280 input (4x the FLOPs of 640),
+batch 1 = whole 4K frame letterboxed, batch 8 = "tiled" request (6 native 1280 crops + global views).
+Runs: sweep profiles c16_capgrid_1280 (56), c16_openloop_1280 (12), c16_ratelimit_1280(_b8) (8), e2e/gh200_segment.sh
+(real pipeline, batch 1 and tiled), fullstack/ladder_runs.sh ref (4). Driver log: driver_mig_off.log.
+
+Incident: the host went down uncleanly at 00:45:59 on 10-05, 13 s into the first run of 26x-1280 cap 100 next to
+the 16-cell L4 bench (no shutdown record, no panic/Xid in syslog, pstore empty; GPU 606-617 W, 75 C, below the
+661-667 W of earlier runs). After the restart the same combination and heavier ones (26x b8 cap 100, 684 W, 83 C)
+ran without incident, so the combination does not reproduce it. (The 19:19 reboot the same day was a clean one by
+another user.)
+
+1. nvJPEG (nvjpeg.txt)
+   7 NVJPG hardware engines visible to an MPS client; one 4K q85 4:2:0 baseline JPEG (1.6-2.2 MB) decodes and is
+   letterboxed in 4.7-5.6 ms, the same at cap 10 (no SM use). Progressive JPEG is not supported by the hardware path.
+
+2. Tenant latency p50 (ms), shared GPU; alone / lowest load / highest load
+                    cap 100                  cap 50                   cap 30
+   26n-1280 b1   1.32 /  1.75 /  2.45    1.53 /  2.01 /  2.75    1.92 /  3.12 /  3.31
+   26s-1280 b1   1.64 /  2.40 /  3.20    2.09 /  3.37 /  3.84    2.77 /  4.07 /  4.54
+   26x-1280 b1   4.67 /  6.43 /  8.21    6.43 /  9.05 / 10.39    8.98 / 11.98 / 13.86
+   26n-1280 b8   4.33 /  5.09 /  7.10    6.17 /  8.00 /  9.45    9.03 / 11.31 / 12.15
+   26s-1280 b8   6.64 /  9.12 / 10.87    9.69 / 12.10 / 14.15   14.75 / 18.14 / 19.90
+   26x-1280 b8  25.82 / 32.15 / 38.30   38.27 / 44.12 / 47.94   60.83 / 68.10 / 71.26
+
+3. cuPHY worst-channel p99 as % of its deadline (saturating tenant); no tenant: lowest 56.6 (SRS), highest 67.5 (PUSCH)
+                    lowest: cap 30 / 50 / 100          highest: cap 30 / 50 / 100
+   26n-1280 b1    58.7 /  59.3 /  61.5              74.8 /  76.2 /  76.0
+   26s-1280 b1    60.2 /  62.2 /  62.5              76.3 /  79.2 /  81.4
+   26x-1280 b1    62.2 /  67.8 /  75.7              80.9 /  91.3 / 102.3
+   26n-1280 b8    65.1 /  70.0 /  77.3              87.1 /  99.8 / 123.9
+   26s-1280 b8    65.2 /  81.1 / 114.9              89.2 / 122.9 / 220.5
+   26x-1280 b8    69.2 /  85.5 / 409.7             100.9 / 159.3 / 471.1
+   Provisional SafeCap (85 % rule): 26n b1 100/100, 26s b1 100/100, 26x b1 100/30, 26n b8 100/<30, 26s b8 50/<30,
+   26x b8 30/<30 (lowest/highest). At cap 100 the tiled 26x request puts PDSCH at 4-5x its deadline at ANY load.
+
+4. Rate-limited tenant (Poisson arrivals, 26x-1280), worst channel p99 % of deadline, lowest / highest load
+   batch 1, 10 req/s, cap 100:   69.0 /  91.2      batch 1, 20 req/s, cap 100:   70.8 / 102.3
+   tiled,   10 req/s, cap 100:  296.7 / 387.8      tiled,   10 req/s, cap 50:    80.4 / 148.1
+   A 6-15 % duty cycle does not make cap 100 safe at the highest load: the slots that overlap an inference decide p99.
+
+5. Open loop, batch 1 (c16_openloop_1280; fixed-interval arrivals - multiples of the 5 ms bench pattern, so the
+   latencies carry a phase bias; the saturation points do not)
+   26s-1280: no backlog up to 300 req/s alone, 200-300 req/s next to cuPHY. 26x-1280: no backlog up to 100 req/s at
+   cap 100 (service 4.7 / 6.3 / 4.8-8.2 ms alone / lowest / highest); at cap 30 up to 80 (lowest) / 60 (highest).
+   A single UE cannot offer more than ~40-60 4K images per second over one cell, so batch-1 requests never queue.
+
+6. GH200 segment with the real pipeline (TCP -> NVJPG decode -> TensorRT -> NMS -> reply), server-side p50 ms
+   batch 1, 26x-1280:   no load 13.5 (cap 100) / 18.1 (cap 30); lowest 16.8 / 22.5; highest 18.6 / 23.9
+                        = decode 4.7 + inference + Python NMS 3.5-4.8 + ~1; 26n-640: 7.3-8.6 everywhere
+   tiled,   26x-1280:   no load 36 / 49 / 71 (cap 100 / 50 / 30); lowest 43 / 56 / 81; highest 49 / 61 / 84
+   tiled,   26s-1280:   no load 18.7 / 21.9 / 27.6; lowest 21.1 / 24.9 / 31.6; highest 23.2 / 26.7 / 32.9
+   Detections per 4K street frame (median): 25 for the letterboxed frame, 89 tiled (26x) - tiling is what makes
+   sending 4K worthwhile. The numpy NMS (3.5-7 ms) is a tool artefact common to both arms; move it to the GPU.
+
+7. Full-stack reference ladder on the whole GPU (ladder_ref.txt; official 16-cell peak patterns, 2 min each)
+   59c / 59e / 65c / 65a: U5 PUSCH GPU end p50 1952 / 1691 / 2069 / 2065 us after t0, no pool exhaustion, recovery,
+   work cancel or order timeout, CRC 0, testMAC UL = L1 UL. (MIG 4g, 59c, 10-04: U5 3193 us.) 59c is NVIDIA's peak
+   pattern already; the heaviest 16-cell 4T4R pattern (65a) adds 19 % PUSCH.
+
+8. Reading
+   - AI side: with cuPHY protected, the shared GPU is not faster than an isolated 3g instance for the same model
+     (26x b1: 6.4 ms lowest / 13.9 ms highest vs ~7 ms (est.); tiled 26x: 68 ms / no safe cap vs ~42 ms (est.)).
+     Raising the cap buys speed only by breaking cuPHY deadlines.
+   - A >= 10 % E2E gain therefore has to come from (a) the RAN side - cuPHY keeps all 132 SMs, so the last PUSCH of
+     the upload completes 0.6-1.3 ms earlier than in MIG 4g at 59c (heavier loads to be measured), and/or
+     (b) model selection against a baseline whose model is fixed: baseline 26x vs ours 26n at the highest load is
+     about -11 % (batch 1) / -35 % (tiled) of an estimated 48 / 87 ms E2E, and ~0 % or worse if the baseline's
+     fixed model is 26s or 26n. (b) trades accuracy and must be reported with it.
+   - Open: MIG 3g latencies of the 1280 engines, the MIG 4g full-stack ladder, upload time with a real UE,
+     26n tiled below cap 30, GPU-side NMS.

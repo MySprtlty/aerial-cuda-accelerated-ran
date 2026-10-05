@@ -87,6 +87,14 @@ x = cuPHY 옆에서의 YOLO 처리량(img/s), y = budget에 가장 가까운 채
 `plots/minmax_latency_isolation.png`이 "부하 최소 vs 최대에서 채널별 파이프라인 latency"(막대 = 평균, 수염 = p99.99, 점선 = NVIDIA budget),
 `minmax_latency_tenants.png`이 세입자·cap별 p99 증가율, `minmax_latency.csv`가 원본 숫자다.
 
+### 16셀 cap 격자, YOLO26s (2026-10-03, `c16_capgrid_26s`, `results/c16_capgrid_26s/`)
+26n·26x와 같은 격자(최저 = c16_L1, 최고 = c16_L4, cap 10~100, batch 1·8, 2분 런, 같은 벤치 슬롯 배치)를 YOLO26s로 64런(none ×2 재측정, 단독 20). 엔진은 `models/build_engines.sh`에 `MODELS=yolo26s`로 20개(cap마다 4.5~5.5분). 파일럿 7런 뒤 본 런. 세입자 없는 기준선은 9/25 값과 채널별 p99 1~3 µs 안에서 같다.
+결과(최악 채널 p99 / deadline, 85 % 규칙의 임시 SafeCap): b1은 두 부하 모두 cap 100까지 안전(최고 부하 PUSCH 73~75 %, 26n과 같고 26x 76~80 %보다 낮음). b8 최저 부하는 SRS 59~74 %로 cap 100(90에서 64 %로 내려가는 비단조 점). **b8 최고 부하는 cap 30(82 %)까지 통과, 40·60 86 %, 100 89 %(PUSCH)** — 26n b8(100, 81 %)과 26x b8(20, 100에서 166 %) 사이. 50이 84 %로 다시 통과하는 비단조 점은 재측정 대상. YOLO26s latency(p99, 슬롯): b1 단독 2.2 → 동거 5.0(최저)/6.1(최고) @cap 100, cap 10에서 7.0/7.7; b8 단독 4.5 → 7.5/9.1 @100, cap 10에서 26/28. 처리량(동거, 부하 중 창만): b1 572/482 img/s @100 (단독 895), b8 2381/1948 @100 (단독 3530).
+```bash
+python3 sweep.py --profile c16_capgrid_26s --out runs/c16_capgrid_26s --points-file points/c16_points.yaml
+python3 tenant_latency.py --runs runs/c16_capgrid_26s --out results/c16_capgrid_26s --slot-ms 0.5; python3 capgrid_overview.py --dir results/c16_capgrid_26s
+```
+
 ### 16셀 MIG 분할 (2026-09-28, `c16_mig`: cuPHY = 4g.48gb 64 SM, 세입자 = 3g.48gb 60 SM)
 MIG 전환·복구는 GPU 위에 프로세스가 없어야 하고 서버의 다른 사용자에게 영향을 주므로 사람이 직접 한다(컨테이너 안 root).
 ```bash
@@ -139,9 +147,30 @@ python3 fullstack/analyze_run.py a                    # L1 WRN/ERR, 드롭, test
 - ⑥-1 (a) DL 워커 3코어 vs (b) 6코어, 각 10분: CPU 단계 동일, RU 늦은 패킷 비율(위치 6/7) 변화 없음 → DL 워커 CPU는 원인에서 제외 (`analysis_a.txt`, `analysis_b.txt`).
 - E 훅 비용 (`e_hook_cost.txt`, 각 5분 = 600k 슬롯): 훅 on(PDU 포함) − off = L2A end − tick p50 +20.2 / p99 +25.5 / p99.9 +28.8 / max +34.7 µs; UL 슬롯(위치 4·5) +38~45, DL 슬롯 +15~30. 훅 on은 600 µs 선까지 여유 5 µs(드롭 1), off는 40 µs(드롭 0). 레코드당 ~100 ns × 슬롯당 133~457 레코드(UL 슬롯 UL_PDU 384~440)라 비용은 PDU 수에 비례한다. → PDU 내보내기를 L2A 스레드 밖(디스크립터 큐 + 복사 스레드)으로 옮기는 안을 제안, 구현 전까지 full-stack 신뢰성 런은 `export_pdus: 0`.
 - 주의: `e_sum`(요약 모드)과 `d` 런은 스크립트가 직전 런의 `enable: 0`을 되돌리지 않아 훅 off로 돌았다(이후 모드마다 훅 라인 전체를 다시 쓰도록 수정). `e_sum`은 훅-off 반복 런으로만 쓴다(런 간 차이 ≤ 1.5 µs).
+- MIG 4g full stack (`mig_fullstack.txt`, 2026-10-04; `fullstack_run.sh`의 `MIG_UUID=<4g uuid> MIG_SM=1`, `mig_runs.sh`): 59c 16셀(UL 6 UE × 2레이어 = 벤치 사다리 L2~L3급, 벤치 최고 부하 L4가 아님)을 64 SM에서 돌리면 멈추지 않고 느려진다 — 풀 고갈·recovery·종료 0, CRC 0, testMAC ERR 0. UL 파이프라인만 늦어져 U4 PUSCH 완료 1.54 → 2.14 ms, U5 1.92 → 3.19 ms(슬롯 시작 기준 p50). U5 인디케이션이 testMAC 허용창(8슬롯 = t0 + 2.5 ms)을 1슬롯 넘겨 `ul_slot=9 > 8`로 전부 INV 처리(UL 181.95 vs 196.70 Mbps). 8·12셀은 창 안. E는 공유 GPU와 같고 D는 0.03 %. 벤치 L4(4레이어 UL)에서 예측한 L1_RECOVERY는 59c(2레이어 UL)에서는 일어나지 않는다.
 - 비동기 내보내기 검증 (`async_export.txt`, `async_ring_compare.txt`, `async_report.txt`; 2026-10-03, `async_runs.sh`·`async_runs2.sh`, 훅 모드 `async`): l2 adapter yaml `dapp_hook`에 `async_export: 1, export_cpu: 43`을 주면 L2A 스레드는 TTI 요청당 디스크립터 하나만 큐에 넣고 `dapp_export` 스레드(코어 43)가 같은 레코드를 같은 순서로 쓴다. 16셀 5분 런(off×3, async×3 + 10분 soak, inline×1): L2A end − tick p99.9 off 554.8 / async 557.3 / inline 584.3 µs → async − off = +2.5 µs(인라인 +29.5), 드롭 async 0(300만 슬롯) vs inline 122(전부 UL 위치 4·5). `ring_compare.py`로 인라인 링과 200,000슬롯(4,088만 레코드) 비교: 레코드 수·순서·내용 동일. 추정기 replay 결정 동일. RU DL 늦은 패킷: off 0.026~0.074 %, async 0.063~0.091 %(범위 겹침), inline 0.426 % — 인라인 훅의 20~40 µs 지연이 D도 키운다. 이 검증 뒤 기본값을 비동기로 전환했다(코드 기본 `async_export: 1`, 단 `export_cpu`가 없으면 경고 후 인라인; 저장소의 `l2_adapter_config_F08_CG1.yaml`에 `async_export: 1, export_cpu: 43`). `fullstack_run.sh`의 기본 훅 모드도 `async`이고 인라인은 `full`로 명시한다.
 - CPU 원인 판별 (`cpu_cause.txt`, `cpu_report.txt`; `cpu_runs.sh` → `cpu_report.py`, 2026-10-02): 코어 맵·IRQ·PTP 겹침, 16셀 mpstat, 8/12/16셀 스케일링, RU 코어 2배. E는 L2A 단일 스레드(코어 12)의 셀당 ~6 µs 직렬 처리(testMAC은 16셀 메시지를 17 µs 안에 보냄, L2A는 97 µs에 걸쳐 처리; 링 (a)의 송신·처리 시각 차이로 확인)라 CPU 원인이 맞고 셀 수에 선형. D는 포화 코어 없음·RU HW 타임스탬프라 CPU 아님; RU 에뮬레이터 스레드를 2배로 하면 D가 8배 악화(0.047 → 0.374 %)되어 D의 절대값은 에뮬레이터 송신 패턴에 좌우되는 테스트베드 산물. `setup1_DU.sh`가 tag 216/217/224/225/238/243/311/312/409를 INFO로 켜므로 이 랩의 "기본 로깅"은 이미 311을 포함한다.
 - D 확정 (`d_ru_late.txt`, `d_match.txt`, 10분, RU.LATE_PACKETS INFO + 히스토그램): `ru_late.py`로 RU 슬롯·셀별 도착 창과 늦은 패킷의 심볼 분포를 뽑고 `d_match.py`로 L1 슬롯과 t0(500 µs 격자, SFN mod 256·슬롯 확인)로 1:1 대응. 늦은 슬롯 294개(위치 6: 0.073 %, 7: 0.059 %, 9: 0.042 %)에서 L1 CPU 단계(압축 완료, U-plane 준비·tx 종료 ≤ t0 −587 µs)는 정상 슬롯과 같고, 늦은 패킷은 심볼 0~1 집중(20 %)이 아니라 위치별 패턴(7 = 머리 0~3, 6/8/9 = 꼬리 12~13)으로 퍼진다. 송신은 GPU 커널(`gpu_init_comms_dl: 1`, `mps_sm_gpu_comms: 16`)이 하며, 늦은 슬롯의 60~80 %는 같은 패턴의 UL GPU 작업(order/PUSCH)이 p99를 넘긴 경우와 겹친다(정상 슬롯 3.8 %). → D = GPU 발신 커널의 지연·늘어짐(다른 cuPHY GPU 작업과의 경합), CPU·선로 아님.
+
+### E2E 시나리오 준비 — 1280 입력, open-loop 요청률, nvJPEG (2026-10-04~05, `results/e2e_prep/`, `results/c16_capgrid_1280/`, `results/c16_openloop_1280/`)
+UE가 4K JPEG을 보내는 E2E 시나리오에서 정적 MIG 대비 ≥10 % 지연 감소가 나오는 조건을 찾기 위한 UE 없는 측정. 4K는 640으로 6배 축소하면 의미가 없으므로 **1280 입력**(`models/export_1280.py`, 연산량 4배 = SM-bound)으로 26n/26s/26x를 다시 export하고 엔진을 cap 100/50/30에 빌드한다. 세입자 이름은 `yolo26n1280` 등(`matrix.yaml tenants`의 `model`·`input` 키로 엔진 stem과 입력 npy 지정).
+```bash
+~/.venvs/dapp_yolo/bin/python ../models/export_1280.py                                   # *_1280_b{1,8}.onnx + bus_1280.npy
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e MODELS="yolo26n_1280 yolo26s_1280 yolo26x_1280" c_aerial_troy bash /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/build_engines.sh 100 50 30
+python3 sweep.py --profile c16_capgrid_1280 --out runs/c16_capgrid_1280 --points-file runs/c16_points.yaml       # 56런(none 2, 세입자 36, 단독 18), ~3 h
+python3 sweep.py --profile c16_openloop_1280 --out runs/c16_openloop_1280 --points-file runs/c16_points.yaml     # open-loop 12런, ~1.6 h
+docker exec -u root c_aerial_troy bash -lc 'cd /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/sweep && python3 tenant_latency.py --runs runs/c16_capgrid_1280 --out results/c16_capgrid_1280 --slot-ms 0.5 && python3 openloop_report.py --runs runs/c16_openloop_1280 --out results/c16_openloop_1280'
+bash ../e2e/gh200_segment.sh                                                             # 실제 파이프라인(TCP → NVJPG → TensorRT → 응답) 루프백 측정
+# MIG 3g 쪽(사람이 MIG를 켠 뒤): MODELS="yolo26n_1280 yolo26s_1280 yolo26x_1280" bash ../models/build_engines_mig.sh <3g UUID>; 프로필 c16_mig_1280, c16_openloop_mig_1280
+```
+- `openloop_worker.py`: 도착 시각을 미리 고정한 **open-loop** 스트림(FIFO, batch 1). 느린 서버는 요청이 줄지 않고 큐가 쌓이므로 정적 MIG와 공유 GPU에 같은 스케줄을 넣어 공정하게 비교할 수 있다. 요청률별 served/backlog/latency/queue/busy를 `worker_summary.csv`에 남기고 `openloop_report.py`가 rate → latency 곡선과 용량표를 만든다. `run_one.py`는 `tenant.worker`/`tenant.args`로 이 워커를 띄운다.
+- nvJPEG(`results/e2e_prep/nvjpeg.txt`, `tools/nvjpeg_probe.cu`): GH200의 NVJPG 하드웨어 디코더 7기가 MPS 클라이언트에서 그대로 보이고, 4K q85 4:2:0 한 장 디코드 + 1280 letterbox = **5.1 ms**(p99 = p50, cap 10에서도 5.4 ms → SM 미사용). progressive JPEG은 미지원(CPU 22 ms), 4:4:4는 8.6 ms. MPS는 한 번에 한 사용자만 서비스하므로 세입자 프로세스는 cuPHY와 같은 사용자(root)로 띄운다.
+- 실제 파이프라인 도구는 `../e2e/`(`infer_server.py`, `e2e_client.py`, `libnvjpeg_dec.so`): 응답에 서버 측 시각을 실어 UE RTT를 공중/전송 구간과 GH200 구간으로 분해한다. batch 8 엔진은 **타일 추론**(4K → 1280 원본 해상도 타일 6장 + 전체 뷰, NMS로 병합)으로 쓴다.
+- 요청률 제한 세입자(`c16_ratelimit_1280`, `c16_ratelimit_1280_b8`: Poisson 10/20 req/s, nsys 창 켬)로 실제 duty cycle에서의 cuPHY 채널 p99를 본다. `collect.py`는 open-loop 워커의 요청별 `worker.csv`도 요약한다.
+- full-stack 부하 사다리: `fullstack/fullstack_run.sh`에 `PATTERN`(기본 59c) 추가, `fullstack/ladder_runs.sh <prefix> "59c 59e 65c 65a"` → `fullstack/ladder_report.py <names>` (슬롯 위치별 PUSCH GPU 완료, 과부하 문자열, L1/testMAC 카운터). MIG 안에서는 `MIG_SM=1 MIG_UUID=...`를 그대로 넘긴다.
+- 실행 순서를 담은 드라이버는 `e2e_prep/`(`e2e_prep_resume{,2,3}.sh` = MIG off, `e2e_prep_mig.sh` = MIG 전환 후; `runs/`에 복사해 실행한 것의 사본).
+
+**MIG off 결과 요약(`results/e2e_prep/summary_mig_off.txt`, 2026-10-05; MIG 쪽은 미측정)**: cuPHY를 지키는 cap(85 % 규칙)에서 1280 세입자의 지연은 26x b1 6.4(최저)/13.9 ms(최고, cap 30), 타일 26x 68 ms(cap 30)/안전 cap 없음으로, 격리된 3g 추정치(~7 / ~42 ms)보다 빠르지 않다. cap 100은 타일 26x에서 PDSCH p99를 deadline의 410~471 %로 만들고, 10 req/s로 요청률을 낮춰도 297~388 %다. 실제 파이프라인 서버 지연(p50)은 26x b1 13.5~18.6 ms(cap 100), 타일 26x 36~49 ms이며 디코드는 4.7 ms로 일정하다. 전체 GPU의 full-stack 사다리(59c/59e/65c/65a)는 모두 오류 없이 U5 PUSCH 완료 1.69~2.07 ms. → E2E 이득은 RAN 쪽(MIG 4g의 UL 지연)과 모델 선택에서 찾아야 하며, 3g 실측과 4g 사다리가 남아 있다. 10-05 00:46의 호스트 비정상 재부팅(26x-1280 cap 100 + L4 첫 런 중)은 같은 조합 재실행에서 재현되지 않았다.
 
 ## YOLO26 엔진
 
@@ -150,6 +179,7 @@ python3 fullstack/analyze_run.py a                    # L1 WRN/ERR, 드롭, test
 cd cuPHY-CP/dapp_hook/models
 ~/.venvs/dapp_yolo/bin/python -c "from ultralytics import YOLO; YOLO('yolo26n.pt'); YOLO('yolo26x.pt')"
 for m in yolo26n yolo26x; do for b in 1 8; do ~/.venvs/dapp_yolo/bin/yolo export model=$m.pt format=onnx imgsz=640 batch=$b device=cpu; mv $m.onnx ${m}_b$b.onnx; done; done
+~/.venvs/dapp_yolo/bin/python export_1280.py          # 1280 입력판: yolo26{n,s,x}_1280_b{1,8}.onnx, bus_1280.npy (4K 입력용, FLOPs 4배)
 # 컨테이너: FP16 엔진. 반드시 작은 cap 아래서 빌드 (전체 GPU에서 빌드한 엔진은 48 SM 이하 파티션에서 실행 실패)
 docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=10 c_aerial_troy \
   /usr/src/tensorrt/bin/trtexec --onnx=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_b1.onnx --fp16 \
@@ -195,7 +225,7 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 
 | 파일 | 역할 |
 |---|---|
-| `matrix.yaml` | 기본점, 점(축별 TV id), 격자, 간섭 격자, 프로필 |
+| `matrix.yaml` | 기본점, 점(축별 TV id), 격자, 간섭 격자, 프로필, 세입자(26n/26s/26x) |
 | `sweep.py` | 매트릭스 → 런 큐, resume, 순서(none → 26n → 26x) |
 | `run_one.py` | 조합 하나: 스냅샷, 텔레메트리, 세입자, nsys+벤치, collect |
 | `runner.py` | `Runner` 인터페이스, `TestBenchRunner`, `FullStackRunner`(stub) |

@@ -9,7 +9,7 @@ runs/<manifest_id>/manifest.yaml lists the queue with the status of each run and
 rewritten after every run, so re-running the same --out resumes: runs whose
 status.yaml says ok are skipped, failed ones are retried. TVs that the sweep
 manifest marks skipped make the run "skipped" with the reason. Order: tenant none
-first, then yolo26n, then yolo26x (so the isolation baseline exists first).
+first, then yolo26n, yolo26s, yolo26x (so the isolation baseline exists first).
 """
 import argparse
 import os
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import runner as R  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TENANT_ORDER = ["none", "yolo26n", "yolo26x"]
+TENANT_ORDER = ["none", "yolo26n", "yolo26s", "yolo26x"]
 
 
 def grid_points(m):
@@ -83,7 +83,9 @@ def expand(m, prof, only=None, skip_tenants=()):
             ra["nsys_window_s"] = 0
             ra["_order"] = (-1,) + tuple(ra["_order"][1:])
             runs.append(ra)
-    runs.sort(key=lambda r: (TENANT_ORDER.index(r["tenant"]["name"]), r["_order"]))
+    def tenant_rank(name):      # names outside TENANT_ORDER (e.g. yolo26x1280) go after it, alphabetically
+        return (TENANT_ORDER.index(name), "") if name in TENANT_ORDER else (len(TENANT_ORDER), name)
+    runs.sort(key=lambda r: (tenant_rank(r["tenant"]["name"]), r["_order"]))
     if only:
         runs = [r for r in runs if only in r["run_id"]]
     return runs
@@ -105,7 +107,12 @@ def make_run(m, prof, pname, pdef, tenant, cap, batch, prio, rep):
     ten = {"name": tenant}
     if tenant != "none":
         tmpl = p.get("engine_template") or tdef["engine_template"]      # a profile may name its own engines (MIG)
-        ten.update(engine=tmpl.format(tenant=tenant, batch=batch, cap=cap), batch=batch, cap_pct=cap, priority=prio)
+        # {model} = the engine file stem (default: the tenant name); the 1280-input tenants are yolo26n1280 -> yolo26n_1280_*
+        ten.update(engine=tmpl.format(tenant=tenant, model=tdef.get("model", tenant), batch=batch, cap=cap), batch=batch, cap_pct=cap, priority=prio,
+                   input=tdef.get("input", "bus_640.npy"))
+        for k in ("worker", "args"):        # open-loop tenants: worker: openloop_worker.py, args: "--rates ... --seconds-per-rate ..."
+            if k in tdef:
+                ten[k] = tdef[k]
     bench = dict(c["bench"])
     for k, v in (p.get("bench") or {}).items():                      # profile overrides, e.g. the SM list for a 64-SM MIG instance
         bench[k] = dict(bench.get(k, {}), **v) if isinstance(v, dict) else v

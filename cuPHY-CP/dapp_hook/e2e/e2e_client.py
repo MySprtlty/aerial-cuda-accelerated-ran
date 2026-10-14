@@ -7,7 +7,7 @@ byte of the reply received, plus the server-side timings the reply carries. Pure
 runs on the UE laptop as it is.
 
     python3 e2e_client.py --server 10.0.0.1:9000 --images ../models/img4k --rate 10 --seconds 60 \
-        [--arrivals fixed|poisson] [--seed 1] [--engine-sel -1] [--log client.csv] [--warm 3]
+        [--arrivals fixed|poisson|jitter] [--seed 1] [--engine-sel -1] [--log client.csv] [--warm 3]
 
 Output csv: req_id, t_arrival_ns (schedule), t_send_ns, t_reply_ns, rtt_ms (send start -> reply complete),
 late_ms (schedule -> send start: client-side queueing when the socket is behind), bytes, status, engine,
@@ -55,7 +55,10 @@ def main():
     ap.add_argument("--images", required=True, help="a JPEG file or a directory (uhd_*_q85.jpg are used round-robin)")
     ap.add_argument("--rate", type=float, default=10.0, help="requests per second")
     ap.add_argument("--seconds", type=float, default=60.0)
-    ap.add_argument("--arrivals", choices=["fixed", "poisson"], default="fixed")
+    ap.add_argument("--arrivals", choices=["fixed", "poisson", "jitter"], default="fixed",
+                    help="fixed = 1/rate apart; poisson = exponential gaps; jitter = 1/rate apart +- --jitter-ms (a periodic camera whose "
+                         "frames are not phase-locked to the gNB slot pattern, and that never queues behind itself)")
+    ap.add_argument("--jitter-ms", type=float, default=5.0)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--engine-sel", type=int, default=-1, help="-1 = server policy, else engine index on the server")
     ap.add_argument("--log", default="client.csv")
@@ -119,13 +122,21 @@ def main():
     import random
     rng = random.Random(a.seed)
     n = int(a.rate * a.seconds)
-    gaps = [1.0 / a.rate] * n if a.arrivals == "fixed" else [rng.expovariate(a.rate) for _ in range(n)]
+    if a.arrivals == "fixed":
+        offs = [i / a.rate for i in range(n)]
+    elif a.arrivals == "poisson":
+        offs, t = [], 0.0
+        for i in range(n):
+            offs.append(t)
+            t += rng.expovariate(a.rate)
+    else:
+        j = min(a.jitter_ms / 1e3, 0.45 / a.rate)
+        offs = sorted(max(0.0, i / a.rate + rng.uniform(-j, j)) for i in range(n))
     base = time.perf_counter() + 0.05
-    t_arr = base
+    unix0 = time.time_ns() - int(time.perf_counter() * 1e9)      # unix_ns = unix0 + perf_counter_ns
     print("sending %d requests at %.1f/s (%s) ..." % (n, a.rate, a.arrivals), flush=True)
     for i in range(n):
-        if i:
-            t_arr += gaps[i]
+        t_arr = base + offs[i]
         while True:
             d = t_arr - time.perf_counter()
             if d <= 0:
@@ -147,11 +158,12 @@ def main():
     with open(a.log, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["req_id", "t_arrival_ns", "t_send_ns", "t_reply_ns", "rtt_ms", "late_ms", "bytes", "status", "engine", "n_det",
-                    "srv_net_in_ms", "srv_queue_ms", "srv_decode_ms", "srv_infer_ms", "srv_server_ms"])
+                    "srv_net_in_ms", "srv_queue_ms", "srv_decode_ms", "srv_infer_ms", "srv_server_ms", "srv_post_ms", "t_send_unix_ns", "t_reply_unix_ns"])
         for req_id, ta, ts, tr, nb, st, j in results:
             tm = j.get("t_ms", {})
             w.writerow([req_id, int((ta - base) * 1e9), int((ts - base) * 1e9), int((tr - base) * 1e9), round((tr - ts) * 1e3, 3), round((ts - ta) * 1e3, 3), nb, st,
-                        j.get("engine", ""), j.get("n_det", 0), tm.get("net_in", ""), tm.get("queue", ""), tm.get("decode", ""), tm.get("infer", ""), tm.get("server", "")])
+                        j.get("engine", ""), j.get("n_det", 0), tm.get("net_in", ""), tm.get("queue", ""), tm.get("decode", ""), tm.get("infer", ""), tm.get("server", ""),
+                        tm.get("post", ""), unix0 + int(ts * 1e9), unix0 + int(tr * 1e9)])
     rtt = [(tr - ts) * 1e3 for _, ta, ts, tr, nb, st, j in results]
     e2e = [(tr - ta) * 1e3 for _, ta, ts, tr, nb, st, j in results]      # schedule -> reply (includes client-side lateness)
     srv = [j.get("t_ms", {}).get("server", 0.0) for *_, j in results]

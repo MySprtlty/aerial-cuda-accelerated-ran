@@ -1,0 +1,134 @@
+=== mig_none_65a_16c
+  RAN (whole run minus the first second, 357999 slots)
+  UL pos 4: PUSCH GPU end after t0  p50  2172  p99  2259  max  2722 us  (>2.5 ms 0.025 %, >3.0 ms 0.000 %; n=35799)
+  UL pos 5: PUSCH GPU end after t0  p50  3458  p99  3502  max  3799 us  (>2.5 ms 100.000 %, >3.0 ms 100.000 %; n=35800)
+  DL pos 0: PDSCH run end p50  -849 p99  -837 max  -826 us, compression end p50  -573 p99  -524 (relative to t0; n=35800)
+  DL pos 6: PDSCH run end p50  -840 p99  -827 max  -815 us, compression end p50  -544 p99  -508 (relative to t0; n=35800)
+  DL pos 7: PDSCH run end p50  -844 p99  -832 max  -810 us, compression end p50  -558 p99  -524 (relative to t0; n=35800)
+  L1 (whole run): WRN/ERR lines 65 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x11
+  L1 counters (2nd half, per cell per s): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 214.32 Mbps (min 214.32)  DL 1561.40 Mbps  ERR max 0  INV median 3000 max 3001  finished=True
+  RU ULC late packets 0.0000 % (0 of 4607936)
+  RU DLC late packets 0.0048 % (11586 of 243646488)  by TDD position (%): 1: 0.000  6: 0.013  7: 0.023  8: 0.000
+  RU DLU late packets 0.0131 % (189389 of 1448634560)  by TDD position (%): 1: 0.000  6: 0.045  7: 0.047  8: 0.005
+  RU slots with a late packet (whole run, per cell): DL U 0.032 % (89-92 of 285999) | DL C 0.019 % (54-58 of 285998) | UL C 0.000 % (0-0 of 69999)
+  -> knob-dependent part of the E2E: last UL slot 3.46 ms (p50, worst position; p99 3.50) + GH200 0.00 ms (p50; p99 0.00) = 3.46 ms (p50 + p50), 3.50 ms (p99 + p99)
+=== mig_x_65a_16c
+  RAN (client window 135 s, 251278 slots)
+  UL pos 4: PUSCH GPU end after t0  p50  2174  p99  2269  max  3065 us  (>2.5 ms 0.020 %, >3.0 ms 0.004 %; n=25128)
+            overlapping an inference 47 % of slots: p50  2179 p99  2276 | not overlapping: p50  2170 p99  2262
+  UL pos 5: PUSCH GPU end after t0  p50  3459  p99  3496  max  4060 us  (>2.5 ms 100.000 %, >3.0 ms 100.000 %; n=25128)
+            overlapping an inference 46 % of slots: p50  3464 p99  3499 | not overlapping: p50  3455 p99  3491
+  DL pos 0: PDSCH run end p50  -850 p99  -838 max  -768 us, compression end p50  -572 p99  -518 (relative to t0; n=25128)
+  DL pos 6: PDSCH run end p50  -840 p99  -827 max  -806 us, compression end p50  -540 p99  -504 (relative to t0; n=25127)
+  DL pos 7: PDSCH run end p50  -846 p99  -833 max  -198 us, compression end p50  -556 p99  -523 (relative to t0; n=25127)
+  L1 (whole run): WRN/ERR lines 81 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x36 x15
+  L1 overload events inside the client window: 0 (0 UL slots) | outside: 0
+  L1 counters (2nd half, per cell per s): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 214.32 Mbps (min 214.32)  DL 1561.40 Mbps  ERR max 0  INV median 3000 max 3000  finished=True
+  RU ULC late packets 0.0000 % (0 of 4608000)
+  RU DLC late packets 0.0049 % (12043 of 243645368)  by TDD position (%): 6: 0.012  7: 0.026
+  RU DLU late packets 0.0132 % (191145 of 1448629120)  by TDD position (%): 6: 0.036  7: 0.054  8: 0.007  9: 0.000
+  RU slots with a late packet (whole run, per cell): DL U 0.032 % (89-93 of 285998) | DL C 0.020 % (56-57 of 285997) | UL C 0.000 % (0-0 of 70000)
+  tenant 26x: 1350 requests (1350 ok), client late p99 0.00 ms
+    NVJPG decode p50    4.79  p99    5.40  max    5.82 ms
+    inference    p50   44.55  p99   44.68  max   44.78 ms
+    NMS (CPU)    p50    7.16  p99    7.69  max    7.74 ms
+    queue        p50    0.04  p99    0.05  max    0.06 ms
+    server total p50   57.33  p99   58.83  max   58.87 ms
+    client RTT   p50   57.71  p99   59.25  max   59.28 ms
+    detections per image: median 90
+  -> knob-dependent part of the E2E: last UL slot 3.46 ms (p50, worst position; p99 3.50) + GH200 57.33 ms (p50; p99 58.83) = 60.79 ms (p50 + p50), 62.33 ms (p99 + p99)
+=== mig_n_65a_16c
+  RAN (client window 135 s, 233479 slots)
+  UL pos 4: PUSCH GPU end after t0  p50  2174  p99  2261  max  2627 us  (>2.5 ms 0.009 %, >3.0 ms 0.000 %; n=23348)
+            overlapping an inference 11 % of slots: p50  2179 p99  2264 | not overlapping: p50  2174 p99  2261
+  UL pos 5: PUSCH GPU end after t0  p50  3456  p99  3493  max  3800 us  (>2.5 ms 99.996 %, >3.0 ms 99.996 %; n=23348)
+            overlapping an inference 10 % of slots: p50  3458 p99  3498 | not overlapping: p50  3456 p99  3492
+  DL pos 0: PDSCH run end p50  -849 p99  -838 max  -797 us, compression end p50  -573 p99  -514 (relative to t0; n=23348)
+  DL pos 6: PDSCH run end p50  -840 p99  -826 max  -203 us, compression end p50  -534 p99  -496 (relative to t0; n=23347)
+  DL pos 7: PDSCH run end p50  -843 p99  -831 max  -570 us, compression end p50  -549 p99  -518 (relative to t0; n=23348)
+  L1 (whole run): WRN/ERR lines 69 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x12
+  L1 overload events inside the client window: 0 (0 UL slots) | outside: 0
+  L1 counters (2nd half, per cell per s): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 214.32 Mbps (min 214.32)  DL 1561.40 Mbps  ERR max 0  INV median 3000 max 3001  finished=True
+  RU ULC late packets 0.0000 % (0 of 4607936)
+  RU DLC late packets 0.0048 % (11688 of 243646432)  by TDD position (%): 6: 0.008  7: 0.028
+  RU DLU late packets 0.0132 % (191380 of 1448634560)  by TDD position (%): 6: 0.037  7: 0.053  8: 0.007
+  RU slots with a late packet (whole run, per cell): DL U 0.032 % (90-91 of 285999) | DL C 0.020 % (54-57 of 285998) | UL C 0.000 % (0-0 of 69999)
+  tenant 26n: 1350 requests (1350 ok), client late p99 0.00 ms
+    NVJPG decode p50    4.78  p99    5.38  max    5.82 ms
+    inference    p50    8.51  p99    8.54  max    8.55 ms
+    NMS (CPU)    p50    6.03  p99    6.60  max    6.67 ms
+    queue        p50    0.04  p99    0.05  max    0.08 ms
+    server total p50   20.12  p99   21.44  max   21.48 ms
+    client RTT   p50   20.46  p99   21.83  max   21.88 ms
+    detections per image: median 58
+  -> knob-dependent part of the E2E: last UL slot 3.46 ms (p50, worst position; p99 3.49) + GH200 20.12 ms (p50; p99 21.44) = 23.58 ms (p50 + p50), 24.93 ms (p99 + p99)
+=== mig_s_65a_16c
+  RAN (client window 135 s, 241633 slots)
+  UL pos 4: PUSCH GPU end after t0  p50  2169  p99  2260  max  2620 us  (>2.5 ms 0.021 %, >3.0 ms 0.000 %; n=24163)
+            overlapping an inference 15 % of slots: p50  2176 p99  2273 | not overlapping: p50  2168 p99  2258
+  UL pos 5: PUSCH GPU end after t0  p50  3455  p99  3493  max  3808 us  (>2.5 ms 99.996 %, >3.0 ms 99.996 %; n=24164)
+            overlapping an inference 15 % of slots: p50  3463 p99  3499 | not overlapping: p50  3454 p99  3491
+  DL pos 0: PDSCH run end p50  -849 p99  -838 max  -786 us, compression end p50  -574 p99  -519 (relative to t0; n=24163)
+  DL pos 6: PDSCH run end p50  -839 p99  -826 max  -195 us, compression end p50  -542 p99  -504 (relative to t0; n=24163)
+  DL pos 7: PDSCH run end p50  -844 p99  -831 max  -560 us, compression end p50  -553 p99  -519 (relative to t0; n=24164)
+  L1 (whole run): WRN/ERR lines 69 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x12
+  L1 overload events inside the client window: 0 (0 UL slots) | outside: 0
+  L1 counters (2nd half, per cell per s): UL 233.57 Mbps (min 233.57)  DL 1561.40 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 214.32 Mbps (min 213.83)  DL 1561.40 Mbps  ERR max 0  INV median 3000 max 3002  finished=True
+  RU ULC late packets 0.0000 % (0 of 4607936)
+  RU DLC late packets 0.0061 % (14961 of 243646432)  by TDD position (%): 6: 0.014  7: 0.032  8: 0.001
+  RU DLU late packets 0.0163 % (236066 of 1448634560)  by TDD position (%): 6: 0.047  7: 0.064  8: 0.010  9: 0.000
+  RU slots with a late packet (whole run, per cell): DL U 0.035 % (97-102 of 285999) | DL C 0.022 % (61-64 of 285998) | UL C 0.000 % (0-0 of 69999)
+  tenant 26s: 1350 requests (1350 ok), client late p99 0.00 ms
+    NVJPG decode p50    4.78  p99    5.38  max    5.81 ms
+    inference    p50   12.82  p99   12.86  max   12.88 ms
+    NMS (CPU)    p50    6.61  p99    7.10  max    7.17 ms
+    queue        p50    0.04  p99    0.05  max    0.06 ms
+    server total p50   25.05  p99   26.41  max   26.50 ms
+    client RTT   p50   25.40  p99   26.83  max   26.90 ms
+    detections per image: median 82
+  -> knob-dependent part of the E2E: last UL slot 3.46 ms (p50, worst position; p99 3.49) + GH200 25.05 ms (p50; p99 26.41) = 28.51 ms (p50 + p50), 29.90 ms (p99 + p99)
+=== mig_none_59c_16c
+  RAN (whole run minus the first second, 357999 slots)
+  UL pos 4: PUSCH GPU end after t0  p50  2136  p99  2252  max  3062 us  (>2.5 ms 0.017 %, >3.0 ms 0.003 %; n=35799)
+  UL pos 5: PUSCH GPU end after t0  p50  3209  p99  3305  max  3872 us  (>2.5 ms 100.000 %, >3.0 ms 100.000 %; n=35800)
+  DL pos 0: PDSCH run end p50  -846 p99  -834 max  -820 us, compression end p50  -556 p99  -502 (relative to t0; n=35800)
+  DL pos 6: PDSCH run end p50  -838 p99  -825 max  -810 us, compression end p50  -526 p99  -484 (relative to t0; n=35800)
+  DL pos 7: PDSCH run end p50  -842 p99  -829 max  -810 us, compression end p50  -535 p99  -504 (relative to t0; n=35800)
+  L1 (whole run): WRN/ERR lines 69 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x12
+  L1 counters (2nd half, per cell per s): UL 196.70 Mbps (min 196.70)  DL 1544.14 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 181.95 Mbps (min 181.57)  DL 1544.14 Mbps  ERR max 0  INV median 3000 max 3010  finished=True
+  RU ULC late packets 0.0000 % (0 of 11519872)
+  RU DLC late packets 0.0029 % (7145 of 249694344)  by TDD position (%): 6: 0.015  7: 0.006  8: 0.000
+  RU DLU late packets 0.0080 % (115842 of 1454682528)  by TDD position (%): 2: 0.000  6: 0.040  7: 0.016  8: 0.003  9: 0.000
+  RU slots with a late packet (whole run, per cell): DL U 0.022 % (61-65 of 285999) | DL C 0.016 % (44-47 of 285998) | UL C 0.000 % (0-0 of 69999)
+  -> knob-dependent part of the E2E: last UL slot 3.21 ms (p50, worst position; p99 3.30) + GH200 0.00 ms (p50; p99 0.00) = 3.21 ms (p50 + p50), 3.30 ms (p99 + p99)
+=== mig_x_59c_16c
+  RAN (client window 135 s, 199277 slots)
+  UL pos 4: PUSCH GPU end after t0  p50  2135  p99  2242  max  3000 us  (>2.5 ms 0.015 %, >3.0 ms 0.000 %; n=19927)
+            overlapping an inference 47 % of slots: p50  2139 p99  2252 | not overlapping: p50  2131 p99  2232
+  UL pos 5: PUSCH GPU end after t0  p50  3206  p99  3292  max  3788 us  (>2.5 ms 99.995 %, >3.0 ms 99.995 %; n=19928)
+            overlapping an inference 46 % of slots: p50  3212 p99  3306 | not overlapping: p50  3202 p99  3284
+  DL pos 0: PDSCH run end p50  -846 p99  -833 max  -792 us, compression end p50  -565 p99  -506 (relative to t0; n=19928)
+  DL pos 6: PDSCH run end p50  -838 p99  -826 max  -194 us, compression end p50  -529 p99  -486 (relative to t0; n=19927)
+  DL pos 7: PDSCH run end p50  -842 p99  -830 max  -560 us, compression end p50  -538 p99  -506 (relative to t0; n=19928)
+  L1 (whole run): WRN/ERR lines 73 | pool 'No available' 0 | recovery 0 | not responsive 0 | FATAL 0 | PUSCH work cancel 0 | order timeout 0 | exit 0 | Err.ind 0x34 x1 0x36 x13
+  L1 overload events inside the client window: 0 (0 UL slots) | outside: 0
+  L1 counters (2nd half, per cell per s): UL 196.70 Mbps (min 196.70)  DL 1544.14 Mbps  CRC errors/s max 0, cumulative 0
+  testMAC (2nd half): UL 181.95 Mbps (min 181.57)  DL 1544.14 Mbps  ERR max 0  INV median 3000 max 3008  finished=True
+  RU ULC late packets 0.0000 % (0 of 11519872)
+  RU DLC late packets 0.0033 % (8128 of 249694286)  by TDD position (%): 6: 0.019  7: 0.005
+  RU DLU late packets 0.0090 % (130956 of 1454682528)  by TDD position (%): 6: 0.048  7: 0.017  8: 0.001
+  RU slots with a late packet (whole run, per cell): DL U 0.021 % (60-61 of 285999) | DL C 0.019 % (53-53 of 285998) | UL C 0.000 % (0-0 of 69999)
+  tenant 26x: 1350 requests (1350 ok), client late p99 0.00 ms
+    NVJPG decode p50    4.79  p99    5.40  max    5.79 ms
+    inference    p50   44.52  p99   44.71  max   44.78 ms
+    NMS (CPU)    p50    7.12  p99    7.73  max    7.80 ms
+    queue        p50    0.04  p99    0.05  max    0.07 ms
+    server total p50   57.31  p99   58.81  max   58.88 ms
+    client RTT   p50   57.67  p99   59.24  max   59.30 ms
+    detections per image: median 90
+  -> knob-dependent part of the E2E: last UL slot 3.21 ms (p50, worst position; p99 3.29) + GH200 57.31 ms (p50; p99 58.81) = 60.52 ms (p50 + p50), 62.10 ms (p99 + p99)

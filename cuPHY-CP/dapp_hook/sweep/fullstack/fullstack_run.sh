@@ -4,6 +4,8 @@
 #   env RU_HIST=1 RU emulator timing_histogram: 1
 #   env FS_OUT    directory for console logs, config snapshots and DCGM (default prof/run61, gitignored)
 #   env NCELLS    number of cells (default 16)
+#   env TENANT_SPEC  run the e2e inference server + open-loop client next to the traffic (fs_tenant.sh: TENANT_CAP, TENANT_MIG_UUID,
+#                 TENANT_RATE, ...); the server starts once the L1 is up, the client 30 s later
 #   env PATTERN   official launch pattern id (default 59c = peak, 6 UE x 2 layers UL / 6 UE x 4 layers DL per cell). Heavier 4T4R
 #                 16-cell patterns that need nothing but the name: 59e (UL x1.08), 65c (UL x1.07, PUCCH x4), 65a (UL x1.19)
 #   env KEEP_RAW=0 do not copy the 8-16 GB container logs; keep only the L2A.PROCESSING_TIMES lines (l2a_<name>.log),
@@ -113,6 +115,8 @@ if [ "$MPSTAT" = "1" ]; then mpstat -P ALL 1 > $S/mpstat_$NAME.txt 2>&1 & MP=$!;
 REC=""
 if [ "$RECORD" = "1" ] && [ "$HOOK" != "off" ]; then python3 cuPHY-CP/dapp_hook/tools/dapp_ring_record.py --out prof/ring_16C_$NAME.bin --seconds $((TRAFFIC_S + 90)) > $S/record_$NAME.log 2>&1 & REC=$!; fi
 docker exec c_aerial_troy bash -lc "$P/run3_testMAC.sh --timeout $((TRAFFIC_S + 120))" > $S/run3_$NAME.log 2>&1 & MAC=$!
+TEN=""
+if [ -n "${TENANT_SPEC:-}" ]; then FS_OUT=$S bash "$(dirname "$0")/fs_tenant.sh" start "$NAME" "$TRAFFIC_S" > $S/tenant_$NAME.log 2>&1 & TEN=$!; fi
 for i in $(seq 1 $((TRAFFIC_S + 150))); do
   grep -q "Finished running" $S/run3_$NAME.log && break
   # thread placement snapshot once the traffic is on (host view: all containers share the host pid namespace view via ps -eL)
@@ -123,6 +127,7 @@ for i in $(seq 1 $((TRAFFIC_S + 150))); do
   sleep 1
 done
 grep -m1 "Finished running" $S/run3_$NAME.log | cut -c1-80 || echo "testMAC did not finish in time"
+if [ -n "$TEN" ]; then wait $TEN 2>/dev/null; FS_OUT=$S bash "$(dirname "$0")/fs_tenant.sh" stop "$NAME" >> $S/tenant_$NAME.log 2>&1; grep -E "offered|failed" $S/tenant_$NAME.log | cut -c1-200; fi
 sleep 8
 kill -INT $DC 2>/dev/null; [ -n "$MP" ] && kill -INT $MP 2>/dev/null; [ -n "$REC" ] && { wait $REC 2>/dev/null; cat $S/record_$NAME.log; }
 kill_ran; wait $RU 2>/dev/null; wait $MAC 2>/dev/null

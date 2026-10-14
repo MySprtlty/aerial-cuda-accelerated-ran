@@ -98,35 +98,55 @@ class Engine(TrtRunner):
         return chk(cudart.cudaEventElapsedTime(self.ev0, self.ev1)), h_out
 
 
+_POOL = None
+
+
+def _slot_candidates(o, roi, size, conf_th):
+    """one batch slot: candidates above the threshold, boxes mapped back through the slot's ROI to original image pixels"""
+    rx, ry, rw, rh = roi
+    if o.shape[0] > o.shape[1]:      # (na, 4+nc) -> rows = channels
+        o = o.T
+    conf_all = o[4:].max(axis=0)     # (4+nc, na) is C-contiguous per channel: one pass over nc x na, then only the survivors are touched
+    idx = np.flatnonzero(conf_all >= conf_th)
+    if len(idx) == 0:
+        return None
+    boxes = o[:4, idx].T
+    conf = conf_all[idx]
+    cls = o[4:, idx].argmax(axis=0)
+    r = size / max(rw, rh)
+    nw, nh = int(rw * r + 0.5), int(rh * r + 0.5)
+    ox, oy = (size - nw) // 2, (size - nh) // 2
+    xyxy = np.empty_like(boxes)
+    xyxy[:, 0] = (boxes[:, 0] - boxes[:, 2] / 2 - ox) / r + rx
+    xyxy[:, 1] = (boxes[:, 1] - boxes[:, 3] / 2 - oy) / r + ry
+    xyxy[:, 2] = (boxes[:, 0] + boxes[:, 2] / 2 - ox) / r + rx
+    xyxy[:, 3] = (boxes[:, 1] + boxes[:, 3] / 2 - oy) / r + ry
+    return xyxy, conf, cls
+
+
 def postprocess(out, size, rois, conf_th, iou_th, max_det):
     """ultralytics detect head (batch, 4+nc, na) -> boxes of every batch slot mapped back through its ROI to original
-    image pixels -> one per-class NMS over all slots (merges the duplicates of overlapping tiles and the global view)"""
-    all_xyxy, all_conf, all_cls = [], [], []
-    for bi, (rx, ry, rw, rh) in enumerate(rois):
-        o = out[bi]
-        if o.shape[0] > o.shape[1]:      # (na, 4+nc) -> rows = channels
-            o = o.T
-        conf_all = o[4:].max(axis=0)     # (4+nc, na) is C-contiguous per channel: one pass over nc x na, then only the survivors are touched
-        idx = np.flatnonzero(conf_all >= conf_th)
-        if len(idx) == 0:
+    image pixels -> one per-class NMS over all slots (merges the duplicates of overlapping tiles and the global view).
+    The per-slot scan (max over nc x na scores, ~2.7 ms per 1280 slot in numpy) runs on a small thread pool: numpy
+    releases the GIL in the reductions. Slots that repeat an earlier ROI (padding views) are skipped."""
+    global _POOL
+    todo, seen = [], set()
+    for bi, roi in enumerate(rois):
+        if roi in seen:
             continue
-        boxes = o[:4, idx].T
-        conf = conf_all[idx]
-        cls = o[4:, idx].argmax(axis=0)
-        r = size / max(rw, rh)
-        nw, nh = int(rw * r + 0.5), int(rh * r + 0.5)
-        ox, oy = (size - nw) // 2, (size - nh) // 2
-        xyxy = np.empty_like(boxes)
-        xyxy[:, 0] = (boxes[:, 0] - boxes[:, 2] / 2 - ox) / r + rx
-        xyxy[:, 1] = (boxes[:, 1] - boxes[:, 3] / 2 - oy) / r + ry
-        xyxy[:, 2] = (boxes[:, 0] + boxes[:, 2] / 2 - ox) / r + rx
-        xyxy[:, 3] = (boxes[:, 1] + boxes[:, 3] / 2 - oy) / r + ry
-        all_xyxy.append(xyxy); all_conf.append(conf); all_cls.append(cls)
-        if len(set(rois)) == 1:          # every slot is the same view (plain batch-1 case or padding): one is enough
-            break
-    if not all_conf:
+        seen.add(roi)
+        todo.append((bi, roi))
+    if len(todo) > 1:
+        if _POOL is None:
+            from concurrent.futures import ThreadPoolExecutor
+            _POOL = ThreadPoolExecutor(max_workers=4)
+        res = list(_POOL.map(lambda t: _slot_candidates(out[t[0]], t[1], size, conf_th), todo))
+    else:
+        res = [_slot_candidates(out[bi], roi, size, conf_th) for bi, roi in todo]
+    res = [r_ for r_ in res if r_ is not None]
+    if not res:
         return []
-    xyxy, conf, cls = np.concatenate(all_xyxy), np.concatenate(all_conf), np.concatenate(all_cls)
+    xyxy, conf, cls = np.concatenate([r_[0] for r_ in res]), np.concatenate([r_[1] for r_ in res]), np.concatenate([r_[2] for r_ in res])
     order = conf.argsort()[::-1][:5000]
     xyxy, conf, cls = xyxy[order], conf[order], cls[order]
     span = float(max(xyxy[:, 2].max(), xyxy[:, 3].max(), 1.0)) * 2

@@ -9,6 +9,8 @@ E2E를 **공중/전송 구간**과 **GH200 구간**으로 분해할 수 있게 �
 | `nvjpeg_dec.cu` → `libnvjpeg_dec.so` | JPEG 바이트 → NVJPG **하드웨어 디코드**(SM 미사용) → 1280 letterbox float CHW를 디바이스에 직접 생성. ctypes용 C API |
 | `infer_server.py` | TCP 서버. 요청마다 디코드 → TensorRT(YOLO26) → NMS → JSON 응답(검출 + 서버 측 시각). 엔진 여러 개 로드(모델 선택), GPU 워커 1개 FIFO |
 | `e2e_client.py` | UE 쪽. **open-loop**(고정 요청률, 도착 시각 사전 확정) 송신, RTT·서버 시각 기록. 표준 라이브러리만 사용 → UE 노트북에서 그대로 실행 |
+| `dispatcher.py` | **요청 경로의 가운데 단**: DAPQ 수신(infer_server와 같은 프로토콜·큐·CSV 골격) → JPEG을 `/dev/shm/dapq_<pid>_<n>.jpg`로 쓰고 → 모델 선택(`policy.yaml`, `choose_model()`) → `dapp_sched`에 `RUN model=<m> <path>` → 응답·요청별 CSV. TensorRT 없음. 정책 입력(모델별 cap·gate)은 `--policy-source manual\|timetable\|live`; manual/timetable은 디스패처가 제어 블록(ABI 2)을 직접 써서 dapp_sched도 같은 값을 본다 |
+| `policy.yaml` | 모델 선택 규칙 `rule: fixed \| target`(기본 fixed)과 상수(윈도 60 s, 26s 비율 0.6, 26n 비율 0.1, gate 닫힘 100 ms, target_e2e_ms 67, overhead_ms 8). target = 예상 E2E(앞선 요청 수 × 최근 20개 평균 서비스 시간 + 프로필 dur_ms[8][cap] + overhead)가 목표 안에 드는 가장 정확한 모델; CSV에 `pred_e2e_26x/26s/26n` |
 | `gh200_segment.sh` | 루프백에서 {부하 없음, 16셀 최저, 최고} × cap × 요청률별 GH200 구간 측정 (결과: `sweep/results/e2e_prep/gh200_segment*/`). `BATCH=8`이면 타일 요청, `MIG_TENANT_UUID`·`ENGINE_TAG=mig3g`이면 세입자를 3g 인스턴스에서 |
 
 ## 빌드·실행 (컨테이너 안, cuPHY의 MPS 클라이언트와 같은 사용자 = root)
@@ -50,3 +52,27 @@ JSON: {req_id, status, engine, n_det, dets:[[x1,y1,x2,y2,conf,cls]...], img:[w,h
 - 서버의 `policy()`가 dApp 스케줄러 연결점이다(지금은 기본 엔진 고정). 모델 선택 ablation은 `--engine-sel`로 클라이언트가 강제한다.
 - 디코드 ~5 ms(4K q85 4:2:0, NVJPG, cap 무관), letterbox 14 µs. numpy NMS는 1280 입력에서 3.5~5 ms(타일 7 ms)로 느리다 — 도구의 한계이며 GPU 쪽으로 옮길 대상.
   수치는 `sweep/results/e2e_prep/nvjpeg.txt`, `summary_mig_off.txt`.
+
+## 디스패처 경로 (2026-10-15)
+
+```
+[e2e_client.py] --DAPQ/TCP--> [dispatcher.py: 큐·모델 선택·기록] --RUN model=M /dev/shm/dapq_*.jpg--> [dapp_sched --ctrl]
+                                      ^ 제어 블록 v2 {model: cap, gate}  <-- estimator/live.py (live) 또는 디스패처 자신 (manual/timetable)
+```
+
+```bash
+# dapp_sched: 세 모델 x SM 클래스 56/80/132 엔진 9개, 제어 블록 사용 (컨테이너 root, MPS)
+docker exec -d -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy bash -c '/opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched \
+  --classes 56,80,132 --engine 26x:56=... --engine 26x:80=... --engine 26x:132=... (26s, 26n 같은 식) \
+  -s /dev/shm/dapp_sched.sock --ctrl /aerial_dapp_ctrl --ctrl-max-age-ms 50 --cells 16'
+# 디스패처 (호스트, 표준 라이브러리 + PyYAML), 수동 정책
+python3 dispatcher.py --sched-sock /dev/shm/dapp_sched.sock --port 9007 --log disp.csv --policy-source manual --manual "26x=100/40,26s=100/40,26n=100/40"
+# 시간표 정책: t_s,cap_26x,cap_26s,cap_26n,gate  /  live 정책: estimator/live.py --profile ... x3 가 블록을 씀
+python3 e2e_client.py --server 127.0.0.1:9007 --images ../models/img4k --rate 10 --seconds 60 --arrivals jitter --log client.csv
+python3 ../tools/req_summary.py disp.csv            # req/s, E2E 평균/p99, 대기, dapp_sched 구간, 모델 비율, 큐 깊이, HOLD
+```
+
+요청별 CSV(ns, CLOCK_REALTIME): `t_arrival, t_enqueue, t_dequeue, t_shm_written, t_sent_to_sched, t_sched_recv, t_gate_pass, t_start, t_end, t_reply,
+model, cap_26x/26s/26n, gate_slots, chosen_reason, queue_depth, n_det, n_hold, status`. 이미지 집합은 `--glob uhd_*_q75.jpg`(1.4~1.9 MB) /
+`uhd_*_q60.jpg`(0.8~1.2 MB)로 고른다(UE 업링크 시간 비교용). 측정값은 `sweep/results/e2e_prep/dispatcher_*.txt` 대신 이 대화·README에 기록.
+

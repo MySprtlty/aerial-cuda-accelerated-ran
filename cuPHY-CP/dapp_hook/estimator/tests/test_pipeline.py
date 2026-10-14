@@ -77,6 +77,10 @@ class TestPipeline(unittest.TestCase):
             out = P.replay_file(self.raw, P.Runner(RULES, CELLS, PROF, ctrl=cb))
             last = out[-1]
             got = cb.read()
+            self.assertEqual(got["n_models"], 1)
+            self.assertEqual(got["models"][0]["name"], PROF.ctrl_name)
+            self.assertEqual(got["models"][0]["gate_slots"], last["gate_slots"])
+            self.assertEqual(got["models"][0]["cap_pct"], last["cap_pct"])
             self.assertEqual(got["gate_slots"], last["gate_slots"])
             self.assertEqual(got["cap_pct"], last["cap_pct"])
             self.assertEqual(got["slot_id"], last["slot_id"])
@@ -85,10 +89,20 @@ class TestPipeline(unittest.TestCase):
             self.assertEqual(got["seq"] % 2, 0)
             rd = CB.ControlBlock("/dapp_est_test_ctrl", create=False)
             self.assertEqual(rd.read()["cap_pct"], last["cap_pct"])
+            self.assertEqual(rd.entry(PROF.ctrl_name)["cap_pct"], last["cap_pct"])
             rd.close()
         finally:
             cb.close()
             cb.unlink()
+
+    def test_two_profiles_side_by_side_equal_separate_runs(self):
+        prof2 = C.Profile(os.path.join(os.path.dirname(HERE), "profiles", "yolov8m_b8.yaml"))
+        joint = P.replay_file(self.raw, P.Runner(RULES, CELLS, [PROF, prof2]))
+        a = strip([d for d in joint if d["profile"] == PROF.name])
+        b = strip([d for d in joint if d["profile"] == prof2.name])
+        self.assertEqual(a, strip(P.replay_file(self.raw, P.Runner(RULES, CELLS, PROF))))
+        self.assertEqual(b, strip(P.replay_file(self.raw, P.Runner(RULES, CELLS, prof2))))
+        self.assertEqual(len(joint), len(a) + len(b))
 
     def test_csv_log_roundtrip(self):
         path = os.path.join(self.tmp, "dec.csv")

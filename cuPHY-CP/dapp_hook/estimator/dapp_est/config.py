@@ -87,12 +87,14 @@ class Profile:
             y = yaml.safe_load(f)
         self.path = path
         self.name = y["name"]
+        self.ctrl_name = str(y.get("ctrl_name") or self.name)[:8]   # name in the control block / RUN model=NAME
         self.framework = y.get("framework", "?")
         self.input_res = y.get("input_res")
         self.batches = [int(b) for b in y["batches"]]
         self.dur_ms = {int(b): {int(c): float(v) for c, v in d.items()} for b, d in y["dur_ms"].items()}
         self.sm_fill = {int(b): {int(c): float(v) for c, v in d.items()} for b, d in y.get("sm_fill", {}).items()}
         self.kernel_max_us = float(y.get("kernel_max_us", 100))
+        self.dec_ms = {int(b): {int(c): float(v) for c, v in d.items()} for b, d in (y.get("dec_ms") or {}).items()}
         self.status = y.get("status", {})
 
     @staticmethod

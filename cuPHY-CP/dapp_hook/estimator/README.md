@@ -4,8 +4,11 @@
 내용을 보고, 같은 GPU에서 MPS로 돌아가는 YOLO(세입자)에게
 **SM 상한 `cap_pct`** 와 **투입 허가 `gate_slots`** 를 정하는 규칙 기반 추정기다.
 ML은 쓰지 않고, cuPHY와 링 레코드 형식은 건드리지 않는다.
-출력은 공유메모리 제어 블록 `/dev/shm/aerial_dapp_ctrl`
-(`{gate_slots, cap_pct, slot_id}`, 레이아웃은 `include/dapp_hook/dapp_ctrl_abi.h`)에 쓴다.
+출력은 공유메모리 제어 블록 `/dev/shm/aerial_dapp_ctrl`(ABI 2, 128 B: 공통 `{slot_id, sfn, slot, ts_ns, n_decisions}`
++ 모델 엔트리 최대 4개 `{name, cap_pct, gate_slots}`, 레이아웃은 `include/dapp_hook/dapp_ctrl_abi.h`)에 쓴다.
+`live.py`/`replay.py`는 `--profile`을 여러 개 받아 프로필마다 decide를 돌리고 엔트리 하나씩 쓴다(2026-10-15).
+**역할 분리**: estimator는 "모델별로 무엇이 안전한가"(cap, gate)만 답하고, 어떤 모델을 쓸지는 `e2e/dispatcher.py`가 정한다.
+`dapp_sched --ctrl`은 요청의 `RUN model=NAME`에 해당하는 엔트리로 gate·cap을 판정한다.
 
 ```
 ring records ─► slot_context (셀 합산 GPU 컨텍스트) ─► estimator (규칙 a~g) ─► control block
@@ -171,6 +174,13 @@ replay와 live는 `proc_us`를 뺀 모든 열이 같다(`tests/test_pipeline.py`
 5. 전부 끝나면 `rules.yaml: provisional: false`.
 
 ## 한계 (현재)
+
+- 2026-10-15, 가짜 L1(16셀 x 6 UE, 실시간) 기준 live.py 슬롯당 처리: 프로필 1개 p50 42 / p99 570 µs, 프로필 3개(26x/26s/26n b8)
+  p50 75 / p99 604 µs(decide 30 → 61 µs). 50 µs 예산은 여전히 못 지킨다.
+- 26x b8의 `kernel_max_us`가 1,370 µs라 margin(1,400 µs)이 DL 마감 900 µs를 넘어 26x는 규칙상 항상 cap 0이다
+  (`is_safe`); 큰 모델을 쓰려면 D_c 실측이나 margin 규칙(c)의 재검토가 필요하다.
+- `sm_fill`(nsys time-fill)은 타일 경로의 디코드(NVJPG ~5 ms)·CPU 후처리 구간을 유휴로 세므로 작은 모델일수록 낮게 나온다
+  (26n 0.15~0.23, 26x 0.52~0.67).
 
 - live 모드는 순수 Python이다. 가짜 L1(`dapp_ring_fakel1`, 8셀×6UE, 실시간) 기준
   슬롯당 decide p50 ≈ 25 us, 레코드 1개인 슬롯은 총 35 us지만 PDU 레코드가 36개 들어오는

@@ -5,7 +5,7 @@ provisional: true
 
 slot_us: 500                # mu=1; the ring header's mu overrides this at run time
 sm_total: 132               # GH200
-caps_pct: [0, 20, 40, 60, 80]   # cap candidates offered to the tenant (100 is never offered)
+caps_pct: [0, 43, 61, 100]  # cap candidates offered to a tenant = the SM classes dapp_sched holds engines for (56 / 80 / 132 SM of 132); profiles/*.yaml dur_ms are measured at these caps
 
 # D_c: time budget per channel from the moment the slot's GPU work can start
 # (UL: order kernel done ~T0+0.3 ms; DL: task start at tick = T0 - 1.5 ms).

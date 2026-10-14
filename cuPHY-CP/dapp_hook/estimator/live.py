@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-live: poll the L1's shm ring, decide at every SLOT_END and publish
-{gate_slots, cap_pct, slot_id} in the control block. Pure Python (no numpy).
+live: poll the L1's shm ring, decide at every SLOT_END for every tenant profile given and publish
+one {name, cap_pct, gate_slots} entry per profile in the control block (ABI 2). Pure Python (no numpy).
 
-  python3 live.py --profile profiles/yolov8n_b1.yaml [--ring /aerial_dapp_ring] [--ctrl /aerial_dapp_ctrl]
+  python3 live.py --profile profiles/yolo26x_b8.yaml [--profile profiles/yolo26s_b8.yaml ...]
+                  [--ring /aerial_dapp_ring] [--ctrl /aerial_dapp_ctrl]
                   [--log out/decisions_live.csv] [--timing out/timing_live.csv] [--seconds N]
 
-Per slot it logs decode_us (ring records -> context), decide_us (rules a-g),
-log_us (decision-record CSV, debug only) and total_us = decode + decide; it
-warns when total_us exceeds rules.yaml live.budget_us.
+The estimator answers what is safe per model; which model runs is the dispatcher's choice
+(e2e/dispatcher.py --policy-source live reads the same block). Per slot it logs decode_us (ring
+records -> context), decide_us (rules a-g for all profiles), log_us (decision-record CSV, debug
+only) and total_us = decode + decide; it warns when total_us exceeds rules.yaml live.budget_us.
 """
 import argparse
 import csv
@@ -24,14 +26,14 @@ from dapp_est import decision_log as L      # noqa: E402
 from dapp_est import pipeline as P          # noqa: E402
 from dapp_est import ringio as R            # noqa: E402
 
-TIMING_FIELDS = ["ts_ns", "sfn", "slot", "n_records", "decode_us", "decide_us", "log_us", "total_us", "over_budget"]
+TIMING_FIELDS = ["ts_ns", "sfn", "slot", "n_records", "n_profiles", "decode_us", "decide_us", "log_us", "total_us", "over_budget"]
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ring", default="/aerial_dapp_ring")
     ap.add_argument("--ctrl", default=CB.DEFAULT_NAME)
-    ap.add_argument("--profile", required=True)
+    ap.add_argument("--profile", action="append", required=True, help="tenant profile yaml (repeatable, max 4)")
     ap.add_argument("--rules", default=C.DEFAULT_RULES)
     ap.add_argument("--cells", default=C.DEFAULT_CELLS)
     ap.add_argument("--log", default="")
@@ -41,10 +43,12 @@ def main():
     ap.add_argument("--spin", action="store_true", help="busy-poll instead of sleeping when idle")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
+    if len(a.profile) > CB.MAX_MODELS:
+        ap.error("at most %d profiles" % CB.MAX_MODELS)
 
     rules = C.Rules(a.rules)
     cells = C.Cells(a.cells)
-    profile = C.Profile(a.profile)
+    profiles = [C.Profile(p) for p in a.profile]
     ring = R.LiveRing(a.ring)
     if not a.from_start:
         ring.seek_to_head()
@@ -54,7 +58,7 @@ def main():
     tw = csv.DictWriter(tf, fieldnames=TIMING_FIELDS) if tf else None
     if tw:
         tw.writeheader()
-    runner = P.Runner(rules, cells, profile, mu=ring.header.mu, ctrl=ctrl, log=log)
+    runner = P.Runner(rules, cells, profiles, mu=ring.header.mu, ctrl=ctrl, log=log)
     budget = rules.live_budget_us
     idle = rules.live_idle_sleep_us / 1e6
 
@@ -62,9 +66,9 @@ def main():
     signal.signal(signal.SIGINT, lambda *_: stop.append(1))
     signal.signal(signal.SIGTERM, lambda *_: stop.append(1))
     t_end = time.monotonic() + a.seconds if a.seconds > 0 else None
-    print("live: ring %s gen=%d mu=%d slot_advance=%d cells=%d | profile %s | ctrl %s | budget %.0f us"
+    print("live: ring %s gen=%d mu=%d slot_advance=%d cells=%d | profiles %s (ctrl names %s) | ctrl %s | budget %.0f us"
           % (a.ring, ring.generation, ring.header.mu, ring.header.slot_advance, ring.header.num_cells,
-             profile.name, ctrl.path, budget))
+             " ".join(p.name for p in profiles), " ".join(p.ctrl_name for p in profiles), ctrl.path, budget), flush=True)
 
     slot_ns = 0                # time spent in next()+feed since the last decision
     slot_recs = 0
@@ -72,6 +76,7 @@ def main():
     n_over = 0
     last_warn = 0.0
     restarts = 0
+    n_slots = 0
     while not stop:
         if t_end and time.monotonic() >= t_end:
             break
@@ -92,26 +97,29 @@ def main():
         slot_recs += 1
         if not decs:
             continue
-        for d in decs:
-            decide_us = d["proc_us"]
-            log_us = runner.last_log_us
-            total_us = slot_ns / 1000.0 - log_us
-            over = total_us > budget
-            totals.append(total_us)
-            if over:
-                n_over += 1
-                now = time.monotonic()
-                if now - last_warn > 1.0:
-                    print("live: WARNING slot %d.%d took %.0f us (decode %.0f + decide %.0f) > budget %.0f us [%d records]"
-                          % (d["sfn"], d["slot"], total_us, total_us - decide_us, decide_us, budget, slot_recs))
-                    last_warn = now
-            if tw:
-                tw.writerow({"ts_ns": d["ts_ns"], "sfn": d["sfn"], "slot": d["slot"], "n_records": slot_recs,
-                             "decode_us": round(total_us - decide_us, 1), "decide_us": round(decide_us, 1),
-                             "log_us": round(log_us, 1), "total_us": round(total_us, 1), "over_budget": int(over)})
-            if not a.quiet and runner.n_decisions % 2000 == 0:
-                print("live: %d decisions | last %d.%d gate=%d cap=%d | %.0f us/slot | lost=%d"
-                      % (runner.n_decisions, d["sfn"], d["slot"], d["gate_slots"], d["cap_pct"], total_us, ring.lost))
+        d = decs[0]                                 # one slot: the records differ only in profile/cap/gate
+        n_slots += 1
+        decide_us = d["proc_us"]
+        log_us = runner.last_log_us
+        total_us = slot_ns / 1000.0 - log_us
+        over = total_us > budget
+        totals.append(total_us)
+        if over:
+            n_over += 1
+            now = time.monotonic()
+            if now - last_warn > 1.0:
+                print("live: WARNING slot %d.%d took %.0f us (decode %.0f + decide %.0f) > budget %.0f us [%d records]"
+                      % (d["sfn"], d["slot"], total_us, total_us - decide_us, decide_us, budget, slot_recs))
+                last_warn = now
+        if tw:
+            tw.writerow({"ts_ns": d["ts_ns"], "sfn": d["sfn"], "slot": d["slot"], "n_records": slot_recs,
+                         "n_profiles": len(decs), "decode_us": round(total_us - decide_us, 1),
+                         "decide_us": round(decide_us, 1), "log_us": round(log_us, 1), "total_us": round(total_us, 1),
+                         "over_budget": int(over)})
+        if not a.quiet and n_slots % 2000 == 0:
+            print("live: %d slots | last %d.%d %s | %.0f us/slot | lost=%d"
+                  % (n_slots, d["sfn"], d["slot"], " ".join("%s:gate=%d/cap=%d" % (x["profile"], x["gate_slots"], x["cap_pct"]) for x in decs),
+                     total_us, ring.lost), flush=True)
         slot_ns = 0
         slot_recs = 0
 
@@ -121,8 +129,8 @@ def main():
         tf.close()
     s = sorted(totals)
     if s:
-        print("live: done. %d decisions, %d ring records, lost=%d, restarts=%d | per-slot total us p50=%.0f p99=%.0f max=%.0f | over budget: %d (%.2f%%)"
-              % (len(s), runner.n_records, ring.lost, restarts, s[len(s) // 2], s[int(len(s) * 0.99)], s[-1],
+        print("live: done. %d slots x %d profiles, %d ring records, lost=%d, restarts=%d | per-slot total us p50=%.0f p99=%.0f max=%.0f | over budget: %d (%.2f%%)"
+              % (len(s), len(profiles), runner.n_records, ring.lost, restarts, s[len(s) // 2], s[int(len(s) * 0.99)], s[-1],
                  n_over, 100.0 * n_over / len(s)))
     else:
         print("live: done, no decisions (no traffic?)")

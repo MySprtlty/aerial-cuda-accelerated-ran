@@ -1,0 +1,19 @@
+# Model-selection rule of e2e/dispatcher.py (choose_model()). The estimator / control block only says what is
+# safe per model (cap_pct, gate_slots); this picks which model runs.
+rule: fixed                   # fixed | target
+#   fixed:  cap_26x >= 100 -> 26x; else 26s while its share of the last window_s < ratio_26s_max; else 26x
+#   target: the most accurate model whose predicted E2E fits target_e2e_ms:
+#           pred_e2e_m = queue_ahead x mean service time of the last service_window requests
+#                        + profiles/yolo26<m>_b8.yaml dur_ms[8][floor key of cap_m] + overhead_ms   (cap_m == 0: not a candidate)
+#           first of 26x, 26s, 26n with pred <= target, else the smallest pred
+#   both:   cap_26x == 0 or 26x's gate closed > gate_closed_ms -> 26n (26s once 26n's share >= ratio_26n_max);
+#           share safety caps over the last window_s: 26s <= ratio_26s_max (else 26x), 26n <= ratio_26n_max (else 26s)
+models: [26x, 26s, 26n]       # accuracy order = the index a client may force with --engine-sel
+window_s: 60
+ratio_26s_max: 0.6
+ratio_26n_max: 0.1
+gate_closed_ms: 100
+hold_retry_ms: 2000           # re-send RUN on HOLD (gate closed / block stale) for this long, then status 2
+target_e2e_ms: 67
+overhead_ms: 8                # decode (NVJPG ~5 ms) + C++ post-processing + hand-overs
+service_window: 20

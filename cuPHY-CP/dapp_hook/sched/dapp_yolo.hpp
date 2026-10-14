@@ -152,6 +152,8 @@ inline std::vector<Detection> yolo_postprocess(const float* out, int nc, int na,
 {
     struct Cand { float x1, y1, x2, y2, conf; int cls; };
     std::vector<Cand> cand;
+    static thread_local std::vector<float> best_buf;   // scratch of the row-wise class max (na floats)
+    static thread_local std::vector<int>   cls_buf;
     const int    stride     = 4 + nc;
     const size_t slot_elems = static_cast<size_t>(stride) * static_cast<size_t>(na);
     const float  fw = static_cast<float>(in.img_w), fh = static_cast<float>(in.img_h);
@@ -169,22 +171,45 @@ inline std::vector<Detection> yolo_postprocess(const float* out, int nc, int na,
         const float ox = static_cast<float>((in.net_w - nw) / 2);
         const float oy = static_cast<float>((in.net_h - nh) / 2);
         const float* o = out + slot_elems * static_cast<size_t>(s);
-        auto at = [&](int a, int k) -> float {
-            return anchors_first ? o[static_cast<size_t>(a) * stride + k]
-                                 : o[static_cast<size_t>(k) * na + a];
-        };
         auto mx = [&](float v) { return std::min(std::max((v - ox) / scale + rx, 0.f), fw); };
         auto my = [&](float v) { return std::min(std::max((v - oy) / scale + ry, 0.f), fh); };
-        for (int a = 0; a < na; ++a) {
-            int   best = 0;
-            float bs   = at(a, 4);
+        if (!anchors_first) {
+            // [4+nc][na]: class rows are contiguous, so take the max over classes row by row (vectorisable,
+            // sequential memory) instead of walking nc strided values per anchor (~20 ms per 4K tiled request)
+            std::vector<float>& best = best_buf;
+            std::vector<int>&   bcls = cls_buf;
+            best.assign(o + 4 * static_cast<size_t>(na), o + 5 * static_cast<size_t>(na));
+            bcls.assign(static_cast<size_t>(na), 0);
             for (int k = 1; k < nc; ++k) {
-                const float v = at(a, 4 + k);
-                if (v > bs) { bs = v; best = k; }
+                const float* row = o + static_cast<size_t>(4 + k) * na;
+                float* b = best.data();
+                int*   c = bcls.data();
+                for (int a = 0; a < na; ++a) {
+                    const float v = row[a];
+                    if (v > b[a]) { b[a] = v; c[a] = k; }
+                }
             }
-            if (bs < conf_thr) { continue; }
-            const float cx = at(a, 0), cy = at(a, 1), w = at(a, 2), h = at(a, 3);
-            cand.push_back(Cand{mx(cx - w / 2), my(cy - h / 2), mx(cx + w / 2), my(cy + h / 2), bs, best});
+            const float* cxr = o;
+            const float* cyr = o + static_cast<size_t>(na);
+            const float* wr  = o + 2 * static_cast<size_t>(na);
+            const float* hr  = o + 3 * static_cast<size_t>(na);
+            for (int a = 0; a < na; ++a) {
+                if (best[a] < conf_thr) { continue; }
+                cand.push_back(Cand{mx(cxr[a] - wr[a] / 2), my(cyr[a] - hr[a] / 2), mx(cxr[a] + wr[a] / 2), my(cyr[a] + hr[a] / 2),
+                                    best[a], bcls[a]});
+            }
+        } else {
+            // [na][4+nc]: one anchor's values are contiguous
+            for (int a = 0; a < na; ++a) {
+                const float* p = o + static_cast<size_t>(a) * stride;
+                int   best = 0;
+                float bs   = p[4];
+                for (int k = 1; k < nc; ++k) {
+                    if (p[4 + k] > bs) { bs = p[4 + k]; best = k; }
+                }
+                if (bs < conf_thr) { continue; }
+                cand.push_back(Cand{mx(p[0] - p[2] / 2), my(p[1] - p[3] / 2), mx(p[0] + p[2] / 2), my(p[1] + p[3] / 2), bs, best});
+            }
         }
     }
     std::sort(cand.begin(), cand.end(), [](const Cand& p, const Cand& q) { return p.conf > q.conf; });

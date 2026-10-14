@@ -22,15 +22,20 @@
  * reads back one reply line:
  *
  *     -> RUN [model=NAME] <image.jpg>    (YOLO; "RUN" alone uses --image, no model= = the first --engine model)
- *     <- OK sm=48 granted=48 pct=36.4 load=0.31 ms=1.9 pre_ms=4.1 dets=5 top=bus:0.87,person:0.85 capped=1 reason=moderate uplink model=26n net=1.5 dec=0.0
+ *     <- OK sm=48 granted=48 pct=36.4 load=0.31 ms=1.9 pre_ms=4.1 dets=5 top=bus:0.87,person:0.85 capped=1 reason=moderate uplink
+ *           model=26n net=1.5 dec=0.0 t_recv_ns=.. t_gate_pass_ns=.. t_start_ns=.. t_end_ns=..   (CLOCK_REALTIME: request read,
+ *           gate passed (= t_recv without --ctrl), decode/inference started, post-processing done)
  *     -> RUN <milliseconds_of_work>     (placeholder kernel)
  *     <- OK sm=48 granted=48 pct=36.4 load=0.31 ms=12.4 capped=1 reason=moderate uplink
  *
  * With --ctrl the SM budget comes from the estimator's control block
- * (estimator/live.py -> /dev/shm/aerial_dapp_ctrl, dapp_ctrl_abi.h) instead
- * of the built-in heuristic: cap_pct picks the SM class, and a closed gate
- * (gate_slots == 0), a stale block (older than --ctrl-max-age-ms) or a
- * missing block holds the request for up to --gate-wait-ms, then answers
+ * (estimator/live.py or e2e/dispatcher.py -> /dev/shm/aerial_dapp_ctrl, ABI 2
+ * in dapp_ctrl_abi.h: one {cap_pct, gate_slots} entry per model) instead of
+ * the built-in heuristic. The entry of the request's model (RUN model=NAME,
+ * else the default model) is used: its cap_pct picks the SM class, and a
+ * closed gate (gate_slots == 0), cap 0, a missing entry, a stale block (older
+ * than --ctrl-max-age-ms) or a missing block holds the request for up to
+ * --gate-wait-ms, then answers
  *
  *     <- HOLD gate=0 cap=40 slot_id=1234 age_us=812 reason=gate closed
  *     <- OK sm=53 granted=48 cap=40 gate=40 slot_id=1234 age_us=812 ms=0.91 pre_ms=4.1 dets=5 top=... capped=1 source=ctrl model=26n net=0.8 dec=0.0
@@ -112,6 +117,7 @@ struct InferResult {
     int         dets = 0;
     std::string top;             // "bus:0.87,person:0.85,..."
     std::string model;
+    int64_t     t_start_ns = 0, t_end_ns = 0;   // CLOCK_REALTIME: before decode/inference (context bound), after post-processing
     std::string err;
 };
 
@@ -270,15 +276,19 @@ static InferResult run_yolo(YoloRig& rig, const SmPool& pool, const SmPool::Slot
         // nvjpeg path: JPEG bytes (cached per path) -> NVJPG decode + letterbox/tiles straight into the engine input
         auto it = rig.bytes_cache.find(image);
         if (it == rig.bytes_cache.end()) {
-            std::ifstream f(image, std::ios::binary);
+            std::ifstream f(image, std::ios::binary | std::ios::ate);
             if (!f) { r.err = "cannot open " + image; return r; }
-            std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-            if (bytes.empty()) { r.err = image + " is empty"; return r; }
+            const std::streamsize n = f.tellg();
+            if (n <= 0) { r.err = image + " is empty"; return r; }
+            std::vector<unsigned char> bytes(static_cast<size_t>(n));
+            f.seekg(0);
+            if (!f.read(reinterpret_cast<char*>(bytes.data()), n)) { r.err = "cannot read " + image; return r; }
             if (rig.bytes_cache.size() >= 16) { rig.bytes_cache.clear(); }
             it = rig.bytes_cache.emplace(image, std::move(bytes)).first;
             r.pre_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         }
         if (!pool.bind(slot)) { r.err = "cannot bind the selected context"; return r; }
+        r.t_start_ns = CtrlReader::now_ns();
         std::string derr;
         if (!eng->decode(it->second.data(), it->second.size(), gpu_in, t.dec_ms, derr)) { r.err = derr; return r; }
         if (!eng->infer(nullptr, t)) { r.err = "inference failed"; return r; }
@@ -295,10 +305,12 @@ static InferResult run_yolo(YoloRig& rig, const SmPool& pool, const SmPool::Slot
             r.pre_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         }
         if (!pool.bind(slot)) { r.err = "cannot bind the selected context"; return r; }
+        r.t_start_ns = CtrlReader::now_ns();
         if (!eng->infer(it->second.chw.data(), t)) { r.err = "inference failed"; return r; }
         in = &it->second;
     }
     rig.last = eng->detections(*in, rig.conf, rig.iou, rig.max_det);
+    r.t_end_ns = CtrlReader::now_ns();
 
     r.ok     = true;
     r.gpu_ms = t.gpu_ms();
@@ -345,14 +357,17 @@ struct CtrlCfg {
     uint32_t    gate_wait_ms = 50;   // how long a request waits for the gate to open
 };
 
-// Reads the control block, waiting up to gate_wait_ms for a fresh, open gate.
-// Returns true with the block copied into cb when the tenant may run now.
-static bool ctrl_wait_for_gate(CtrlReader& rd, const CtrlCfg& cfg, dapp_ctrl_block& cb,
-                               int64_t& age_us, const char*& why)
+// Reads the control block, waiting up to gate_wait_ms for a fresh, open gate of
+// the model's entry (ABI 2: one entry per model; an empty model name takes
+// entry 0). Returns true with the block copied into cb and ent pointing at the
+// entry inside cb when the tenant may run now.
+static bool ctrl_wait_for_gate(CtrlReader& rd, const CtrlCfg& cfg, const std::string& model, dapp_ctrl_block& cb,
+                               dapp_ctrl_model& ent, int64_t& age_us, const char*& why)
 {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(cfg.gate_wait_ms);
     why = "ctrl block missing";
     age_us = -1;
+    ent = dapp_ctrl_model{};
     for (;;) {
         if (!rd.is_open()) {
             std::string err;
@@ -360,10 +375,17 @@ static bool ctrl_wait_for_gate(CtrlReader& rd, const CtrlCfg& cfg, dapp_ctrl_blo
         }
         if (rd.is_open() && rd.read(cb)) {
             age_us = (CtrlReader::now_ns() - static_cast<int64_t>(cb.ts_ns)) / 1000;
+            const dapp_ctrl_model* e = model.empty() ? (cb.n_models > 0 ? &cb.models[0] : nullptr)
+                                                     : CtrlReader::find_model(cb, model);
+            if (e) { ent = *e; }
             if (cb.n_decisions == 0)                                   { why = "no decision yet"; }
-            else if (age_us > static_cast<int64_t>(cfg.max_age_ms) * 1000) { why = "ctrl stale"; }
-            else if (cb.cap_pct == 0)                                  { why = "cap 0"; }
-            else if (cb.gate_slots == 0)                               { why = "gate closed"; }
+            else if (age_us > static_cast<int64_t>(cfg.max_age_ms) * 1000) {
+                why = "ctrl stale";
+                rd.close();     // the writer may have re-created the file (new inode): map it again next round
+            }
+            else if (!e)                                               { why = "no entry for model"; }
+            else if (e->cap_pct == 0)                                  { why = "cap 0"; }
+            else if (e->gate_slots == 0)                               { why = "gate closed"; }
             else                                                       { return true; }
         }
         if (std::chrono::steady_clock::now() >= deadline) { return false; }
@@ -433,32 +455,37 @@ static bool is_number(const std::string& s)
 static std::string handle_request(Shared* sh, const SmPool& pool, YoloRig& rig,
                                   const std::string& arg, const std::string& model_req,
                                   const std::string& default_image,
-                                  int work_ms, bool verbose, CtrlReader* ctrl, const CtrlCfg& ccfg)
+                                  int work_ms, bool verbose, CtrlReader* ctrl, const CtrlCfg& ccfg,
+                                  int64_t t_recv_ns)
 {
     const bool   stale = sh->stale.load();
     const double load  = sh->peak.load();
     const Decision d   = decide(sh->cfg, load, stale);
     sh->requests.fetch_add(1);
-    char buf[512];
+    char buf[640];
+    const std::string model = model_req.empty() ? rig.default_model : model_req;
 
-    // Budget: estimator control block (--ctrl) or the built-in heuristic.
+    // Budget: estimator control block (--ctrl, the entry of this model) or the built-in heuristic.
     uint32_t budget_sm = d.infer_sm;
     double   budget_pct = d.infer_pct;
     dapp_ctrl_block cb{};
+    dapp_ctrl_model ent{};
     int64_t  age_us = -1;
     if (ccfg.enabled) {
         const char* why = "";
-        if (!ctrl_wait_for_gate(*ctrl, ccfg, cb, age_us, why)) {
+        if (!ctrl_wait_for_gate(*ctrl, ccfg, model, cb, ent, age_us, why)) {
             sh->held.fetch_add(1);
-            std::snprintf(buf, sizeof(buf), "HOLD gate=%u cap=%u slot_id=%u age_us=%" PRId64 " reason=%s\n",
-                          cb.gate_slots, cb.cap_pct, cb.slot_id, age_us, why);
-            std::printf("[hold] gate=%u cap=%u slot_id=%u age_us=%" PRId64 " (%s)\n",
-                        cb.gate_slots, cb.cap_pct, cb.slot_id, age_us, why);
+            std::snprintf(buf, sizeof(buf), "HOLD gate=%u cap=%u slot_id=%u age_us=%" PRId64 " reason=%s model=%s"
+                          " t_recv_ns=%" PRId64 "\n",
+                          ent.gate_slots, ent.cap_pct, cb.slot_id, age_us, why, model.c_str(), t_recv_ns);
+            std::printf("[hold] model=%s gate=%u cap=%u slot_id=%u age_us=%" PRId64 " (%s)\n",
+                        model.c_str(), ent.gate_slots, ent.cap_pct, cb.slot_id, age_us, why);
             return std::string(buf);
         }
-        budget_sm  = (cb.cap_pct * pool.device_sm() + 50) / 100;
-        budget_pct = static_cast<double>(cb.cap_pct);
+        budget_sm  = (ent.cap_pct * pool.device_sm() + 50) / 100;
+        budget_pct = static_cast<double>(ent.cap_pct);
     }
+    const int64_t t_gate_pass_ns = CtrlReader::now_ns();
     const SmPool::Slot* slot = pool.pick(budget_sm);
     const uint32_t granted = slot ? slot->sm : pool.device_sm();
 
@@ -466,31 +493,32 @@ static std::string handle_request(Shared* sh, const SmPool& pool, YoloRig& rig,
     const bool want_yolo = rig.enabled && !is_number(arg);
     if (want_yolo) {
         const std::string image = arg.empty() ? default_image : arg;
-        const std::string model = model_req.empty() ? rig.default_model : model_req;
         if (image.empty()) { return "ERR no image given and no --image default\n"; }
         const InferResult r = run_yolo(rig, pool, slot, model, image);
         if (!r.ok) {
-            std::snprintf(buf, sizeof(buf), "ERR %s\n", r.err.c_str());
+            std::snprintf(buf, sizeof(buf), "ERR %s model=%s t_recv_ns=%" PRId64 "\n", r.err.c_str(), model.c_str(), t_recv_ns);
             return std::string(buf);
         }
         if (ccfg.enabled) {
             std::snprintf(buf, sizeof(buf),
                           "OK sm=%u granted=%u cap=%u gate=%u slot_id=%u age_us=%" PRId64
-                          " ms=%.2f pre_ms=%.1f dets=%d top=%s capped=%d source=ctrl model=%s net=%.2f dec=%.2f\n",
-                          budget_sm, granted, cb.cap_pct, cb.gate_slots, cb.slot_id, age_us, r.gpu_ms, r.pre_ms,
+                          " ms=%.2f pre_ms=%.1f dets=%d top=%s capped=%d source=ctrl model=%s net=%.2f dec=%.2f"
+                          " t_recv_ns=%" PRId64 " t_gate_pass_ns=%" PRId64 " t_start_ns=%" PRId64 " t_end_ns=%" PRId64 "\n",
+                          budget_sm, granted, ent.cap_pct, ent.gate_slots, cb.slot_id, age_us, r.gpu_ms, r.pre_ms,
                           r.dets, r.top.empty() ? "-" : r.top.c_str(), pool.capping_active() ? 1 : 0,
-                          r.model.c_str(), r.net_ms, r.dec_ms);
-            std::printf("[run ] ctrl cap=%u%% gate=%u slot_id=%u age=%" PRId64 "us -> budget=%u granted=%u"
-                        " -> %s %.2f ms gpu (net %.2f, dec %.2f), %d dets [%s]\n",
-                        cb.cap_pct, cb.gate_slots, cb.slot_id, age_us, budget_sm, granted, r.model.c_str(),
+                          r.model.c_str(), r.net_ms, r.dec_ms, t_recv_ns, t_gate_pass_ns, r.t_start_ns, r.t_end_ns);
+            std::printf("[run ] ctrl %s cap=%u%% gate=%u slot_id=%u age=%" PRId64 "us -> budget=%u granted=%u"
+                        " -> %.2f ms gpu (net %.2f, dec %.2f), %d dets [%s]\n",
+                        r.model.c_str(), ent.cap_pct, ent.gate_slots, cb.slot_id, age_us, budget_sm, granted,
                         r.gpu_ms, r.net_ms, r.dec_ms, r.dets, r.top.c_str());
         } else {
             std::snprintf(buf, sizeof(buf),
                           "OK sm=%u granted=%u pct=%.1f load=%.3f ms=%.2f pre_ms=%.1f dets=%d top=%s capped=%d reason=%s"
-                          " model=%s net=%.2f dec=%.2f\n",
+                          " model=%s net=%.2f dec=%.2f"
+                          " t_recv_ns=%" PRId64 " t_gate_pass_ns=%" PRId64 " t_start_ns=%" PRId64 " t_end_ns=%" PRId64 "\n",
                           d.infer_sm, granted, d.infer_pct, d.load, r.gpu_ms, r.pre_ms, r.dets,
                           r.top.empty() ? "-" : r.top.c_str(), pool.capping_active() ? 1 : 0, d.reason,
-                          r.model.c_str(), r.net_ms, r.dec_ms);
+                          r.model.c_str(), r.net_ms, r.dec_ms, t_recv_ns, t_gate_pass_ns, r.t_start_ns, r.t_end_ns);
             std::printf("[run ] budget=%u granted=%u load=%.3f%s -> %s %.2f ms gpu (net %.2f, dec %.2f), %d dets [%s]  (%s)\n",
                         d.infer_sm, granted, d.load, stale ? " STALE" : "", r.model.c_str(), r.gpu_ms, r.net_ms, r.dec_ms,
                         r.dets, r.top.c_str(), d.reason);
@@ -499,17 +527,17 @@ static std::string handle_request(Shared* sh, const SmPool& pool, YoloRig& rig,
         return std::string(buf);
     }
 #else
-    (void)rig; (void)model_req; (void)default_image; (void)verbose;
+    (void)rig; (void)default_image; (void)verbose; (void)t_gate_pass_ns;
 #endif
     const int ms_req = is_number(arg) ? std::atoi(arg.c_str()) : work_ms;
     const double ms = run_placeholder(pool, slot, ms_req > 0 ? ms_req : work_ms);
     if (ccfg.enabled) {
         std::snprintf(buf, sizeof(buf),
                       "OK sm=%u granted=%u cap=%u gate=%u slot_id=%u age_us=%" PRId64 " ms=%.1f capped=%d source=ctrl\n",
-                      budget_sm, granted, cb.cap_pct, cb.gate_slots, cb.slot_id, age_us, ms,
+                      budget_sm, granted, ent.cap_pct, ent.gate_slots, cb.slot_id, age_us, ms,
                       pool.capping_active() ? 1 : 0);
         std::printf("[run ] ctrl cap=%u%% gate=%u -> budget=%u granted=%u -> placeholder %.1f ms\n",
-                    cb.cap_pct, cb.gate_slots, budget_sm, granted, ms);
+                    ent.cap_pct, ent.gate_slots, budget_sm, granted, ms);
         return std::string(buf);
     }
     std::snprintf(buf, sizeof(buf),
@@ -759,7 +787,7 @@ int main(int argc, char** argv)
         std::printf("[self] %d synthetic inference requests\n", self_test);
         std::this_thread::sleep_for(std::chrono::milliseconds(300)); // let the ring attach
         for (int i = 0; i < self_test && !g_stop; ++i) {
-            handle_request(&sh, pool, rig, "", "", default_image, work_ms, verbose, &ctrl, ccfg);
+            handle_request(&sh, pool, rig, "", "", default_image, work_ms, verbose, &ctrl, ccfg, CtrlReader::now_ns());
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         g_stop = 1;
@@ -791,6 +819,7 @@ int main(int argc, char** argv)
     while (!g_stop) {
         const int fd = ::accept(srv, nullptr, nullptr);
         if (fd < 0) { if (g_stop) break; continue; }
+        const int64_t t_recv_ns = CtrlReader::now_ns();
         char req[512] = {0};
         const ssize_t n = ::read(fd, req, sizeof(req) - 1);
         std::string arg, model;
@@ -804,7 +833,7 @@ int main(int argc, char** argv)
                 else if (arg.empty())             { arg = tok; }
             }
         }
-        const std::string reply = handle_request(&sh, pool, rig, arg, model, default_image, work_ms, verbose, &ctrl, ccfg);
+        const std::string reply = handle_request(&sh, pool, rig, arg, model, default_image, work_ms, verbose, &ctrl, ccfg, t_recv_ns);
         (void)!::write(fd, reply.data(), reply.size());
         ::close(fd);
     }

@@ -52,7 +52,8 @@ def percentile(v, p):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--server", required=True, help="host:port")
-    ap.add_argument("--images", required=True, help="a JPEG file or a directory (uhd_*_q85.jpg are used round-robin)")
+    ap.add_argument("--images", required=True, help="a JPEG file or a directory (--glob files are used round-robin)")
+    ap.add_argument("--glob", default="uhd_*_q85.jpg", help="file pattern inside --images (e.g. uhd_*_q75.jpg for the ~1 MB set)")
     ap.add_argument("--rate", type=float, default=10.0, help="requests per second")
     ap.add_argument("--seconds", type=float, default=60.0)
     ap.add_argument("--arrivals", choices=["fixed", "poisson", "jitter"], default="fixed",
@@ -67,7 +68,7 @@ def main():
     a = ap.parse_args()
 
     if os.path.isdir(a.images):
-        files = sorted(glob.glob(os.path.join(a.images, "uhd_*_q85.jpg"))) or sorted(glob.glob(os.path.join(a.images, "*.jpg")))
+        files = sorted(glob.glob(os.path.join(a.images, a.glob))) or sorted(glob.glob(os.path.join(a.images, "*.jpg")))
     else:
         files = [a.images]
     if not files:

@@ -1,0 +1,18 @@
+# Tenant profile written by profile_tenant.py on 2026-10-14 17:48
+# source: dapp_sched --sweep 56=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26x_1280_b8_fp16_sm56.engine,80=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26x_1280_b8_fp16_sm80.engine,132=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26x_1280_b8_fp16_sm132.engine, caps [42, 61, 100] = SM classes [56, 80, 132], image uhd_0_q85.jpg
+name: yolo26x_b8
+ctrl_name: 26x
+framework: tensorrt
+input_res: 1280
+batches: [8]
+# dur_ms[batch][cap]: median GPU time (h2d + network + d2h) of 22 runs per cap, first 2 excluded. status: measured
+dur_ms:
+  8: {43: 42.030, 61: 31.850, 100: 23.710}
+# dec_ms[batch][cap]: nvjpeg decode + tiles of the tiled path (NVJPG engines, cap independent), not in dur_ms
+dec_ms:
+  8: {43: 5.340, 61: 5.270, 100: 5.230}
+# sm_fill[batch][cap]: status: nsys_time_fill
+sm_fill:
+  8: {43: 0.665, 61: 0.596, 100: 0.518}
+kernel_max_us: 1370.0        # status: nsys
+status: {dur_ms: measured, sm_fill: nsys_time_fill, kernel_max_us: nsys}

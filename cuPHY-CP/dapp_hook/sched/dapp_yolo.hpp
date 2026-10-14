@@ -1,7 +1,13 @@
 /*
  * dapp_yolo: TensorRT runner for a YOLO detection engine (ultralytics v8/11/26
- * export: input [N,3,H,W] float RGB in [0,1], output [N,4+nc,A] with xywh
- * boxes in input pixels and per-class scores).
+ * export: input [N,3,H,W] float RGB in [0,1]). Two output heads are accepted:
+ *   raw      [N,4+nc,A] (or [N,A,4+nc]): xywh boxes in input pixels + per-class
+ *            scores for every anchor; the CPU takes the class max, thresholds
+ *            and runs a class-aware NMS
+ *   end2end  [N,K,6]: the YOLO26 NMS-free head (export nms=False): the K best
+ *            boxes per image as x1,y1,x2,y2,score,class; the CPU only thresholds,
+ *            maps each slot's boxes through its ROI and merges the duplicates
+ *            that different tiles see of the same object.
  *
  * One YoloEngine per CUDA context. TensorRT allocates its device memory in the
  * context that is current when the engine is deserialised, so a scheduler that
@@ -240,6 +246,61 @@ inline std::vector<Detection> yolo_postprocess(const float* out, int nc, int na,
     return res;
 }
 
+// End-to-end head: per slot the K boxes [x1,y1,x2,y2,score,class] are already one-to-one, so only the
+// threshold, the slot ROI mapping and a class-aware NMS BETWEEN slots (tile overlaps and the global views
+// see the same object) are left. Boxes of the same slot never suppress each other.
+inline std::vector<Detection> yolo_postprocess_e2e(const float* out, int k_per_slot, const YoloInput& in,
+                                                   float conf_thr, float iou_thr, int max_det = 300)
+{
+    struct Cand { float x1, y1, x2, y2, conf; int cls, slot; };
+    std::vector<Cand> cand;
+    const float fw = static_cast<float>(in.img_w), fh = static_cast<float>(in.img_h);
+    for (int s = 0; s < in.batch; ++s) {
+        const int* roi = &in.rois[static_cast<size_t>(4) * s];
+        bool dup = false;
+        for (int t = 0; t < s && !dup; ++t) { dup = std::equal(roi, roi + 4, &in.rois[static_cast<size_t>(4) * t]); }
+        if (dup) { continue; }
+        const int   rx = roi[0], ry = roi[1], rw = roi[2], rh = roi[3];
+        const float scale = std::min(static_cast<float>(in.net_w) / static_cast<float>(rw),
+                                     static_cast<float>(in.net_h) / static_cast<float>(rh));
+        const int   nw = static_cast<int>(std::lround(rw * scale));
+        const int   nh = static_cast<int>(std::lround(rh * scale));
+        const float ox = static_cast<float>((in.net_w - nw) / 2);
+        const float oy = static_cast<float>((in.net_h - nh) / 2);
+        auto mx = [&](float v) { return std::min(std::max((v - ox) / scale + rx, 0.f), fw); };
+        auto my = [&](float v) { return std::min(std::max((v - oy) / scale + ry, 0.f), fh); };
+        const float* o = out + static_cast<size_t>(s) * k_per_slot * 6;
+        for (int k = 0; k < k_per_slot; ++k) {
+            const float* p = o + static_cast<size_t>(k) * 6;
+            if (p[4] < conf_thr) { continue; }      // the head sorts by score: the rest of this slot is below too
+            cand.push_back(Cand{mx(p[0]), my(p[1]), mx(p[2]), my(p[3]), p[4], static_cast<int>(p[5] + 0.5f), s});
+        }
+    }
+    std::sort(cand.begin(), cand.end(), [](const Cand& p, const Cand& q) { return p.conf > q.conf; });
+    auto iou = [](const Cand& p, const Cand& q) {
+        const float ix = std::max(0.f, std::min(p.x2, q.x2) - std::max(p.x1, q.x1));
+        const float iy = std::max(0.f, std::min(p.y2, q.y2) - std::max(p.y1, q.y1));
+        const float inter = ix * iy;
+        const float uni = (p.x2 - p.x1) * (p.y2 - p.y1) + (q.x2 - q.x1) * (q.y2 - q.y1) - inter;
+        return uni > 0.f ? inter / uni : 0.f;
+    };
+    std::vector<Detection> res;
+    std::vector<char> dead(cand.size(), 0);
+    for (size_t i = 0; i < cand.size() && static_cast<int>(res.size()) < max_det; ++i) {
+        if (dead[i]) { continue; }
+        for (size_t j = i + 1; j < cand.size(); ++j) {
+            if (!dead[j] && cand[j].slot != cand[i].slot && cand[j].cls == cand[i].cls && iou(cand[i], cand[j]) > iou_thr) { dead[j] = 1; }
+        }
+        Detection d;
+        d.cls  = cand[i].cls;
+        d.conf = cand[i].conf;
+        d.x1 = cand[i].x1; d.y1 = cand[i].y1;
+        d.x2 = cand[i].x2; d.y2 = cand[i].y2;
+        res.push_back(d);
+    }
+    return res;
+}
+
 // ---------------------------------------------------------------------------
 // Engine bound to the CUDA context that is current at load()
 // ---------------------------------------------------------------------------
@@ -286,14 +347,18 @@ public:
                 net_w_ = static_cast<int>(dims.d[3]);
             } else {
                 if (dims.nbDims != 3 || dims.d[0] < 1) {
-                    err = std::string("unexpected output shape for ") + name + " (want [N,4+nc,A] or [N,A,4+nc])";
+                    err = std::string("unexpected output shape for ") + name + " (want [N,4+nc,A], [N,A,4+nc] or [N,K,6])";
                     return false;
                 }
                 out_name_ = name;
                 out_batch_ = static_cast<int>(dims.d[0]);
-                // ultralytics exports [N, 4+nc, A]; some converters transpose it
-                if (dims.d[1] < dims.d[2]) { anchors_first_ = false; nc_ = static_cast<int>(dims.d[1]) - 4; na_ = static_cast<int>(dims.d[2]); }
-                else                       { anchors_first_ = true;  na_ = static_cast<int>(dims.d[1]);     nc_ = static_cast<int>(dims.d[2]) - 4; }
+                if (dims.d[2] == 6) {
+                    // YOLO26 end-to-end head: K boxes per image, x1,y1,x2,y2,score,class
+                    e2e_ = true;
+                    na_  = static_cast<int>(dims.d[1]);
+                    nc_  = 80;
+                } else if (dims.d[1] < dims.d[2]) { anchors_first_ = false; nc_ = static_cast<int>(dims.d[1]) - 4; na_ = static_cast<int>(dims.d[2]); }   // ultralytics [N, 4+nc, A]
+                else                              { anchors_first_ = true;  na_ = static_cast<int>(dims.d[1]);     nc_ = static_cast<int>(dims.d[2]) - 4; }   // transposed
                 out_slot_elems_ = static_cast<size_t>(dims.d[1]) * static_cast<size_t>(dims.d[2]);
             }
         }
@@ -395,8 +460,11 @@ public:
 
     std::vector<Detection> detections(const YoloInput& in, float conf, float iou, int max_det = 300) const
     {
+        if (e2e_) { return yolo_postprocess_e2e(h_out_, na_, in, conf, iou, max_det); }
         return yolo_postprocess(h_out_, nc_, na_, anchors_first_, in, conf, iou, max_det);
     }
+    bool end2end() const { return e2e_; }        // [N,K,6] head
+    const char* head() const { return e2e_ ? "end2end" : "raw"; }
 
     // Call with the engine's CUDA context current, before that context dies.
     void release()
@@ -449,7 +517,7 @@ private:
     std::unique_ptr<nvinfer1::IExecutionContext> ctx_;
     std::string  in_name_, out_name_;
     int          net_w_ = 0, net_h_ = 0, nc_ = 0, na_ = 0, batch_ = 1, out_batch_ = 1;
-    bool         anchors_first_ = false;
+    bool         anchors_first_ = false, e2e_ = false;
     size_t       in_elems_ = 0, out_elems_ = 0, out_slot_elems_ = 0;
     void*        d_in_ = nullptr;
     void*        d_out_ = nullptr;

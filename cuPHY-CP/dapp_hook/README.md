@@ -349,6 +349,17 @@ GPU time, `net=mean/p99`, `h2d`, `d2h` and `dec` means and the detections of
 the first class; the first `--sweep-skip` runs (default 2) are left out of the
 statistics.
 
+**Output heads.** Two engine outputs are accepted (`dapp_yolo.hpp`): the raw
+one-to-many head `[N,4+nc,A]` (class max, threshold and class-aware NMS on the
+CPU, ~8 ms per 4K tiled request after the row-wise scan) and the YOLO26
+**end-to-end (NMS-free) head `[N,K,6]`** = `x1,y1,x2,y2,score,class` per image
+(`export_1280.py --nms-free`, ultralytics `nms=False`, `max_det` 300; engines
+`*_b8_e2e_fp16_sm<N>.engine` via `ONNX_SUFFIX=_e2e build_engines.sh`). With the
+end-to-end head the CPU only thresholds, maps each slot's boxes through its
+ROI and merges the duplicates that different tiles see of the same object
+(class-aware NMS between slots only): ~0.05 ms per request. The log line of
+every engine says `raw head` or `end2end head`.
+
 Measured 2026-10-15, batch-8 SM-class engines, 4K street frame (uhd_0_q85.jpg,
 3840x2160 -> 6 tiles + 2 global views), MPS on, no L1, 100 runs per cell
 (first 2 excluded), each class with the engine built for it:

@@ -73,6 +73,9 @@ python3 ../tools/req_summary.py disp.csv            # req/s, E2E 평균/p99, 대
 ```
 
 요청별 CSV(ns, CLOCK_REALTIME): `t_arrival, t_enqueue, t_dequeue, t_shm_written, t_sent_to_sched, t_sched_recv, t_gate_pass, t_start, t_end, t_reply,
-model, cap_26x/26s/26n, gate_slots, chosen_reason, queue_depth, n_det, n_hold, status`. 이미지 집합은 `--glob uhd_*_q75.jpg`(1.4~1.9 MB) /
+model, cap_26x/26s/26n, gate_slots, chosen_reason, queue_depth, n_det, n_hold, status, pred_e2e_26x/26s/26n`.
+`--force-model 26x`는 규칙을 무시하고 모델을 고정한다(SafeCap 스윕). target 규칙의 overhead는 기본 `overhead_mode: measured`
+(프로필 `dec_ms[cap]` + 최근 20개 요청의 실측 비GPU·비디코드 구간 평균), `fixed`면 `overhead_ms` 상수.
+클라이언트 `--arrivals closed`는 closed loop(응답을 받는 즉시 다음 요청, 동시 1개). 이미지 집합은 `--glob uhd_*_q75.jpg`(1.4~1.9 MB) /
 `uhd_*_q60.jpg`(0.8~1.2 MB)로 고른다(UE 업링크 시간 비교용). 측정값은 `sweep/results/e2e_prep/dispatcher_*.txt` 대신 이 대화·README에 기록.
 

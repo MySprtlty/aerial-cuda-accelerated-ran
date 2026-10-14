@@ -6,6 +6,7 @@ letterboxed 1x3x1280x1280 float32 input the tenant worker copies H2D for every i
 
 Runs on the host in the dapp_yolo venv (CPU torch):
     /home/troy/.venvs/dapp_yolo/bin/python export_1280.py [--models yolo26n yolo26s yolo26x] [--imgsz 1280]
+    ... --batches 8 --nms-free [--max-det 300]     # end-to-end head: <model>_1280_b8_e2e.onnx, output [8, 300, 6]
 Engines are then built inside the container: build_engines.sh with MODELS="yolo26n_1280 ..." (same cap loop).
 """
 import argparse
@@ -36,18 +37,24 @@ def main():
     ap.add_argument("--models", nargs="+", default=["yolo26n", "yolo26s", "yolo26x"])
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--batches", nargs="+", type=int, default=[1, 8])
+    ap.add_argument("--nms-free", action="store_true", help="export the YOLO26 end-to-end (one-to-one, NMS-free) head: "
+                    "output [N, max_det, 6] = xyxy, score, class; file suffix _e2e")
+    ap.add_argument("--max-det", type=int, default=300, help="--nms-free: detections per image kept by the head's top-k")
     a = ap.parse_args()
     here = pathlib.Path(__file__).resolve().parent
     os.chdir(here)
     from ultralytics import YOLO
     for m in a.models:
         for b in a.batches:
-            dst = here / ("%s_%d_b%d.onnx" % (m, a.imgsz, b))
+            dst = here / ("%s_%d_b%d%s.onnx" % (m, a.imgsz, b, "_e2e" if a.nms_free else ""))
             if dst.exists() and dst.stat().st_size > 0:
                 print("have", dst.name)
                 continue
             model = YOLO("%s.pt" % m)
-            p = model.export(format="onnx", imgsz=a.imgsz, batch=b, opset=17, simplify=True, dynamic=False, half=False)
+            kw = {}
+            if a.nms_free:
+                kw = {"nms": False, "max_det": a.max_det}      # ultralytics >= 8.3: nms=False = NMS-free end-to-end head
+            p = model.export(format="onnx", imgsz=a.imgsz, batch=b, opset=17, simplify=True, dynamic=False, half=False, **kw)
             shutil.move(p, dst)
             print("onnx:", dst.name, dst.stat().st_size)
     npy = here / ("bus_%d.npy" % a.imgsz)

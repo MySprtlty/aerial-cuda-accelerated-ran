@@ -15,5 +15,6 @@ ratio_26n_max: 0.1
 gate_closed_ms: 100
 hold_retry_ms: 2000           # re-send RUN on HOLD (gate closed / block stale) for this long, then status 2
 target_e2e_ms: 67
-overhead_ms: 8                # decode (NVJPG ~5 ms) + C++ post-processing + hand-overs
+overhead_mode: measured       # measured: profile dec_ms[cap] + mean (post-processing + hand-overs) of the last service_window requests; fixed: overhead_ms
+overhead_ms: 8                # fixed mode / fallback before any request finished
 service_window: 20

@@ -193,10 +193,10 @@ static bool yolo_init(YoloRig& rig, const SmPool& pool, const std::vector<Engine
                 err = "model " + m.name + " SM " + std::to_string(slot_sm) + " (" + path + "): " + err;
                 return false;
             }
-            std::printf("            yolo: model %-6s %s SM %3u <- %s (%s, batch %d, %dx%d%s)\n",
+            std::printf("            yolo: model %-6s %s SM %3u <- %s (%s, batch %d, %dx%d%s, %s head)\n",
                         m.name.c_str(), ctx_name, slot_sm, base_name(path).c_str(),
                         key == slot_sm ? "exact" : ("built for " + std::to_string(key) + " SM").c_str(),
-                        eng->batch(), eng->net_w(), eng->net_h(), eng->has_decoder() ? ", nvjpeg tiled" : ", cpu letterbox");
+                        eng->batch(), eng->net_w(), eng->net_h(), eng->has_decoder() ? ", nvjpeg tiled" : ", cpu letterbox", eng->head());
             if (key != slot_sm) {
                 std::fprintf(stderr, "warning: model %s has no engine built for the %u SM class; using the SM %u engine %s\n",
                              m.name.c_str(), slot_sm, key, base_name(path).c_str());
@@ -581,7 +581,8 @@ static int run_sweep(YoloRig& rig, const SmPool& pool, const std::string& image,
     if (!pool.capping_active()) { targets.push_back(nullptr); }
     for (auto& kv : rig.models) {
         ModelRig& m = kv.second;
-        std::printf("[sweep] model=%s batch=%d input=%dx%d\n", m.name.c_str(), m.batch, m.net_w, m.net_h);
+        std::printf("[sweep] model=%s batch=%d input=%dx%d head=%s\n", m.name.c_str(), m.batch, m.net_w, m.net_h,
+                    (m.fallback ? m.fallback.get() : [&]{ for (auto& e : m.per_slot) { if (e) return e.get(); } return (YoloEngine*)nullptr; }())->head());
         bool printed = false;
         for (const SmPool::Slot* slot : targets) {
             if (!engine_for(m, pool, slot)) { continue; }

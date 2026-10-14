@@ -29,7 +29,10 @@ Rules (policy.yaml `rule`):
           cap_m > 0, pred_e2e_m = queue_ahead x mean service time of the last service_window requests
           + profiles/yolo26<m>_b8.yaml dur_ms[8][floor key of cap_m] + overhead_ms; the first of 26x, 26s, 26n
           with pred <= target, else the candidate with the smallest pred. queue_ahead = requests ahead of this
-          one when it arrived (waiting + in service); service time = t_reply - t_dequeue of finished requests.
+          one when it arrived (waiting + in service); service time = t_reply - t_dequeue of finished requests;
+          overhead_ms (overhead_mode measured) = profile dec_ms[cap] + mean over the last service_window requests
+          of what they spent outside decode and GPU (E2E - wait - dec - gpu), fixed = the constant overhead_ms.
+  --force-model M  ignores the rule (SafeCap sweeps).
   both    cap_26x == 0 or 26x's gate closed > gate_closed_ms -> 26n (26s once 26n's share >= ratio_26n_max);
           safety caps on the shares of the last window_s: 26s <= ratio_26s_max (else 26x), 26n <= ratio_26n_max
           (else 26s).
@@ -77,7 +80,8 @@ DEFAULT_POLICY = {
     "gate_closed_ms": 100.0,              # E: 26x's gate closed for longer than this = fall back to 26n
     "hold_retry_ms": 2000.0,              # keep re-sending RUN on HOLD for this long, then give up (status 2)
     "target_e2e_ms": 67.0,                # target rule: predicted E2E budget
-    "overhead_ms": 8.0,                   # target rule: decode + post-processing + dispatcher/dapp_sched hand-overs
+    "overhead_ms": 8.0,                   # target rule: fallback until measured: decode + post-processing + hand-overs
+    "overhead_mode": "measured",          # measured: profile dec_ms[cap] + mean(post + hand-overs) of the last service_window requests | fixed: overhead_ms
     "service_window": 20,                 # target rule: mean service time over the last N finished requests
     "profiles_dir": os.path.join(HERE, "..", "estimator", "profiles"),
     "profile_batch": 8,
@@ -89,7 +93,7 @@ def now_ns():
 
 
 def load_profiles(cfg, models):
-    """{model: {cap: dur_ms}} from profiles/yolo26<m>_b8.yaml (PyYAML)."""
+    """{model: {"dur": {cap: dur_ms}, "dec": {cap: dec_ms}}} from profiles/yolo26<m>_b8.yaml (PyYAML)."""
     out = {}
     if yaml is None:
         return out
@@ -99,9 +103,11 @@ def load_profiles(cfg, models):
             continue
         with open(p) as f:
             y = yaml.safe_load(f)
-        d = y.get("dur_ms", {}).get(cfg["profile_batch"]) or y.get("dur_ms", {}).get(str(cfg["profile_batch"]))
+        b = cfg["profile_batch"]
+        d = (y.get("dur_ms") or {}).get(b) or (y.get("dur_ms") or {}).get(str(b))
+        e = (y.get("dec_ms") or {}).get(b) or (y.get("dec_ms") or {}).get(str(b)) or {}
         if d:
-            out[m] = {int(k): float(v) for k, v in d.items()}
+            out[m] = {"dur": {int(k): float(v) for k, v in d.items()}, "dec": {int(k): float(v) for k, v in e.items()}}
     return out
 
 
@@ -121,6 +127,7 @@ class History:
         self.dq = deque()                  # (t_ns, model)
         self.gate_open_since = {}          # model -> t_ns of the last time its gate was seen open
         self.service = deque(maxlen=max(1, int(service_window)))   # ms, finished requests
+        self.overhead = deque(maxlen=max(1, int(service_window)))  # ms, post-processing + hand-overs of finished requests
 
     def add(self, t, model):
         self.dq.append((t, model))
@@ -150,6 +157,12 @@ class History:
     def mean_service(self, default_ms):
         return sum(self.service) / len(self.service) if self.service else default_ms
 
+    def add_overhead(self, ms):
+        self.overhead.append(ms)
+
+    def mean_overhead(self, default_ms):
+        return sum(self.overhead) / len(self.overhead) if self.overhead else default_ms
+
 
 def choose_model(entries, hist, t, cfg, profiles=None, queue_ahead=0):
     """entries: {model: (cap_pct, gate_slots)}; returns (model, reason, {model: pred_e2e_ms})."""
@@ -167,11 +180,19 @@ def choose_model(entries, hist, t, cfg, profiles=None, queue_ahead=0):
         # predicted E2E per candidate model
         svc = hist.mean_service(cfg["overhead_ms"] + 30.0)
         wait = queue_ahead * svc
+        measured = cfg.get("overhead_mode", "measured") == "measured"
         for m in cfg["models"]:
             cap = entries.get(m, (0, 0))[0]
             if cap <= 0 or m not in (profiles or {}):
                 continue
-            preds[m] = wait + dur_at_cap(profiles[m], cap) + cfg["overhead_ms"]
+            prof = profiles[m]
+            if measured:
+                # decode from the profile (NVJPG, cap independent) + what the last requests spent outside decode and GPU
+                dec = dur_at_cap(prof["dec"], cap) if prof["dec"] else 5.3
+                ovh = dec + hist.mean_overhead(cfg["overhead_ms"] - 5.3)
+            else:
+                ovh = cfg["overhead_ms"]
+            preds[m] = wait + dur_at_cap(prof["dur"], cap) + ovh
         if not preds:
             return "26n", "target: no candidate with cap > 0 and a profile -> 26n", preds
         target = cfg["target_e2e_ms"]
@@ -184,7 +205,8 @@ def choose_model(entries, hist, t, cfg, profiles=None, queue_ahead=0):
             chosen = min(preds, key=preds.get)
             why = "target: none <= %.0f ms, min pred %s %.1f" % (target, chosen, preds[chosen])
         else:
-            why = "target: %s pred %.1f <= %.0f ms (ahead %d x %.1f)" % (chosen, preds[chosen], target, queue_ahead, svc)
+            why = "target: %s pred %.1f <= %.0f ms (ahead %d x %.1f, ovh %.1f)" % (chosen, preds[chosen], target, queue_ahead, svc,
+                                                                                  preds[chosen] - wait - dur_at_cap(profiles[chosen]["dur"], entries[chosen][0]))
     else:
         if cx >= 100:
             return "26x", "cap_26x=100", preds
@@ -336,6 +358,8 @@ def main():
     ap.add_argument("--shm-dir", default="/dev/shm")
     ap.add_argument("--sched-timeout", type=float, default=30.0)
     ap.add_argument("--rule", choices=["fixed", "target"], default=None, help="override policy.yaml")
+    ap.add_argument("--force-model", default="", help="ignore the rule and always run this model (SafeCap sweeps)")
+    ap.add_argument("--overhead-mode", choices=["measured", "fixed"], default=None)
     ap.add_argument("--target-e2e-ms", type=float, default=None)
     ap.add_argument("--overhead-ms", type=float, default=None)
     ap.add_argument("--ratio-26s-max", type=float, default=None)
@@ -348,7 +372,7 @@ def main():
     if yaml is not None and os.path.exists(a.policy):
         with open(a.policy) as f:
             cfg.update(yaml.safe_load(f) or {})
-    for k, v in (("rule", a.rule), ("target_e2e_ms", a.target_e2e_ms), ("overhead_ms", a.overhead_ms),
+    for k, v in (("rule", a.rule), ("target_e2e_ms", a.target_e2e_ms), ("overhead_ms", a.overhead_ms), ("overhead_mode", a.overhead_mode),
                  ("ratio_26s_max", a.ratio_26s_max), ("ratio_26n_max", a.ratio_26n_max), ("window_s", a.window_s),
                  ("gate_closed_ms", a.gate_closed_ms)):
         if v is not None:
@@ -403,7 +427,9 @@ def main():
                 stats["busy"] += 1
             ent = source.entries(t_deq)
             with hist_lock:
-                if sel != SEL_POLICY and 0 <= sel < len(models):
+                if a.force_model:
+                    model, reason, preds = a.force_model, "forced", {}
+                elif sel != SEL_POLICY and 0 <= sel < len(models):
                     model, reason, preds = models[sel], "client sel %d" % sel, {}
                 else:
                     model, reason, preds = choose_model(ent, hist, t_deq, cfg, profiles, ahead)
@@ -452,6 +478,8 @@ def main():
             with hist_lock:
                 stats["busy"] -= 1
                 hist.add_service((t_reply - t_deq) / 1e6)
+                if status == 0:
+                    hist.add_overhead((t_reply - t_arrival) / 1e6 - (t_deq - t_enqueue) / 1e6 - dec_ms - gpu_ms)
             stats["served"] += 1
             stats["held"] += n_hold
             if status:
@@ -512,8 +540,8 @@ def main():
             pass
     signal.signal(signal.SIGINT, _sig)
     signal.signal(signal.SIGTERM, _sig)
-    print("dispatcher: listening on %s:%d -> %s | policy %s rule %s (%s) models %s | inflight %d | log %s" % (
-        a.bind, a.port, a.sched_sock, a.policy_source, cfg["rule"],
+    print("dispatcher: listening on %s:%d -> %s | policy %s rule %s%s (%s) models %s | inflight %d | log %s" % (
+        a.bind, a.port, a.sched_sock, a.policy_source, cfg["rule"], (" FORCED " + a.force_model) if a.force_model else "",
         {k: cfg[k] for k in ("window_s", "ratio_26s_max", "ratio_26n_max", "gate_closed_ms", "target_e2e_ms", "overhead_ms")},
         models, a.inflight, a.log or "-"), flush=True)
     try:

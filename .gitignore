@@ -26,6 +26,7 @@ cuPHY-CP/cuphycontroller/config/out.txt
 cuPHY-CP/dapp_hook/models/*
 !cuPHY-CP/dapp_hook/models/export_yolo.py
 !cuPHY-CP/dapp_hook/models/export_1280.py
+!cuPHY-CP/dapp_hook/models/mps_sm_probe.py
 !cuPHY-CP/dapp_hook/models/build_engines.sh
 !cuPHY-CP/dapp_hook/models/build_engines_mig.sh
 

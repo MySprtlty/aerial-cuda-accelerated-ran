@@ -180,7 +180,7 @@ cd cuPHY-CP/dapp_hook/models
 ~/.venvs/dapp_yolo/bin/python -c "from ultralytics import YOLO; YOLO('yolo26n.pt'); YOLO('yolo26x.pt')"
 for m in yolo26n yolo26x; do for b in 1 8; do ~/.venvs/dapp_yolo/bin/yolo export model=$m.pt format=onnx imgsz=640 batch=$b device=cpu; mv $m.onnx ${m}_b$b.onnx; done; done
 ~/.venvs/dapp_yolo/bin/python export_1280.py          # 1280 입력판: yolo26{n,s,x}_1280_b{1,8}.onnx, bus_1280.npy (4K 입력용, FLOPs 4배)
-# 컨테이너: FP16 엔진. 반드시 작은 cap 아래서 빌드 (전체 GPU에서 빌드한 엔진은 48 SM 이하 파티션에서 실행 실패)
+# 컨테이너: FP16 엔진. (모델, 배치, cap)마다 하나: 엔진은 빌드할 때 본 SM 수 근처에서만 돈다 (matrix.yaml 주석, 메인 README "Engines and SM classes")
 docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=10 c_aerial_troy \
   /usr/src/tensorrt/bin/trtexec --onnx=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_b1.onnx --fp16 \
   --saveEngine=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_b1_fp16_atp10.engine --skipInference

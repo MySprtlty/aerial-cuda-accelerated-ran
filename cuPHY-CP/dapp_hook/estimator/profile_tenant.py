@@ -6,7 +6,10 @@ profile_tenant: measure a tenant profile (profiles/<name>.yaml) for the estimato
   sm_fill[batch][cap] fraction of the cap the tenant really keeps busy   (nsys, else "default")
   kernel_max_us       longest single kernel                               (nsys, else "default")
 
-TensorRT (preferred): runs dapp_sched --sweep with one SM class per cap
+TensorRT (preferred): runs dapp_sched --sweep with one SM class per cap. --engine is ONE file keyed to every
+class (dapp_sched --engine prof:<sm>=<file> per class); an engine only runs near the SM count it was built for
+(README "Engines and SM classes"), so give --engine-sm "56=a.engine,80=b.engine,132=c.engine" to use per-class
+engines instead (the class picks the largest key <= its SM count).
     python3 profile_tenant.py --name yolov8n_b1 --batch 1 --engine models/yolov8n_fp16_sm16.engine \
         --image tools/bus.jpg --sched ../../../build.aarch64/cuPHY-CP/dapp_hook/dapp_sched --out profiles/yolov8n_b1.yaml
 PyTorch fallback: runs ultralytics under CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=<cap> per cap
@@ -102,6 +105,13 @@ def with_nsys(cmd, workdir, tag):
     return out, kmax, fill
 
 
+def engine_args(a, sms):
+    """dapp_sched --engine NAME:SM=file arguments: one file for every class (--engine) or per-class files (--engine-sm)."""
+    if a.engine_sm:
+        return sum((["--engine", "prof:%s" % kv.strip()] for kv in a.engine_sm.split(",") if kv.strip()), [])
+    return sum((["--engine", "prof:%d=%s" % (sm, a.engine)] for sm in sms), [])
+
+
 def measure_tensorrt(a, caps):
     env = dict(os.environ)
     dur = {}
@@ -110,8 +120,8 @@ def measure_tensorrt(a, caps):
     if a.nsys:
         work = tempfile.mkdtemp(prefix="dapp_prof_")
         for cap in caps:
-            cmd = [a.sched, "--engine", a.engine, "--image", a.image, "--classes", str(sm_for_cap(cap, a.sm_total)),
-                   "--sweep", str(a.runs)]
+            sm = sm_for_cap(cap, a.sm_total)
+            cmd = [a.sched] + engine_args(a, [sm]) + ["--image", a.image, "--classes", str(sm), "--sweep", str(a.runs)]
             out, kmax, tf = with_nsys(cmd, work, "cap%d" % cap)
             got = parse_sweep(out, a.sm_total)
             if got:
@@ -122,8 +132,8 @@ def measure_tensorrt(a, caps):
                 fill[cap] = round(tf, 3)
         shutil.rmtree(work, ignore_errors=True)
     else:
-        classes = ",".join(str(sm_for_cap(c, a.sm_total)) for c in caps)
-        out = run([a.sched, "--engine", a.engine, "--image", a.image, "--classes", classes, "--sweep", str(a.runs)], env=env)
+        sms = [sm_for_cap(c, a.sm_total) for c in caps]
+        out = run([a.sched] + engine_args(a, sms) + ["--image", a.image, "--classes", ",".join(map(str, sms)), "--sweep", str(a.runs)], env=env)
         got = parse_sweep(out, a.sm_total)
         for cap in caps:
             near = min(got, key=lambda k: abs(k - cap)) if got else None
@@ -191,7 +201,8 @@ def main():
     ap.add_argument("--sm-total", type=int, default=DEFAULT_SM_TOTAL)
     ap.add_argument("--runs", type=int, default=20)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--engine", default="")
+    ap.add_argument("--engine", default="", help="one engine file, loaded in every class")
+    ap.add_argument("--engine-sm", default="", help="per-class engines 'SM=file,SM=file,...' (instead of --engine)")
     ap.add_argument("--image", default="")
     ap.add_argument("--sched", default=os.path.join(os.path.dirname(__file__), "..", "..", "..", "build.aarch64", "cuPHY-CP", "dapp_hook", "dapp_sched"))
     ap.add_argument("--pytorch", action="store_true")
@@ -214,10 +225,10 @@ def main():
         dur, kmax, fill = measure_pytorch(a, caps)
         source = "pytorch %s batch %d" % (a.weights, a.batch)
     else:
-        if not (a.engine and a.image):
-            ap.error("TensorRT mode needs --engine and --image (or --pytorch / --from-sweep)")
+        if not ((a.engine or a.engine_sm) and a.image):
+            ap.error("TensorRT mode needs --engine (or --engine-sm) and --image (or --pytorch / --from-sweep)")
         dur, kmax, fill = measure_tensorrt(a, caps)
-        source = "dapp_sched --sweep %s" % a.engine
+        source = "dapp_sched --sweep %s" % (a.engine_sm or a.engine)
     missing = [c for c in caps if c not in dur]
     if missing:
         print("WARNING: no measurement for caps %s" % missing)

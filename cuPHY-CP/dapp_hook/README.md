@@ -215,22 +215,66 @@ Build the model once (weights, ONNX and engines are git-ignored):
 # host: CPU-only ultralytics in a venv, exports ONNX + reference detections
 python3 -m venv ~/.venvs/dapp_yolo && ~/.venvs/dapp_yolo/bin/pip install ultralytics onnx onnxslim onnxruntime
 ~/.venvs/dapp_yolo/bin/python cuPHY-CP/dapp_hook/models/export_yolo.py --model yolov8n.pt --imgsz 640
+~/.venvs/dapp_yolo/bin/python cuPHY-CP/dapp_hook/models/export_1280.py --batches 8   # YOLO26 n/s/x at 1280, batch 8 (tiled 4K)
 
-# container, as root with the MPS pipe the RAN scripts use: build the engine
-# UNDER A SMALL SM CAP (see below)
-docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=12 c_aerial_troy \
-  /usr/src/tensorrt/bin/trtexec --onnx=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n.onnx \
-  --saveEngine=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine --fp16 --skipInference
+# container, as root with the MPS pipe the RAN scripts use: ONE ENGINE PER (model, batch, SM class),
+# each built under the MPS percentage cap that the driver maps to exactly that SM count (see below)
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e SMS="56 80 132" -e BATCHES=8 \
+  -e MODELS="yolo26n_1280 yolo26s_1280 yolo26x_1280" c_aerial_troy \
+  bash /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/build_engines.sh
+# -> models/yolo26x_1280_b8_fp16_sm56.engine, ..._sm80.engine, ..._sm132.engine (9 files, ~6-30 min each)
 ```
 
-**Why the cap during the build:** an engine built on the full GPU selects
-Hopper kernels that the driver refuses to launch inside a small SM partition
-(`enqueueV3: Cask convolution execution` / `Cuda Runtime (invalid argument)`);
-on the GH200 the stock engine ran at 64 SMs and above but failed at 48 and
-below. Building while the process itself is capped makes the builder time only
-kernels that work there, and the resulting engine runs in every class. TensorRT
-then warns `Using an engine plan file across different models of devices`
-because the builder saw a 16-SM device; that warning is expected.
+### Engines and SM classes
+
+**A TensorRT engine only runs near the SM count the builder saw, and the
+boundary differs per model and per build.** TensorRT picks kernels by timing
+them on the device it builds on; under MPS that device is the partition, and
+kernels chosen for one SM count are refused by the driver at another
+(`IExecutionContext::enqueueV3: Error Code 1: Cask (Cask convolution execution)`
+or `Cask (Cask Gemm execution)`, then `Cuda Runtime (invalid argument)`), which
+dapp_sched reports as `warm-up inference failed` for that (model, SM, file).
+Measured 2026-10-14 with the bench's 1280 batch-1 engines (built under
+percentage caps 30 / 50 / 100 %, i.e. 38 / 66 / 132 SMs seen by the builder)
+loaded into SM-count contexts; GPU ms = H2D + network + D2H, median of 30:
+
+| engine (SMs at build) | 16 | 32 | 48 | 56 | 64 | 80 | 132 |
+|---|---|---|---|---|---|---|---|
+| 26n atp100 (132) | fail G | fail G | 1.91 | 1.69 | 1.63 | 1.52 | 1.30 |
+| 26n atp50 (66) | fail G | fail G | 1.82 | 1.65 | 1.58 | 1.50 | 1.34 |
+| 26n atp30 (38) | fail G | 2.19 | 1.81 | 1.65 | 1.61 | 1.50 | 1.37 |
+| 26s atp100 (132) | fail C | fail C | fail C | fail C | fail C | fail C | 1.65 |
+| 26s atp50 (66) | fail C | fail C | fail C | 2.28 | 2.16 | 1.97 | fail G |
+| 26s atp30 (38) | fail G | fail G | 2.56 | 2.29 | 2.20 | 2.01 | 1.72 |
+| 26x atp100 (132) | fail C | fail C | fail C | fail C | fail C | fail C | 4.68 |
+| 26x atp50 (66) | fail C | fail C | 8.41 | 7.37 | 6.85 | fail G | fail G |
+| 26x atp30 (38) | fail C | fail C | 8.37 | 7.71 | 7.19 | 5.94 | 4.93 |
+
+(G = Cask Gemm, C = Cask convolution; the percentage cap is not the point -
+the SM count is, so the same holds for the bench's percentage-cap engines.)
+Rules:
+
+- **Build one engine per SM class under the cap that maps to that class and
+  name it by the SM count** (`build_engines.sh` with `SMS=...`). On the GH200 a
+  percentage cap grants `floor(pct/100 * 66 TPC) * 2` SMs: 37 % = 48, 43 % =
+  56, 49 % = 64, 61 % = 80, 100 % = 132; `models/mps_sm_probe.py` prints what
+  the builder sees and the script puts that count into the file name.
+- **Give dapp_sched the engine of every class it uses** with
+  `--engine NAME:SM=file` (repeatable; several models side by side). A class
+  with no exact key loads the file of the largest smaller key with a warning;
+  the uncapped fallback context (no MPS) loads the largest key; nothing else
+  is loaded. The warm-up inference at load is the check: a failure names the
+  (model, SM, file) and the process exits.
+- The earlier rule here, "build under a small cap (12 % = 16 SM) and the
+  engine runs in every class", was an observation on yolov8n at 640 only
+  (commit b967edd, 2026-09-10: ran at 64 SMs and above, failed at 48 and
+  below when built on the full GPU). It does not hold for the YOLO26 models
+  (26s / 26x built at 38 SMs fail at 16 and 32; built at 66 SMs they fail
+  above as well). The bench's rule "an engine runs only under the cap it was
+  built with" (`sweep/matrix.yaml`) is the same fact seen from percentage
+  caps and stays.
+- TensorRT warns `Using an engine plan file across different models of
+  devices` whenever the builder saw a different SM count; that is expected.
 
 Check the C++ pre/post-processing against ultralytics and see the effect of
 the cap with a sweep (MPS must be up, i.e. the RAN scripts have run or
@@ -239,9 +283,11 @@ the cap with a sweep (MPS must be up, i.e. the RAN scripts have run or
 ```bash
 docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy \
   /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched \
-  --engine /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
+  --engine v8n:16=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
   --image  /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/bus.jpg --sweep 30 \
   | python3 cuPHY-CP/dapp_hook/tools/yolo_check.py cuPHY-CP/dapp_hook/models/reference_detections.json bus.jpg
+# (one key, 16: every class 16..96 loads that file - the yolov8n case where that works)
+# [sweep] SM= 16  median=1.13 ms  min=.. max=..  dets=5  mean=..  p99=..  net=mean/p99  h2d=..  d2h=..  dec=0.00  n=28  model=v8n
 ```
 
 Measured on the GH200 (yolov8n, 640x640, FP16, GPU time incl. H2D/D2H):
@@ -261,16 +307,77 @@ can reach a process inside the container:
 ```bash
 docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy \
   /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched \
-  --engine /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
+  --engine v8n:16=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolov8n_fp16_sm16.engine \
   --image  /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/bus.jpg -s /dev/shm/dapp_sched.sock --cells 1
-python3 cuPHY-CP/dapp_hook/tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock RUN            # default image
-python3 cuPHY-CP/dapp_hook/tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock RUN /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/zidane.jpg
-# OK sm=64 granted=64 pct=48.5 load=0.117 ms=0.87 pre_ms=0.0 dets=5 top=person:0.89,person:0.88,person:0.88 capped=1 reason=light uplink
+python3 cuPHY-CP/dapp_hook/tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock RUN            # default image, default model
+python3 cuPHY-CP/dapp_hook/tools/dapp_sched_client.py -s /dev/shm/dapp_sched.sock -m v8n RUN /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/zidane.jpg
+# OK sm=64 granted=64 pct=48.5 load=0.117 ms=0.87 pre_ms=0.0 dets=5 top=person:0.89,person:0.88,person:0.88 capped=1 reason=light uplink model=v8n net=0.80 dec=0.00
 ```
 
-`ms` is the GPU time of that request, `pre_ms` the CPU decode/letterbox (0
-when the image is cached), `dets`/`top` the detections. Image paths are
-resolved by the dapp_sched process, i.e. inside the container.
+The request line is `RUN [model=NAME] [image]` (`-m` in the client); without
+`model=` the first `--engine` model is used. `ms` is the GPU time of that
+request (h2d + net + d2h on the engine stream), `net` the network alone,
+`dec` the nvjpeg decode (0 on the CPU path), `pre_ms` the CPU decode/letterbox
+or file read (0 when the image is cached), `dets`/`top` the detections. Image
+paths are resolved by the dapp_sched process, i.e. inside the container.
+
+### Tiled 4K inference (batch-N engines)
+
+A batch-N engine (`yolo26x_1280_b8_fp16_sm132.engine`) is used TILED, the way
+the E2E server (`e2e/infer_server.py`) does it: the JPEG is decoded on the
+GH200's NVJPG hardware engines straight into the engine's device input
+(`e2e/nvjpeg_dec.cu`, compiled into dapp_sched; no H2D copy): N-1 native
+1280x1280 crops on a grid (3840x2160 -> 3 x 2 = 6 tiles) plus the whole image
+letterboxed in the remaining slots, then the boxes of all slots are mapped
+back through their crop and merged by one class-aware NMS. One nvjpeg decoder
+lives in every (model, class) context. Needs nvjpeg at build time (CMake
+prints `nvjpeg tiled decode enabled`); baseline JPEGs only - the hardware
+decoder refuses progressive ones. `--decode gpu` puts batch-1 engines on the
+same path (whole image letterboxed on the GPU).
+
+```bash
+docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var c_aerial_troy \
+  /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched --classes 56,80,132 \
+  --engine 26x:56=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26x_1280_b8_fp16_sm56.engine \
+  --engine 26x:80=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26x_1280_b8_fp16_sm80.engine \
+  --engine 26x:132=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26x_1280_b8_fp16_sm132.engine \
+  --image /opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/img4k/uhd_0_q85.jpg --sweep 102 --sweep-skip 2
+```
+
+`--sweep` prints, per (model, class), `median / min / max / mean / p99` of the
+GPU time, `net=mean/p99`, `h2d`, `d2h` and `dec` means and the detections of
+the first class; the first `--sweep-skip` runs (default 2) are left out of the
+statistics.
+
+Measured 2026-10-15, batch-8 SM-class engines, 4K street frame (uhd_0_q85.jpg,
+3840x2160 -> 6 tiles + 2 global views), MPS on, no L1, 100 runs per cell
+(first 2 excluded), each class with the engine built for it:
+
+| model | SM | gpu ms mean / p99 | net ms mean / p99 | d2h | dec | dets |
+|---|---|---|---|---|---|---|
+| 26n | 56 | 6.55 / 6.57 | 6.24 / 6.25 | 0.31 | 5.33 | 68 |
+| 26n | 80 | 5.19 / 5.21 | 4.88 / 4.90 | 0.31 | 5.26 | 68 |
+| 26n | 132 | 4.09 / 4.11 | 3.78 / 3.80 | 0.31 | 5.21 | 68 |
+| 26s | 56 | 10.83 / 10.86 | 10.52 / 10.55 | 0.31 | 5.33 | 90 |
+| 26s | 80 | 8.45 / 8.48 | 8.14 / 8.17 | 0.31 | 5.26 | 90 |
+| 26s | 132 | 6.39 / 6.40 | 6.07 / 6.09 | 0.31 | 5.21 | 89 |
+| 26x | 56 | 42.03 / 42.15 | 41.72 / 41.84 | 0.31 | 5.34 | 91 |
+| 26x | 80 | 31.71 / 31.77 | 31.39 / 31.46 | 0.31 | 5.26 | 91 |
+| 26x | 132 | 23.78 / 24.31 | 23.47 / 23.99 | 0.31 | 5.22 | 91 |
+
+`dec` (NVJPG decode + tiles, ~5 ms) is outside `gpu ms` and independent of the
+SM class; the C++ post-processing is 1-3 ms on the CPU. The detections equal
+those of `e2e/infer_server.py` with the same engine and image (count and top
+boxes). Cross-class compatibility of these engines: the sm56 engines also run
+at 48 and 132 but not at 64 / 80, the sm80 engines of 26s / 26x only at 80 and
+132, the sm132 engines only at 132 - which is why every class gets its own.
+
+GPU memory (nvidia-smi, MPS): the SM-class contexts alone cost 284 / 370 /
+562 MiB for 56 / 80 / 132 SMs (1,218 MiB for the three); one (model, class)
+engine instance adds ~0.68 GB (26n), ~1.0 GB (26s), ~2.14 GB (26x) on top of
+its context; all nine instances in one process = 12.2 GB. The 16-cell 59c
+cuphycontroller holds 37.9 GB of the 97.9 GB, so cuPHY + the nine engines +
+contexts use ~51 %.
 
 ## Consuming it from your own process
 

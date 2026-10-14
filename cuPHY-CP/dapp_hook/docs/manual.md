@@ -116,8 +116,11 @@ build.aarch64/cuPHY-CP/dapp_hook/dapp_ring_dump --type UL_TTI,SLOT_END --max 50
 
 ### 2-3. 세입자 프로필 측정
 
-엔진이 먼저 있어야 한다. `dapp_sched`(SM 개수 컨텍스트 풀)에는 **작은 cap에서 빌드한 batch 1 엔진** 하나를 쓴다
-(`models/yolo26n_b1_fp16_atp10.engine`; 엔진 빌드는 `models/build_engines.sh`와 `sweep/README.md`의 "YOLO26 엔진").
+엔진이 먼저 있어야 한다. 엔진은 **빌드할 때 본 SM 수 근처에서만 돌고 경계는 모델·빌드마다 다르다**
+(README "Engines and SM classes"의 실측표). `dapp_sched`에는 클래스마다 그 SM 수에서 빌드한 엔진을
+`--engine NAME:SM=file`로 넘기고(`build_engines.sh`의 `SMS="56 80 132"` 모드, 파일명 `_sm56` 등), 로드 시
+warm-up이 검사한다. 아래 예의 `--engine` 하나는 모든 클래스에 같은 파일을 넣는 경우(26n atp10은 그렇게 돌았다)이고,
+클래스별 파일은 `--engine-sm "56=a.engine,80=b.engine,132=c.engine"`으로 준다.
 
 ```bash
 # [확인] 격리 상태(L1 트래픽 없음)에서. 호스트에는 libnvinfer가 없어 컨테이너 안에서 돌려야 한다.
@@ -130,9 +133,10 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -w /opt/nvidia/cuBB/cuPHY-CP
 - 오늘 결과: `dur_ms = {10: 1.44, 20: 1.25, 40: 1.14, 60: 1.11, 80: 1.09, 100: 1.07}`.
   `sm_fill`, `kernel_max_us`는 `--nsys`를 줘야 측정되고, 없으면 기본값(0.5, 100 µs)이 들어간다.
 - `--batch`는 한 번에 하나, `--caps`는 콤마 구분이다. root로 돌리므로 출력 파일 소유자가 root가 된다.
-- **batch 8은 이 경로로 못 잰다.** `dapp_sched`는 입력 `[1,3,H,W]`만 받는다(batch 8 엔진은
-  `unexpected input shape for images`로 거부, 오늘 확인). batch 8은 `--pytorch --weights yolo26n.pt`(미실행)이거나
-  벤치 스윕의 `sweep/yolo_worker.py`(percentage cap, cap마다 엔진 하나)로만 돈다.
+- **batch 8 엔진은 타일 경로로 돈다** (2026-10-15부터): `dapp_sched`가 `[N,3,H,W]` 엔진을 받아 4K JPEG을
+  NVJPG 하드웨어로 디코드해 타일 6장 + 전체 뷰 2장으로 추론한다(README "Tiled 4K inference"). 이 경로의 `--sweep`은
+  `--image`에 4K JPEG을 준다. `--pytorch --weights`(미실행)와 벤치 스윕의 `sweep/yolo_worker.py`(percentage cap,
+  같은 그림 복제)는 그대로 있다.
 
 ### 2-4. 스케줄러(예측기) 실행
 

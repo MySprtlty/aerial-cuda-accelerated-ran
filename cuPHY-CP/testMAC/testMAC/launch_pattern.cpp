@@ -2983,11 +2983,11 @@ int launch_pattern::parse_tv_channels(slot_pattern_t& slots_data, int cell_id, i
                                 ch == channel_type_t::PBCH ||
                                 ch == channel_type_t::PDCCH_DL ||
                                 ch == channel_type_t::PDCCH_UL ||
-                                // ch == channel_type_t::PDSCH ||
+                                ch == channel_type_t::PDSCH ||
                                 ch == channel_type_t::CSI_RS ||
-                                // ch == channel_type_t::PUSCH ||
-                                // ch == channel_type_t::PUCCH ||
-                                // ch == channel_type_t::PRACH ||
+                                ch == channel_type_t::PUSCH ||
+                                ch == channel_type_t::PUCCH ||
+                                ch == channel_type_t::PRACH ||
                                 ch == channel_type_t::SRS
                                 );
 

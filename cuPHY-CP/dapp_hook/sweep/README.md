@@ -261,3 +261,15 @@ SRS 500, PRACH 1500, PDSCH 375, PDCCH 375 µs) ↔ cuphydriver `[GPU Run]` 지�
 시점부터의 예산) ↔ UL은 GPU 완료 − (t0+500 µs), DL은 CPU run end + GPU run + 1500 µs. 여기에 L1 과부하 문자열과 RU DL U-plane late
 슬롯 수를 더해 "R0보다 나빠졐는지"를 판정한다(`parse_phylog.py`가 PUCCH/PRACH/SRS Aggr 줄도 읽는다).
 
+
+## R0 ladder (no-tenant baseline hygiene, 2026-10-15 night)
+
+`fullstack/r0_ladder.sh <list> [prefix]` runs one full-stack R0 per line of a configuration list (keys `hook eh gc bfp ports nicd
+mpstat ru_hist record record_secs keep_phy tags ncells slots tc`), with a precheck (foreign RAN processes abort the ladder), the
+disk rule, a PTP-core record, lab-file pre-snapshots restored and diffed after every run, parsing (`parse_phylog.py`, `ru_late.py`)
+and one row per run in `ladder_table.csv` (`r0_ladder_report.py`; `--post <name>` re-parses finished runs). Helpers:
+`night_gate.sh` (wait for a free GPU/host), `gpu_clock_lock.sh` (do not use on GH200: -lgc 1980 runs at 1830 MHz),
+`ptp_move.sh` (ptp4l/phc2sys core, passwordless taskset), `b2p_run.sh` (green contexts with MPS kept), `e6_parse_cache.sh`
+(testMAC parse-cache patch / rebuild / revert), `e7_restore.sh`; analyses `e3_overlap.py` (RU late vs PUSCH overrun per TDD
+position), `b3_split.py` (L1 CPU transmit end vs RU deadline, needs nvlog tag 240), `ring_content_compare.py` (FAPI content of two
+hook-ring dumps). Results of the night: `prof/run62` (see the memory note r0-ladder-night-run).

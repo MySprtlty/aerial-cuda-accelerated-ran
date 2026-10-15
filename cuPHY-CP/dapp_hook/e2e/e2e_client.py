@@ -56,9 +56,10 @@ def main():
     ap.add_argument("--glob", default="uhd_*_q85.jpg", help="file pattern inside --images (e.g. uhd_*_q75.jpg for the ~1 MB set)")
     ap.add_argument("--rate", type=float, default=10.0, help="requests per second")
     ap.add_argument("--seconds", type=float, default=60.0)
-    ap.add_argument("--arrivals", choices=["fixed", "poisson", "jitter"], default="fixed",
+    ap.add_argument("--arrivals", choices=["fixed", "poisson", "jitter", "closed"], default="fixed",
                     help="fixed = 1/rate apart; poisson = exponential gaps; jitter = 1/rate apart +- --jitter-ms (a periodic camera whose "
-                         "frames are not phase-locked to the gNB slot pattern, and that never queues behind itself)")
+                         "frames are not phase-locked to the gNB slot pattern, and that never queues behind itself); "
+                         "closed = closed loop: the next request leaves as soon as the reply is in, one in flight (--rate ignored)")
     ap.add_argument("--jitter-ms", type=float, default=5.0)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--engine-sel", type=int, default=-1, help="-1 = server policy, else engine index on the server")
@@ -120,6 +121,28 @@ def main():
             time.sleep(0.001)
     results.clear()
 
+    if a.arrivals == "closed":
+        base = time.perf_counter() + 0.05
+        unix0 = time.time_ns() - int(time.perf_counter() * 1e9)
+        print("closed loop for %.0f s (one request in flight) ..." % a.seconds, flush=True)
+        i = 0
+        t_stop = base + a.seconds
+        while time.perf_counter() < t_stop:
+            t_arr = time.perf_counter()
+            send(i, blobs[i % len(blobs)], t_arr)
+            while i in pending and time.perf_counter() - t_arr < a.timeout:
+                time.sleep(0.0002)
+            i += 1
+        n = i
+        done.set()
+        try:
+            s.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        s.close()
+        write_and_report(a, results, pending, base, unix0, n)
+        return 0
+
     import random
     rng = random.Random(a.seed)
     n = int(a.rate * a.seconds)
@@ -155,6 +178,11 @@ def main():
         pass
     s.close()
 
+    write_and_report(a, results, pending, base, unix0, n)
+    return 0
+
+
+def write_and_report(a, results, pending, base, unix0, n):
     results.sort(key=lambda r: r[0])
     with open(a.log, "w", newline="") as f:
         w = csv.writer(f)
@@ -171,7 +199,6 @@ def main():
     print("offered %d served %d lost %d | rtt ms mean %.1f p50 %.1f p99 %.1f max %.1f | schedule->reply p50 %.1f p99 %.1f | server p50 %.1f -> air+transport p50 %.1f ms" % (
         n, len(results), len(pending), sum(rtt) / max(1, len(rtt)), percentile(rtt, 50), percentile(rtt, 99), max(rtt) if rtt else 0,
         percentile(e2e, 50), percentile(e2e, 99), percentile(srv, 50), percentile(rtt, 50) - percentile(srv, 50)), flush=True)
-    return 0
 
 
 if __name__ == "__main__":

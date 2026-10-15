@@ -244,3 +244,20 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 
 - 커밋: 하네스 코드, `matrix.yaml`, `points/`(점 파일; `pick_minmax.py`의 출력은 `runs/<scan>/minmax_points.yaml`에 생기므로 쓸 것은 `points/`로 복사), `results/<run>/`(그림·집계 CSV 사본), `../models/build_engines.sh`, `testVectors/sweep_tv_manifest.yaml`·`sweep_expanded.yaml`(TV 규격).
 - 커밋하지 않음(.gitignore): `runs/`(nsys 트레이스 포함, 수십 GB), `tv_index*.csv`, `testVectors/GPU_test_input/`(TV h5, 5 GB)와 그 FAPI 심링크, 엔진·ONNX·가중치, 전달용 tgz.
+
+## SafeCap 스윕 (fullstack/safecap_runs.sh, 2026-10-15)
+
+16셀 59c 풀스택 + 타일 tenant(dapp_sched 엔진 9개 + 디스패처 `--force-model` + closed-loop 클라이언트, 코어 44~63)로
+모델 {26x, 26s, 26n} × cap {43, 61, 100}을 한 런(240,000슬롯)씩 돌린다. R0 = tenant 없음(hook 링 녹화), R1 = tenant 유휴.
+모델마다 43 → 61 → 100 순서로 가고 `safecap_check.py`가 R0보다 miss가 늘었다고 하면 그 모델의 더 높은 cap은 건너뛴다.
+
+```bash
+bash cuPHY-CP/dapp_hook/sweep/fullstack/safecap_runs.sh sc            # prof/run61/sc_*_16c
+python3 cuPHY-CP/dapp_hook/sweep/fullstack/safecap_report.py sc --plot prof/run61/sc_tdd_period.png
+```
+
+마감 두 세트를 같이 본다. A = NVIDIA `check_cell_capacity.py`(4T4R DDDSUUDDDD, 채널 작업 **지속 시간**: PUSCH 1500, PUCCH 1500,
+SRS 500, PRACH 1500, PDSCH 375, PDCCH 375 µs) ↔ cuphydriver `[GPU Run]` 지속 시간; B = `estimator/rules.yaml` D_c(작업 시작 가능
+시점부터의 예산) ↔ UL은 GPU 완료 − (t0+500 µs), DL은 CPU run end + GPU run + 1500 µs. 여기에 L1 과부하 문자열과 RU DL U-plane late
+슬롯 수를 더해 "R0보다 나빠졐는지"를 판정한다(`parse_phylog.py`가 PUCCH/PRACH/SRS Aggr 줄도 읽는다).
+

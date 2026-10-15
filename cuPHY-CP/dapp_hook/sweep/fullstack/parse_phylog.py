@@ -2,7 +2,7 @@
 """parse_phylog.py <phy.log> <out.csv>
 One row per slot. Times in microseconds relative to the slot's air time t0 = L1 slot-indication tick + 1500 us
 (all CLOCK_REALTIME): L2 adapter enqueue, PDSCH/PDCCH aggregate pipeline stages, compression completion (cell 0),
-per-cell DL communication tasks (min/max over cells), PUSCH aggregate GPU window, order kernel run.
+per-cell DL communication tasks (min/max over cells), PUSCH / PUCCH / PRACH / SRS aggregate GPU window end (Max GPU Time END) and GPU run, order kernel run.
 Lines of one slot arrive within a few ms; the same (sfn, slot) recurs every 10.24 s, so a record is closed when the
 next L2A line for that key arrives. Streaming, string search only."""
 import sys, csv
@@ -11,7 +11,8 @@ COLS = ["sfn", "slot", "pos", "t0_ns", "enq_us", "l2_est_us", "fapi_us", "ul", "
         "pdsch_setup_start", "pdsch_setup_end", "pdsch_run_end", "pdsch_gpu_setup_us", "pdsch_gpu_run_us", "pdsch_compl_end", "pdsch_wait_start",
         "pdcch_setup_start", "pdcch_gpu_run_us", "comp_cpu_start", "comp_wait_start", "comp_wait_end", "comp_gpu_us", "chan_to_comp_gap_us",
         "cplane_start_min", "cplane_end_max", "uprep_end_max", "utx_start_min", "utx_end_max",
-        "pusch_setup_start", "pusch_gpu_end", "pusch_gpu_run_us", "order_run_us"]
+        "pusch_setup_start", "pusch_gpu_end", "pusch_gpu_run_us", "order_run_us",
+        "pucch_gpu_end", "pucch_gpu_run_us", "prach_gpu_end", "prach_gpu_run_us", "srs_gpu_end", "srs_gpu_run_us"]
 def num(s, key, end=" "):
     i = s.find(key)
     if i < 0: return None
@@ -75,6 +76,10 @@ with open(src, errors="replace") as f, open(dst, "w", newline="") as out:
         elif " PUSCH Aggr " in ln:
             s2 = ln.find("[Max GPU Time]"); s0 = ln.find("[CPU CUDA Setup]")
             r["pusch_setup_start"] = rel(num(ln[s0:], "START: ")); r["pusch_gpu_end"] = rel(num(ln[s2:], "END: ")); r["pusch_gpu_run_us"] = fnum(ln, "[GPU Run] { DURATION: ")
+        elif " PUCCH Aggr " in ln or " PRACH Aggr " in ln or " SRS Aggr " in ln:
+            ch = "pucch" if " PUCCH Aggr " in ln else "prach" if " PRACH Aggr " in ln else "srs"
+            s2 = ln.find("[Max GPU Time]")
+            r[ch + "_gpu_end"] = rel(num(ln[s2:], "END: ")); r[ch + "_gpu_run_us"] = fnum(ln, "[GPU Run] { DURATION: ")
         elif " ORDER " in ln and " Cell 41 " in ln:
             r["order_run_us"] = fnum(ln, "[GPU Order Run] { DURATION: ")
     for key in list(rows): close(key)

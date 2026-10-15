@@ -16,3 +16,5 @@ sm_fill:
   8: {43: 0.658, 61: 0.593, 100: 0.521}
 kernel_max_us: 390.9        # status: nsys
 status: {dur_ms: measured, sm_fill: nsys_time_fill, kernel_max_us: nsys}
+# delay_increase_us[cap]: SafeCap sweep sc, cuPHY channel completion p99 increase over the no-tenant run (us, max over channels)
+delay_increase_us: {43: 314, 61: 428}

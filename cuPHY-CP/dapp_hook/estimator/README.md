@@ -110,9 +110,10 @@ SLOT_END(s)를 링에 쓴다. 따라서 SLOT_END(s) 시점에 s-2, s-1, s는 확
 - **b. sm_avail = 1 − cap/100 · sm_fill,  latency_c = max(base_crit, base_total / sm_avail)**
   세입자가 cap의 sm_fill만큼 SM을 실제로 점유한다고 보고 cuPHY 몫이 그만큼 줄어든다고
   가정(처리량 모델). critical 체인은 SM이 남아도 못 줄어드니 하한으로 둔다.
-- **c. margin_c = profile.kernel_max_us + jitter_us(30)**
-  이미 실행 중인 세입자 커널 하나는 선점되지 않으므로 그 최대 길이만큼, 그리고 타이머/큐
-  지터만큼 여유를 둔다.
+- **c. margin_c(cap) = profile.delay_increase_us[cap] + safety_us** (`margin.mode: measured`, 2026-10-15)
+  SafeCap 스윕(`sweep/fullstack/safecap_runs.sh`)에서 그 모델을 그 cap으로 돌렸을 때 cuPHY 채널 완료가 tenant 없는 런보다
+  얼마나 늦어졌는지(p99, 채널 최대)를 프로필에 적고, 여기에 안전 여유 `safety_us`를 더한다. 표가 없는 프로필이나
+  `margin.mode: kernel`이면 옛 규칙 `kernel_max_us + jitter_us(30)`(선점 안 되는 커널 하나 + 지터)로 돌아간다.
 - **d. gate**: 확정 슬롯(now, +1, +2)에 대해 `latency_c + margin_c ≤ D_c`를 검사하며
   연속 안전 슬롯 수 k를 센다. 셋 다 안전하고 최근 W초(1.0)의 최대 컨텍스트도 안전하면
   k = `max_gate_slots`(40). `k·slot_us < dur_ms[batch][cap]`이면 세입자 한 번이 안전 구간을
@@ -154,7 +155,8 @@ replay와 live는 `proc_us`를 뺀 모든 열이 같다(`tests/test_pipeline.py`
 | `w_ck` (커널 가중치) | `rules.yaml: weights_us_per_work` | 8셀 덤프에서 UL 슬롯 PUSCH ≈ 400 us(ldpc ≈ 60 %), DL 슬롯 PDSCH ≈ 360 us(enc ≈ 40 %)가 되도록 잡은 값 | `calibrate.py --measure kernels.csv --write` (R² ≥ 0.8인 커널만) |
 | `fixed_us` | `rules.yaml` | 채널별 15~60 us | calibrate에 절편 추가 또는 nsys 최소 슬롯 시간 |
 | `D_c` | `rules.yaml: deadline_us` | PUSCH 2000, PUCCH 1500, PRACH 3000, SRS 4000, DL 900 | `deployment_constants.md` |
-| `jitter_us` | `rules.yaml: margin` | 30 | 세입자 시작 타이밍 분포 측정 |
+| `jitter_us` | `rules.yaml: margin` | 30 | kernel 모드에서만 쓰임 |
+| `safety_us`, `delay_increase_us` | `rules.yaml: margin`, profiles | SafeCap 스윕 값 | 스윕을 다시 돌려 갱신 |
 | `stale_after_ms` | `rules.yaml: safety` | 20 | 링 heartbeat 분포 |
 | 셀 스케일 | `cells.yaml` | 1.0 | 셀 설정이 달라질 때 (bw/100)·(ant/4) |
 | `dur_ms` yolov8n b1 | `profiles/yolov8n_b1.yaml` | dapp_sched sweep 측정값(status: measured) | `profile_tenant.py` 재측정 |
@@ -172,6 +174,35 @@ replay와 live는 `proc_us`를 뺀 모든 열이 같다(`tests/test_pipeline.py`
 3. `D_c` → `deployment_constants.md`의 값으로 `rules.yaml: deadline_us` 교체.
 4. 프로필 → `profile_tenant.py`로 `profiles/*.yaml` 재생성 (`status:` 줄의 default/provisional이 사라져야 함).
 5. 전부 끝나면 `rules.yaml: provisional: false`.
+
+## base 추정 vs 실측 (R0, 59c 16셀, 2026-10-15)
+
+R0 링 덤프를 replay한 `base_{ch}`(규칙 a)와 같은 슬롯의 cuphydriver 집계 작업 `[GPU Run]` 지속 시간(parse_phylog.py):
+
+| 채널 | 슬롯 | base 추정 p50 / p99 µs | 실측 GPU run p50 / p99 µs | 실측/추정 (p50) |
+|---|---|---|---|---|
+| PUSCH | 40,805 | 603 / 705 | 1,314 / 1,785 | 2.18 |
+| PUCCH | 40,805 | 116 / 116 | 91 / 118 | 0.78 |
+| PRACH | 20,403 | 1,310 / 1,310 | 309 / 368 | 0.24 |
+| PDSCH | 163,223 | 659 / 659 | 108 / 179 | 0.16 |
+| PDCCH | 163,223 | 255 / 255 | 66 / 102 | 0.26 |
+
+provisional w_ck는 PUSCH를 2배 과소, PDSCH를 6배 과대 추정한다(8셀 기준으로 잡은 값이고 셀 간 병렬 실행이 total 합산에 반영되지
+않음). 이번에는 재적합하지 않았다(풀스택 nsys가 drop을 만든 전례). D_c를 NVIDIA 지속시간 제약(PDSCH 375 µs)으로 두면 base 659 µs가
+이미 D_c를 넘어 모든 모델이 cap 0이 된다 — w_ck 재적합 전까지 live/replay 모드의 cap은 신뢰할 수 없다.
+
+## SafeCap 스윕 → margin·D_c (2026-10-15, 3단계)
+
+- `rules.yaml deadline_us` = NVIDIA `check_cell_capacity.py`의 지속시간 제약(PUSCH/PUCCH/PRACH 1500, SRS 500, DL 375 µs).
+  풀스택 16셀 59c에서는 tenant 없이도 뒤쪽 UL 슬롯의 PUSCH `[GPU Run]`이 1,500 µs를 넘으므로(앞 슬롯 뒤에 줄을 서기 때문)
+  이 제약은 그대로 쓰면 PUSCH에서 포화한다. 완료 시각 기준의 옛 예산(PUSCH 2000 등, "B")은 tenant 효과를 보여 준다
+  (26x@43: PUSCH 완료 2,000 µs 초과 1 → 1,295 슬롯). 두 기준을 `safecap_report.py`가 나란히 낸다.
+- `margin.mode: measured`: 프로필 `delay_increase_us[cap]`(스윕 `sc`의 채널 완료 p99 증가, 채널 최대: 26n {43: 176}, 26s {43: 314,
+  61: 428}, 26x {43: 596, 61: 1044} µs) + `safety_us: 300`. 300의 근거: tenant 런들에서 채널 완료의 (p99.99 − p99) 폭의 90 퍼센타일이
+  266 µs → 50 단위 올림(SafeCap은 p99.99 기준인데 표는 p99 증가분이라 그 꼬리 폭을 덮는다; 타이머 지터 30 µs 포함).
+- 확인(replay, R0 링 덤프 450 MB, 17,210 슬롯): 세 모델 모두 cap 0 ("no cap satisfies deadlines") — SafeCap(26s = 43)과 불일치.
+  원인은 margin이 아니라 base 추정: PDSCH base 659 µs(실측 108 µs의 6배)가 이미 D_c 375를 넘는다. w_ck를 실측 비율로 재적합하기
+  전에는 estimator가 cap을 낼 수 없다(이번 범위 밖).
 
 ## 한계 (현재)
 

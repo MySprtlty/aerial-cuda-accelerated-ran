@@ -7,18 +7,20 @@ slot_us: 500                # mu=1; the ring header's mu overrides this at run t
 sm_total: 132               # GH200
 caps_pct: [0, 43, 61, 100]  # cap candidates offered to a tenant = the SM classes dapp_sched holds engines for (56 / 80 / 132 SM of 132); profiles/*.yaml dur_ms are measured at these caps
 
-# D_c: time budget per channel from the moment the slot's GPU work can start
-# (UL: order kernel done ~T0+0.3 ms; DL: task start at tick = T0 - 1.5 ms).
-# provisional -> replace from deployment_constants.md
+# D_c: budget for the channel's GPU processing time of one slot (all cells). 2026-10-15: the values NVIDIA's capacity
+# check uses for the 4T4R DDDSUUDDDD pattern (testBenches/perf/measure/TDD/check_cell_capacity.py:57-101; its parser
+# measures end - start of the channel task, i.e. a duration, which is what rule a/b estimate). PRACH: 1500 sequential,
+# 1250 parallel, 2000 otherwise; SSB / CSI-RS inherit the DL 375. The earlier provisional completion budgets were
+# PUSCH 2000 / PUCCH 1500 / PRACH 3000 / SRS 4000 / DL 900 (from the moment the work could start).
 deadline_us:
-  PUSCH: 2000
+  PUSCH: 1500
   PUCCH: 1500
-  PRACH: 3000
-  SRS:   4000
-  PDSCH: 900
-  PDCCH: 900
-  SSB:   900
-  CSIRS: 900
+  PRACH: 1500
+  SRS:   500
+  PDSCH: 375
+  PDCCH: 375
+  SSB:   375
+  CSIRS: 375
 
 # fixed per-channel launch/setup cost added to base_c (us). provisional
 fixed_us:
@@ -62,8 +64,12 @@ weights_us_per_work:
   CSIRS:
     count: 3.0
 
-margin:
-  jitter_us: 30             # added to profile.kernel_max_us  (rule c). provisional
+margin:                     # rule c: margin_c added to the latency estimate before the deadline check
+  mode: measured            # measured: profile delay_increase_us[cap] (SafeCap sweep: p99 completion increase over the no-tenant
+                            #           run, max over channels) + safety_us; kernel: profile.kernel_max_us + jitter_us (the old rule,
+                            #           also the fallback when a profile has no delay_increase_us table)
+  safety_us: 300            # SafeCap sweep sc: 90th pct of the p99.99 - p99 completion spread, rounded up to 50 us
+  jitter_us: 30             # kernel mode: timer / queue jitter added to kernel_max_us
 
 gate:                       # rule d
   known_slots: 3            # FAPI arrives slot_advance slots early: now, +1, +2 are confirmed

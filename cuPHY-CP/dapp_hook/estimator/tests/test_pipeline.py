@@ -15,6 +15,10 @@ from dapp_est import ringio as R            # noqa: E402
 import synth                                # noqa: E402
 
 RULES = C.Rules()
+# The pipeline tests check determinism and that the cap reacts to the synthetic load, not the real deadlines: with the
+# 2026-10-15 D_c (NVIDIA duration constraints, PDSCH 375 us) and the provisional w_ck (PDSCH ~6x overestimated) nothing
+# is ever safe, so the tests keep the former provisional completion budgets.
+RULES.deadline_us = {"PUSCH": 2000.0, "PUCCH": 1500.0, "PRACH": 3000.0, "SRS": 4000.0, "PDSCH": 900.0, "PDCCH": 900.0, "SSB": 900.0, "CSIRS": 900.0}
 CELLS = C.Cells()
 PROF = C.Profile(os.path.join(os.path.dirname(HERE), "profiles", "yolov8n_b1.yaml"))
 TEST_RING = "/dapp_est_test_ring"          # never the production /aerial_dapp_ring

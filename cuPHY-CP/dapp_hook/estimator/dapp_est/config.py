@@ -39,6 +39,8 @@ class Rules:
                 raise ValueError("rules.yaml: no deadline for %s" % c)
         m = y["margin"]
         self.jitter_us = float(m["jitter_us"])
+        self.margin_mode = str(m.get("mode", "kernel"))
+        self.safety_us = float(m.get("safety_us", 0.0))
         g = y["gate"]
         self.known_slots = int(g["known_slots"])
         self.gate_window_s = float(g["window_s"])
@@ -95,6 +97,8 @@ class Profile:
         self.sm_fill = {int(b): {int(c): float(v) for c, v in d.items()} for b, d in y.get("sm_fill", {}).items()}
         self.kernel_max_us = float(y.get("kernel_max_us", 100))
         self.dec_ms = {int(b): {int(c): float(v) for c, v in d.items()} for b, d in (y.get("dec_ms") or {}).items()}
+        # SafeCap sweep: cuPHY channel completion increase (us, p99, max over channels) when this tenant runs at a cap
+        self.delay_increase_us = {int(c): float(v) for c, v in (y.get("delay_increase_us") or {}).items()}
         self.status = y.get("status", {})
 
     @staticmethod
@@ -116,6 +120,12 @@ class Profile:
         if cap_pct <= 0:
             return float("inf")
         return self._interp(self.dur_ms[batch], cap_pct)
+
+    def delay_increase(self, cap_pct):
+        """Measured cuPHY delay increase at cap_pct (us), interpolated; None without a table."""
+        if not self.delay_increase_us:
+            return None
+        return self._interp(self.delay_increase_us, cap_pct)
 
     def fill(self, batch, cap_pct):
         t = self.sm_fill.get(batch)

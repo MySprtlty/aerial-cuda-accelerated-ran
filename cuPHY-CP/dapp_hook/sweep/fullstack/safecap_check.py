@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-"""safecap_check.py <R0 name> <run name> [--first-s 10] [--dir prof/run61]
-Decides whether a SafeCap run has MORE deadline misses than the no-tenant run R0 (exit 1) or not (exit 0), and prints
-the per-channel miss counts of both. Two deadline sets (safecap_report.py prints both; this check uses A):
-
-  A  NVIDIA check_cell_capacity.py constraints (testBenches/perf/measure/TDD/check_cell_capacity.py:57-101, 4T4R
-     DDDSUUDDDD, measured by its parser as end - start of the channel task, i.e. a processing DURATION): PUSCH 1500,
-     PUCCH 1500, SRS 500, PRACH 1500 (1250 parallel / 2000 otherwise), PDSCH 375, PDCCH 375 us. Compared with the
-     cuphydriver aggregate task's [GPU Run] duration of the slot (parse_phylog.py <ch>_gpu_run_us).
-  B  estimator/rules.yaml deadline_us: a budget from the moment the slot's GPU work can start (UL: the slot's last
-     symbol, t0 + 500 us at mu=1; DL: the tick, t0 - 1500 us): PUSCH 2000, PUCCH 1500, PRACH 3000, SRS 4000,
-     PDSCH / PDCCH 900. Compared with the GPU window end after t0 minus 500 (UL) and the CPU run end + GPU run + 1500 (DL).
-
-Besides the channel timers, the L1's own overload strings (forced CRC failure / work cancel / order-kernel timeout /
-pool exhaustion / recovery, phy_warn_<name>.log) and the RU emulator's DL U-plane late slots (ru_<name>.log) count
-as misses: a run is "worse than R0" when any of these counts rises. The first --first-s seconds are excluded."""
+"""safecap_check.py <R0 name> <run name> [--dir D] [--first-s 10] [--err-s 1] [--r0-late-slots N] [--legacy]
+Pass / fail of one tenant run against the no-tenant reference R0 (fixed criteria of the 2026-10-16 re-sweep):
+  1. B misses (rules.yaml completion budgets, all channels, after --first-s)  <= max(1, B misses of R0)
+  2. Err.ind lines, slot-drop lines ('Dropping the slot command', 'FAPI msg dropped due to latency', 'SFN mismatch')
+     and L1 CRC errors after the first --err-s seconds of traffic  == 0
+  3. RU emulator DL U-plane LATE SLOTS (end-of-run table, whole run)  <= 1.25 x the R0 reference
+     (--r0-late-slots N overrides the reference, e.g. a mean of several R0 runs; default: R0's own table)
+Prints the numbers of both runs and 'verdict: PASS' / 'verdict: FAIL (...)'; exit 0 on pass, 1 on fail.
+--legacy keeps the earlier check (A-set misses, overload strings, late packets <= 1.2x + 100).
+The module also keeps the helpers used by safecap_report.py / r0_ladder_report.py (load_rows, channel_values, misses,
+overload, ru_late; deadline sets A = NVIDIA duration constraints, B = rules.yaml completion budgets)."""
 import csv
 import os
 import re
@@ -101,14 +97,122 @@ def ru_late(name, d):
     return pk if pk is not None else (sl if sl is not None else -1)
 
 
+def ru_late_slots(name, d):
+    """DL U-plane LATE SLOTS from the RU end-of-run table (sum over cells), -1 if missing."""
+    for p in (os.path.join(d, "ru_%s.log" % name), os.path.join(d, "ru_warn_%s.log" % name)):
+        if os.path.exists(p):
+            with open(p, errors="replace") as f:
+                for ln in f:
+                    m = re.search(r"\[RU\] \| DL U LATE SLOTS\s+\|(.*)", ln)
+                    if m:
+                        nums = [int(x) for x in re.findall(r"\d+", m.group(1))]
+                        if nums:
+                            return sum(nums)
+    return -1
+
+
+def stamp_s(line):
+    m = re.match(r"(\d\d):(\d\d):(\d\d)\.(\d+)", line)
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3)) + float("0." + m.group(4)) if m else None
+
+
+def traffic_start(name, d):
+    p = os.path.join(d, "l2a_%s.log" % name)
+    if os.path.exists(p):
+        with open(p, errors="replace") as f:
+            for ln in f:
+                t = stamp_s(ln)
+                if t is not None:
+                    return t
+    return None
+
+
+def after(t, t0, s):
+    if t is None or t0 is None:
+        return True
+    if t < t0 - 43200:
+        t += 86400
+    return t >= t0 + s
+
+
+def errors_after(name, d, err_s):
+    """(Err.ind lines, slot-drop lines, L1 CRC errors) after the first err_s seconds of traffic."""
+    t0 = traffic_start(name, d)
+    errind = drops = 0
+    p = os.path.join(d, "phy_warn_%s.log" % name)
+    if os.path.exists(p):
+        with open(p, errors="replace") as f:
+            for ln in f:
+                if not after(stamp_s(ln), t0, err_s):
+                    continue
+                if "Send Err.ind" in ln:
+                    errind += 1
+                if "Dropping the slot command" in ln or "dropped due to latency" in ln or "SFN mismatch" in ln:
+                    drops += 1
+    crc = 0
+    rx = re.compile(r"Cell\s+(\d+) \| DL .* UL .* Slots CRC\s+(\d+) \(\s*(\d+)\)")
+    for p in (os.path.join(d, "l1_persec_%s.log" % name), os.path.join(d, "run2_%s.log" % name)):
+        if os.path.exists(p):
+            with open(p, errors="replace") as f:
+                for ln in f:
+                    m = rx.search(ln)
+                    if m and after(stamp_s(ln), t0, err_s):
+                        crc += int(m.group(2))
+            break
+    return errind, drops, crc
+
+
+def b_misses(name, d, first_s):
+    return sum(v[1] for v in misses(channel_values(load_rows(name, d, first_s))).values())
+
+
+def check(r0, run, d, first_s=10.0, err_s=1.0, r0_late=None):
+    """Returns (passed, reasons, numbers)."""
+    b0, b1 = b_misses(r0, d, first_s), b_misses(run, d, first_s)
+    e1 = errors_after(run, d, err_s)
+    l0 = ru_late_slots(r0, d) if r0_late is None else r0_late
+    l1 = ru_late_slots(run, d)
+    why = []
+    if b1 > max(1, b0):
+        why.append("B misses %d > max(1, R0 %d)" % (b1, b0))
+    if e1[0]:
+        why.append("Err.ind %d" % e1[0])
+    if e1[1]:
+        why.append("slot drops %d" % e1[1])
+    if e1[2]:
+        why.append("CRC errors %d" % e1[2])
+    if l1 < 0:
+        why.append("RU late slots unknown")
+    elif l0 is not None and l0 >= 0 and l1 > 1.25 * l0:
+        why.append("RU late slots %d > 1.25 x %.0f" % (l1, l0))
+    return (not why), why, {"b_miss_r0": b0, "b_miss": b1, "errind": e1[0], "drops": e1[1], "crc": e1[2], "ru_late_slots_r0": l0, "ru_late_slots": l1}
+
+
 def main():
     a = sys.argv[1:]
-    first_s, d = 10.0, DEFAULT_DIR
+    first_s, err_s, d, r0_late, legacy = 10.0, 1.0, DEFAULT_DIR, None, False
     if "--first-s" in a:
         i = a.index("--first-s"); first_s = float(a[i + 1]); del a[i:i + 2]
+    if "--err-s" in a:
+        i = a.index("--err-s"); err_s = float(a[i + 1]); del a[i:i + 2]
     if "--dir" in a:
         i = a.index("--dir"); d = a[i + 1]; del a[i:i + 2]
+    if "--r0-late-slots" in a:
+        i = a.index("--r0-late-slots"); r0_late = float(a[i + 1]); del a[i:i + 2]
+    if "--legacy" in a:
+        a.remove("--legacy"); legacy = True
     r0, run = a[0], a[1]
+    if legacy:
+        return main_legacy(r0, run, d, first_s)
+    ok, why, n = check(r0, run, d, first_s, err_s, r0_late)
+    print("| run | B misses (R0) | Err.ind | drops | CRC | RU late slots (R0 ref) |")
+    print("|---|---|---|---|---|---|")
+    print("| %s | %d (%d) | %d | %d | %d | %d (%.0f) |" % (run, n["b_miss"], n["b_miss_r0"], n["errind"], n["drops"], n["crc"], n["ru_late_slots"], n["ru_late_slots_r0"] if n["ru_late_slots_r0"] is not None else -1))
+    print("verdict:", "PASS" if ok else "FAIL (%s)" % "; ".join(why))
+    return 0 if ok else 1
+
+
+def main_legacy(r0, run, d, first_s):
     m0 = misses(channel_values(load_rows(r0, d, first_s)))
     m1 = misses(channel_values(load_rows(run, d, first_s)))
     worse = []

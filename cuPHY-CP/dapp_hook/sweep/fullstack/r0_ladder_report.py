@@ -15,6 +15,7 @@ One row per no-tenant run of the R0 ladder (r0_ladder.sh), accumulated in --out 
                         (max_ns / 1e3 + dl_u_plane_timing_delay - dl_u_plane_window_size, from ru_<name>_late.csv)
   per channel           A misses (GPU run duration > NVIDIA constraint), B misses (completion > rules.yaml budget),
                         completion p99.99 / max (us after t0), duration p99.99 / max
+  tenant_*              dispatcher csv: model, requests, service mean / p50 / p99, E2E mean / p99, req/s (runs with a tenant)
   pusch_pos4 / pos5     first / second consecutive UL slot (59c: positions 4 and 5): duration p50 / p99 / p99.99 / max and
                         completion p50 / p99 / p99.99 / max
 Deadline sets and parsing come from safecap_check.py. numpy only."""
@@ -177,6 +178,8 @@ def run_row(d, name, first_s):
         row.update({ch + "_n": len(dur), ch + "_missA": miss[ch][0], ch + "_missB": miss[ch][1],
                     ch + "_done_p9999": round(pct(done, 99.99), 0) if len(done) else None, ch + "_done_max": round(float(done.max()), 0) if len(done) else None,
                     ch + "_dur_p9999": round(pct(dur, 99.99), 0) if len(dur) else None, ch + "_dur_max": round(float(dur.max()), 0) if len(dur) else None})
+    ts = tenant_stats(d, name, 1.0)
+    row.update(ts or {"tenant_model": "", "tenant_n": None, "svc_mean": None, "svc_p50": None, "svc_p99": None, "e2e_mean": None, "e2e_p99": None, "req_s": None})
     for p in (4, 5):
         sub = [r for r in rows if int(r["pos"]) == p]
         dur = np.array([SC.fl(r.get("pusch_gpu_run_us")) for r in sub if SC.fl(r.get("pusch_gpu_run_us")) is not None])
@@ -185,6 +188,27 @@ def run_row(d, name, first_s):
             row.update({"pusch_pos%d_%s_p50" % (p, lab): round(pct(v, 50), 0) if len(v) else None, "pusch_pos%d_%s_p99" % (p, lab): round(pct(v, 99), 0) if len(v) else None,
                         "pusch_pos%d_%s_p9999" % (p, lab): round(pct(v, 99.99), 0) if len(v) else None, "pusch_pos%d_%s_max" % (p, lab): round(float(v.max()), 0) if len(v) else None})
     return row
+
+
+def tenant_stats(d, name, first_s):
+    """dispatcher csv of the run (disp_<name>.csv): service time (t_start -> t_end in dapp_sched), E2E (t_arrival -> t_reply),
+    throughput, after first_s seconds from the first arrival; None without a tenant."""
+    p = os.path.join(d, "disp_%s.csv" % name)
+    if not os.path.exists(p):
+        return None
+    rows = [r for r in csv.DictReader(open(p)) if r.get("status") == "0"]
+    if not rows:
+        return None
+    t0 = min(int(r["t_arrival"]) for r in rows)
+    rows = [r for r in rows if int(r["t_arrival"]) - t0 >= first_s * 1e9]
+    if not rows:
+        return None
+    svc = np.array([(int(r["t_end"]) - int(r["t_start"])) / 1e6 for r in rows if int(r["t_end"]) and int(r["t_start"])])
+    e2e = np.array([(int(r["t_reply"]) - int(r["t_arrival"])) / 1e6 for r in rows])
+    span = (max(int(r["t_reply"]) for r in rows) - min(int(r["t_arrival"]) for r in rows)) / 1e9
+    return {"tenant_model": rows[-1]["model"], "tenant_n": len(rows), "svc_mean": round(float(svc.mean()), 1) if len(svc) else None,
+            "svc_p50": round(pct(svc, 50), 1) if len(svc) else None, "svc_p99": round(pct(svc, 99), 1) if len(svc) else None,
+            "e2e_mean": round(float(e2e.mean()), 1), "e2e_p99": round(pct(e2e, 99), 1), "req_s": round(len(rows) / span, 2) if span > 0 else None}
 
 
 def load_table(path):
@@ -237,6 +261,17 @@ def print_table(rows):
         print("| %s | %s |" % (r["name"], " | ".join(c)))
 
 
+def print_tenant(rows):
+    rows = [r for r in rows if fmt(r.get("tenant_model")) != "-"]
+    if not rows:
+        return
+    print("\n## tenant (dispatcher csv, requests after the first second): service = dapp_sched t_start -> t_end (decode + GPU + post)")
+    print("| run | model | n | service mean / p50 / p99 ms | E2E mean / p99 ms | req/s |")
+    print("|---|---|---|---|---|---|")
+    for r in rows:
+        print("| %s | %s | %s | %s / %s / %s | %s / %s | %s |" % (r["name"], r["tenant_model"], fmt(r.get("tenant_n")), fmt(r.get("svc_mean")), fmt(r.get("svc_p50")), fmt(r.get("svc_p99")), fmt(r.get("e2e_mean")), fmt(r.get("e2e_p99")), fmt(r.get("req_s"))))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dir", default=SC.DEFAULT_DIR)
@@ -253,6 +288,7 @@ def main():
         save_table(out, rows)
         rows = load_table(out)
     print_table(rows)
+    print_tenant(rows)
     return 0
 
 

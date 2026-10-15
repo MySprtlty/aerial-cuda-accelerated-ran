@@ -21,6 +21,12 @@
 #   ru_hist=0 (RU timing_histogram)   pattern=59c   ncells=16   slots=$SLOTS   tags=311,223,503 (nvlog INFO tags; drop 503 for a run
 #   without the RU.LATE_PACKETS lines)   record=0 record_secs=30 (hook ring dump prof/ring_16C_<name>.bin)   keep_phy=0 (1 keeps
 #   the raw phy_<name>.log, 8-16 GB)   tc="extra test_config.sh arguments"
+#   tenant=dispatcher (fs_tenant.sh dispatcher mode: dapp_sched + e2e/dispatcher.py + client)   model=26x   cap=43 (SM cap %)
+#   arrivals=closed|poisson|fixed|jitter   rate=10 (req/s, open-loop modes)   noclient=0|1   tdelay=28 (s from testMAC start to the
+#   first request)   tsecs=45 (client duration)   xclass=32 xmodels=26x (extra SM class engines, e.g. cap 24)
+#   Before every run the leftover tenant processes of earlier runs are killed (dispatcher.py, e2e_client.py, dapp_sched, port 9007).
+#   l1sed="<sed expressions>" (no spaces) or l1sedf=<file with the expressions>  applied to cuphycontroller_F08_CG1.yaml after the pre-snapshot (test-only yaml edits such as
+#   split_ul_cuda_streams or the CQE tracer), reverted by the pre-snapshot restore and visible in applied_<name>.diff
 # Before every run: precheck (exit 1 when another run is alive), disk rule (exit 3 when < 20 GB stays), PTP core record (ptp_<name>.txt).
 # env: FS_OUT (default prof/run62), SLOTS (default 240000), FIRST_S (statistics skip, default 10), FORCE=1,
 #      DRY=1 (apply + snapshot + restore + diff only, no RU / L1 / testMAC, no GPU; the report path is exercised on
@@ -46,6 +52,15 @@ disk_check() {  # <name>: free space rule before a run. < 25 GB: delete prof/rin
 ptp_record() {  # <name>: Cpus_allowed_list of ptp4l / phc2sys at run start -> ptp_<name>.txt
   local p; { for p in $(pgrep -x ptp4l) $(pgrep -x phc2sys); do echo "$p $(cat /proc/$p/comm) allowed=$(awk '/^Cpus_allowed_list:/{print $2}' /proc/$p/status) last_cpu=$(awk '{print $39}' /proc/$p/stat)"; done; } > $O/ptp_$1.txt 2>&1
   echo "   ptp: $(tr '\n' ';' < $O/ptp_$1.txt)"
+}
+
+tenant_cleanup() {  # kill leftover tenant processes of OUR earlier runs (host dispatcher / client, container dapp_sched), free port 9007
+  local p n=0
+  for p in $(pgrep -f 'e2e/dispatcher.py' ; pgrep -f 'e2e/e2e_client.py' ; pgrep -f 'e2e/infer_server.py'); do [ "$p" = "$$" ] && continue; kill -INT $p 2>/dev/null && n=$((n+1)); done
+  sleep 1; for p in $(pgrep -f 'e2e/dispatcher.py' ; pgrep -f 'e2e/e2e_client.py'); do kill -KILL $p 2>/dev/null; done
+  docker exec -u root c_aerial_troy bash -c 'for p in $(pgrep -x dapp_sched); do kill -INT $p 2>/dev/null; done; sleep 1; for p in $(pgrep -x dapp_sched); do kill -KILL $p 2>/dev/null; done; rm -f /dev/shm/dapp_sched.sock' 2>/dev/null
+  local port; port=$(ss -ltnp 2>/dev/null | grep -c ':9007 ')
+  echo "   tenant cleanup: $n process(es) signalled, port 9007 listeners now: $port"
 }
 
 precheck() {  # <name> -> precheck_<name>.txt; returns 1 when a RAN process of a foreign run is alive
@@ -123,9 +138,9 @@ fi
 echo "== R0 ladder $PREFIX: $(grep -cE '^[^#[:space:]]' $CFG) run(s), $SLOTS slots each, out $O, dry $DRY $(date +%T)"
 grep -E '^[^#[:space:]]' $CFG | while read -r line; do
   set -- $line; cname=$1; shift
-  hook=async eh=1 gc=0 bfp=9 ports=1 nicd=0 mpstat=0 ru_hist=0 pattern=59c ncells=16 slots=$SLOTS tags="311,223,503" tc="" record=0 record_secs=30 keep_phy=0
+  hook=async eh=1 gc=0 bfp=9 ports=1 nicd=0 mpstat=0 ru_hist=0 pattern=59c ncells=16 slots=$SLOTS tags="311,223,503" tc="" record=0 record_secs=30 keep_phy=0 tenant="" model="" cap=100 arrivals=closed rate=10 noclient=0 tdelay=28 tsecs=45 xclass="" xmodels="" l1sed="" l1sedf=""
   for kv in "$@"; do k=${kv%%=*}; v=${kv#*=}; case $k in
-    hook|eh|gc|bfp|ports|nicd|mpstat|ru_hist|pattern|ncells|slots|tags|tc|record|record_secs|keep_phy) printf -v "$k" '%s' "$v" ;;
+    hook|eh|gc|bfp|ports|nicd|mpstat|ru_hist|pattern|ncells|slots|tags|tc|record|record_secs|keep_phy|tenant|model|cap|arrivals|rate|noclient|tdelay|tsecs|xclass|xmodels|l1sed|l1sedf) printf -v "$k" '%s' "$v" ;;
     *) echo "unknown key $k in '$line'"; exit 1 ;;
   esac; done
   name=${PREFIX}_${cname}_${ncells}c
@@ -138,12 +153,17 @@ grep -E '^[^#[:space:]]' $CFG | while read -r line; do
     if [ "${ALLOW_GC:-0}" = "1" ]; then extra="$extra --green-ctx=$gc"; echo "   NOTE $name: use_green_contexts=$gc (CONTEXT.md 5: GPU setting, report it)"; else echo "!! $name: gc=$gc skipped - CONTEXT.md 5 forbids use_green_contexts changes (ALLOW_GC=1 overrides)"; continue; fi
   fi
   { [ "$eh" != "1" ] || [ "$bfp" != "9" ] || [ "$nicd" = "1" ]; } && echo "   NOTE $name: changes a cuphycontroller/testMAC setting vs the lab (CONTEXT.md 9: report it): eh=$eh bfp=$bfp nicd=$nicd"
-  echo "== $name: hook=$hook eh=$eh gc=$gc bfp=$bfp ports=$ports nicd=$nicd mpstat=$mpstat ru_hist=$ru_hist record=$record/$record_secs keep_phy=$keep_phy pattern=$pattern cells=$ncells slots=$slots tags=$tags tc_extra='$extra' $(date +%T)"
+  echo "== $name: hook=$hook eh=$eh gc=$gc bfp=$bfp ports=$ports nicd=$nicd mpstat=$mpstat ru_hist=$ru_hist record=$record/$record_secs keep_phy=$keep_phy pattern=$pattern cells=$ncells slots=$slots tags=$tags tc_extra='$extra' tenant='$tenant' model=$model cap=$cap arrivals=$arrivals rate=$rate noclient=$noclient delay=$tdelay secs=$tsecs $(date +%T)"
+  tenant_cleanup
   precheck $name || exit 1
   disk_check $name || exit 3
   ptp_record $name
   pre_snapshot $name
-  env PATTERN=$pattern NCELLS=$ncells TC_EXTRA="$extra" MPSTAT=$mpstat RU_HIST=$ru_hist RECORD=$record RECORD_SECS=$record_secs KEEP_RAW=1 FS_OUT=$O DRY=$DRY bash $S/fullstack_run.sh $name $slots "" "$tags" $hook
+  [ -n "$l1sedf" ] && l1sed="$(cat $l1sedf)"
+  if [ -n "$l1sed" ]; then sed -i -e "$l1sed" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml; echo "   l1 yaml test edit: $(diff $O/pre_$name.cuphycontroller_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml | grep -E '^[<>]' | tr -s ' ' | tr '\n' ' ')"; fi
+  tenv=""
+  if [ -n "$tenant" ]; then tenv="TENANT_MODE=$tenant TENANT_FORCE=$model TENANT_CAP=$cap TENANT_ARRIVALS=$arrivals TENANT_RATE=$rate TENANT_NOCLIENT=$noclient TENANT_DELAY=$tdelay TENANT_SECS=$tsecs"; [ -n "$xclass" ] && tenv="$tenv TENANT_EXTRA_CLASS=$xclass TENANT_EXTRA_MODELS=$xmodels"; fi
+  env PATTERN=$pattern NCELLS=$ncells TC_EXTRA="$extra" MPSTAT=$mpstat RU_HIST=$ru_hist RECORD=$record RECORD_SECS=$record_secs KEEP_RAW=1 FS_OUT=$O DRY=$DRY $tenv bash $S/fullstack_run.sh $name $slots "" "$tags" $hook
   rc=$?
   restore_pre $name
   verify_restore $name

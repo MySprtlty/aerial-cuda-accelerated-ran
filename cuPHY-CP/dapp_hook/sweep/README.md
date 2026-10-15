@@ -273,3 +273,14 @@ and one row per run in `ladder_table.csv` (`r0_ladder_report.py`; `--post <name>
 (testMAC parse-cache patch / rebuild / revert), `e7_restore.sh`; analyses `e3_overlap.py` (RU late vs PUSCH overrun per TDD
 position), `b3_split.py` (L1 CPU transmit end vs RU deadline, needs nvlog tag 240), `ring_content_compare.py` (FAPI content of two
 hook-ring dumps). Results of the night: `prof/run62` (see the memory note r0-ladder-night-run).
+
+## SafeCap re-sweep and load tools (2026-10-16 night)
+
+`fullstack/g4_sweep.sh grid|eval|rerun|table` runs the tenant grid (3 models x caps 43/61/100 x Peak 59c / Average 60c, closed
+loop, 60 s, plus 10 req/s Poisson spots) through `r0_ladder.sh` (tenant keys `tenant= model= cap= arrivals= rate= tdelay=
+tsecs=`), judges every run with the fixed criteria of `safecap_check.py` (B misses <= max(1, R0), Err.ind / drops / CRC 0 after
+1 s, RU late slots <= 1.25 x the mean of the R0 runs) and prints the SafeCap table (`g4_table.py`). `fullstack/g2_ptp.sh`
+= PTP-core A/B runs. Vector / pattern tools: `tools/make_pusch_load_tvs.py` (UL vectors with 2-5 of the 6 PUSCH UEs, new ids
+90000 + 1000 L + (id - 4471), gitignored), `tools/make_pattern_load.py` (59c with those UL vectors), `tools/make_launch_pattern_tdd.py`
+(any D/S/U pattern from an official pattern as the vector library; reproduces 59c byte for byte; `--slots 20480` = the 10.24 s
+SFN period, `--alt-src 60c --alt-every F` alternates Peak / Average frames). Results: `prof/run63`.

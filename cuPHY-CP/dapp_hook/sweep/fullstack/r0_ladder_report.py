@@ -180,7 +180,9 @@ def run_row(d, name, first_s):
                     ch + "_dur_p9999": round(pct(dur, 99.99), 0) if len(dur) else None, ch + "_dur_max": round(float(dur.max()), 0) if len(dur) else None})
     ts = tenant_stats(d, name, 1.0)
     row.update(ts or {"tenant_model": "", "tenant_n": None, "svc_mean": None, "svc_p50": None, "svc_p99": None, "e2e_mean": None, "e2e_p99": None, "req_s": None})
-    for p in (4, 5):
+    ul_pos = sorted({int(r["pos"]) for r in rows if SC.fl(r.get("pusch_gpu_run_us")) is not None})
+    row["pusch_positions"] = " ".join(map(str, ul_pos))
+    for p in ul_pos:
         sub = [r for r in rows if int(r["pos"]) == p]
         dur = np.array([SC.fl(r.get("pusch_gpu_run_us")) for r in sub if SC.fl(r.get("pusch_gpu_run_us")) is not None])
         done = np.array([SC.fl(r.get("pusch_gpu_end")) - SC.UL_START_US for r in sub if SC.fl(r.get("pusch_gpu_end")) is not None])
@@ -250,15 +252,16 @@ def print_table(rows):
                 cells.append("-"); continue
             cells.append("%s / %s \\| %s / %s \\| %s / %s" % (fmt(r.get(ch + "_missA")), fmt(r.get(ch + "_missB")), fmt(r.get(ch + "_done_p9999")), fmt(r.get(ch + "_done_max")), fmt(r.get(ch + "_dur_p9999")), fmt(r.get(ch + "_dur_max"))))
         print("| %s | %s |" % (r["name"], " | ".join(cells)))
-    print("\n## PUSCH in the two consecutive UL slots (TDD position 4 = first, 5 = second): duration p50 / p99 / p99.99 / max | completion after t0 p50 / p99 / p99.99 / max (us)")
-    print("| run | pos 4 duration | pos 4 completion | pos 5 duration | pos 5 completion |")
-    print("|---|---|---|---|---|")
+    print("\n## PUSCH per UL TDD position (slot %% 10): duration p50 / p99 / p99.99 / max | completion after t0 p50 / p99 / p99.99 / max (us)")
+    print("| run | pos | duration | completion |")
+    print("|---|---|---|---|")
     for r in rows:
-        c = []
-        for p in (4, 5):
-            for lab in ("dur", "done"):
-                c.append(" / ".join(fmt(r.get("pusch_pos%d_%s_%s" % (p, lab, q))) for q in ("p50", "p99", "p9999", "max")))
-        print("| %s | %s |" % (r["name"], " | ".join(c)))
+        poss = [int(x) for x in str(r.get("pusch_positions") or "4 5").split()]
+        for p in poss:
+            if r.get("pusch_pos%d_dur_p50" % p) in (None, "", "None"):
+                continue
+            c = [" / ".join(fmt(r.get("pusch_pos%d_%s_%s" % (p, lab, q))) for q in ("p50", "p99", "p9999", "max")) for lab in ("dur", "done")]
+            print("| %s | %d | %s | %s |" % (r["name"], p, c[0], c[1]))
 
 
 def print_tenant(rows):

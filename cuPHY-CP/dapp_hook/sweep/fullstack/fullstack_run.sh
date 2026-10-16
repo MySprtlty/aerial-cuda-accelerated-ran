@@ -10,6 +10,8 @@
 #                 TENANT_GATE, TENANT_ARRIVALS=closed, TENANT_NOCLIENT=1 for an idle tenant), all on cores 44-63
 #   env PATTERN   official launch pattern id (default 59c = peak, 6 UE x 2 layers UL / 6 UE x 4 layers DL per cell). Heavier 4T4R
 #                 16-cell patterns that need nothing but the name: 59e (UL x1.08), 65c (UL x1.07, PUCCH x4), 65a (UL x1.19)
+#   env KEEP_RAW=2 filtered copy for long runs: phy_<name>.log keeps only the L2A.PROCESSING_TIMES, channel 'times ===>', per-second
+#                 CRC and WRN/ERR lines (~1/10 of the raw log; parse_phylog.py works on it), ru/testmac logs copied whole
 #   env KEEP_RAW=0 do not copy the 8-16 GB container logs; keep only the L2A.PROCESSING_TIMES lines (l2a_<name>.log),
 #                 the WRN/ERR lines (phy_warn_<name>.log) and the RU/testMAC console logs (disk)
 #   env MPSTAT=1  mpstat -P ALL 1 on the host during traffic (mpstat_<name>.txt) + a thread placement snapshot
@@ -148,6 +150,8 @@ kill -INT $DC 2>/dev/null; [ -n "$MP" ] && kill -INT $MP 2>/dev/null; [ -n "$REC
 kill_ran; wait $RU 2>/dev/null; wait $MAC 2>/dev/null
 if [ "$KEEP_RAW" = "1" ]; then
   docker exec c_aerial_troy bash -lc "mkdir -p $CS && for f in phy ru testmac; do cp /tmp/\$f.log $CS/\${f}_$NAME.log; done; ls -la $CS/ | grep _$NAME"
+elif [ "$KEEP_RAW" = "2" ]; then
+  docker exec c_aerial_troy bash -lc "mkdir -p $CS && grep -E '\[L2A.PROCESSING_TIMES\]|times ===>|Slots CRC| (WRN|ERR|FATAL) |Send Err.ind|Dropping the slot command|dropped due to latency|SFN mismatch|Order kernel timeout|pipeline termination|No available|recovery' /tmp/phy.log > $CS/phy_$NAME.log; for f in ru testmac; do cp /tmp/\$f.log $CS/\${f}_$NAME.log; done; ls -la $CS/ | grep _$NAME"
 else
   docker exec c_aerial_troy bash -lc "mkdir -p $CS && grep -F '[L2A.PROCESSING_TIMES]' /tmp/phy.log > $CS/l2a_$NAME.log; grep -E ' (WRN|ERR|FATAL) |Send Err.ind|recovery|not responsive|No available|Successive Non-availability|Attempting PUSCH pipeline termination|Order kernel timeout|exit handler|pipeline failed' /tmp/phy.log | head -2000000 > $CS/phy_warn_$NAME.log; cp /tmp/testmac.log $CS/testmac_$NAME.log; grep -E ' (WRN|ERR) |PACKET_SUMMARY|LATE' /tmp/ru.log | head -400000 > $CS/ru_warn_$NAME.log; ls -la $CS/ | grep _$NAME"
 fi

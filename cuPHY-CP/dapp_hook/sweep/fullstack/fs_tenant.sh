@@ -9,6 +9,8 @@
 #   TENANT_CAP      MPS active-thread percentage of the server (default 100); the engines must be built for it
 #   TENANT_MIG_UUID tenant MIG instance (static-MIG baseline): direct CUDA on that device, no MPS, no cap
 #   TENANT_RATE     requests per second (default 10), TENANT_ARRIVALS (default jitter: periodic +-5 ms), TENANT_SEL (engine index, default 0)
+#   TENANT_POLICY   manual (default) | timetable (TENANT_TIMETABLE csv, TENANT_TT_PERIOD s, TENANT_TT_ORIGIN start|sfn0) |
+#                   table (TENANT_TABLE SafeCap table yaml, estimator/table_policy.py live classifier); TENANT_GLOB image glob (uhd_*_q60.jpg)
 #   TENANT_BACKEND  nvjpeg backend of the server: hw (default, NVJPG engines) | gpu | hybrid
 #   TENANT_DELAY    seconds between the start of this script and the first request (default 30: server load + traffic ramp-up)
 #   TENANT_SECS     client duration (default traffic_s - 45)
@@ -46,24 +48,42 @@ if [ "${TENANT_MODE:-server}" = "dispatcher" ]; then
   for p in $(pgrep -f "dispatcher.py --sched-sock"); do kill -KILL $p 2>/dev/null; done
   args=""; for m in 26n 26s 26x; do for sm in 56 80 132; do args="$args --engine $m:$sm=$CROOT/models/yolo${m}_1280_b8${SFX}_fp16_sm${sm}.engine"; done; done
   CLASSES=56,80,132
-  if [ -n "${TENANT_EXTRA_CLASS:-}" ]; then     # e.g. 32 with TENANT_EXTRA_MODELS="26x": the SM-32 engine of 26x for cap 25
-    CLASSES=$TENANT_EXTRA_CLASS,$CLASSES
-    for m in ${TENANT_EXTRA_MODELS:-26x}; do args="$args --engine $m:$TENANT_EXTRA_CLASS=$CROOT/models/yolo${m}_1280_b8${SFX}_fp16_sm${TENANT_EXTRA_CLASS}.engine"; done
+  if [ -n "${TENANT_EXTRA_CLASS:-}" ]; then     # e.g. "32" or "32,104" with TENANT_EXTRA_MODELS="26x": extra SM-class engines (cap 24 / cap 80)
+    for xc in ${TENANT_EXTRA_CLASS//,/ }; do
+      CLASSES=$xc,$CLASSES
+      for m in ${TENANT_EXTRA_MODELS:-26x}; do args="$args --engine $m:$xc=$CROOT/models/yolo${m}_1280_b8${SFX}_fp16_sm${xc}.engine"; done
+    done
+    CLASSES=$(echo $CLASSES | tr ',' '\n' | sort -n | uniq | tr '\n' ',' | sed 's/,$//')
   fi
   docker exec -d -u root -e CUDA_MPS_PIPE_DIRECTORY=/var $C bash -lc "taskset -c 44-47 /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched --classes $CLASSES $args --image $CROOT/models/img4k/uhd_0_q85.jpg -s $SOCK -n /aerial_dapp_ring_unused --ctrl $CTRL --ctrl-max-age-ms 50 --cells 16 > /tmp/dapp_sched_$NAME.out 2>&1"
   for i in $(seq 1 180); do [ -S $SOCK ] && break; sleep 1; done
   [ -S $SOCK ] || { echo "$(date +%T) dapp_sched did not come up"; docker exec $C tail -5 /tmp/dapp_sched_$NAME.out; exit 1; }
   echo "$(date +%T) dapp_sched up after $(( $(date +%s) - T0 )) s ($(docker exec $C grep -c 'yolo: model' /tmp/dapp_sched_$NAME.out) engine lines)"
   force=""; [ -n "${TENANT_FORCE:-}" ] && force="--force-model $TENANT_FORCE"
+  # TENANT_POLICY=timetable: TENANT_TIMETABLE csv (t_s,cap_26x,cap_26s,cap_26n,gate[,model]), TENANT_TT_PERIOD (s, e.g. 10.24),
+  # TENANT_TT_ORIGIN (start | sfn0); default: manual caps TENANT_CAP for every model
+  if [ "${TENANT_POLICY:-manual}" = "timetable" ]; then
+    policy="--policy-source timetable --timetable ${TENANT_TIMETABLE} --timetable-period ${TENANT_TT_PERIOD:-0} --timetable-origin ${TENANT_TT_ORIGIN:-start}"
+  elif [ "${TENANT_POLICY:-manual}" = "table" ]; then
+    # TENANT_POLICY=table (H2): estimator/table_policy.py classifies the live hook ring and writes the SafeCap table row
+    # (TENANT_TABLE yaml) into the control block; the dispatcher reads it (live) and picks inside the allowed set (rule table)
+    for p in $(pgrep -f "table_policy.py.*--ring"); do kill -KILL $p 2>/dev/null; done     # live instances only (an offline --replay has no --ring)
+    taskset -c 64-65 python3 $R/cuPHY-CP/dapp_hook/estimator/table_policy.py --table ${TENANT_TABLE} --ring ${TENANT_RING:-/aerial_dapp_ring} --ctrl $CTRL \
+      --log $O/table_policy_$NAME.csv > $O/table_policy_$NAME.log 2>&1 &
+    sleep 1; grep -q 'table_policy live' $O/table_policy_$NAME.log || { echo "$(date +%T) table_policy failed"; tail -3 $O/table_policy_$NAME.log; exit 1; }
+    policy="--policy-source live --rule table"
+  else
+    policy="--policy-source manual --manual 26x=$CAP/$GATE,26s=$CAP/$GATE,26n=$CAP/$GATE"
+  fi
   taskset -c 48-55 python3 $R/cuPHY-CP/dapp_hook/e2e/dispatcher.py --sched-sock $SOCK --port 9007 --log $O/disp_$NAME.csv --ctrl $CTRL \
-    --policy-source manual --manual "26x=$CAP/$GATE,26s=$CAP/$GATE,26n=$CAP/$GATE" $force > $O/dispatcher_$NAME.log 2>&1 &
+    $policy $force > $O/dispatcher_$NAME.log 2>&1 &
   for i in $(seq 1 60); do grep -q listening $O/dispatcher_$NAME.log 2>/dev/null && break; sleep 0.5; done
   grep -q listening $O/dispatcher_$NAME.log || { echo "$(date +%T) dispatcher failed"; tail -3 $O/dispatcher_$NAME.log; exit 1; }
   echo "$(date +%T) dispatcher ready after $(( $(date +%s) - T0 )) s"
   if [ "${TENANT_NOCLIENT:-0}" = "1" ]; then echo "$(date +%T) no client (idle tenant)"; exit 0; fi
   while [ $(( $(date +%s) - T0 )) -lt $DELAY ]; do sleep 1; done
   echo "$(date +%T) client start"
-  taskset -c 56-63 python3 $R/cuPHY-CP/dapp_hook/e2e/e2e_client.py --server 127.0.0.1:9007 --images $R/cuPHY-CP/dapp_hook/models/img4k --rate $RATE --seconds $SECS \
+  taskset -c 56-63 python3 $R/cuPHY-CP/dapp_hook/e2e/e2e_client.py --server 127.0.0.1:9007 --images $R/cuPHY-CP/dapp_hook/models/img4k --glob "${TENANT_GLOB:-uhd_*_q85.jpg}" --rate $RATE --seconds $SECS \
     --arrivals $ARR --warm 3 --log $O/client_$NAME.csv 2>&1 | tail -2
   echo "$(date +%T) client done"
   docker cp $C:/tmp/dapp_sched_$NAME.out $O/dapp_sched_$NAME.log >/dev/null 2>&1

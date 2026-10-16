@@ -1,0 +1,19 @@
+# SafeCap table for the table-based policy (estimator/table_policy.py, dapp_est/load_class.py), DEMO variant: caps from the G3
+# sweep of the DDDDDDSUUU 16-cell patterns (2026-10-16, prof/run64/g3_table.out, fixed criteria); the class thresholds come from the
+# hook-ring load profile of the alternating pattern (G4, ring_load_profile.py). cap 0 = model not allowed in that class. The demo
+# variant safecap_table_demo.yaml keeps a small model running in Peak (B misses above the fixed limit, recorded as such).
+#
+# Feature: PUSCH PRB summed over the cells per UL slot, mean over the last window_ul_slots UL slots (slots without PUSCH do not
+# count). 16 cells x 273 PRB = 4,368 PRB is the ceiling (Peak: every UL slot fully loaded on every cell).
+classes:
+  average: {pusch_prb_per_ul_slot_max: 2400}     # G4 ring profile 2026-10-16: Average phase 1,485-2,214 PRB per UL slot (mean 1,537)
+  peak:    {pusch_prb_per_ul_slot_min: 3000}     # Peak phase 3,195-3,703 (mean 3,638); ramps 2,139-3,015 keep the previous class
+window_ul_slots: 60                              # 60 UL slots = 100 ms of DDDDDDSUUU (3 UL slots per 5 ms)
+light_hold_s: 2.0                                # light (average) only after 2 s continuously <= average max; heavy (peak) at once
+start_class: peak                                # before the first full window
+gate_slots: 40
+table:                                           # caps per class and model: G3 sweep 2026-10-16 (prof/run64), fixed criteria B <= 5 / 60 s,
+                                                 # Err.ind-drop-CRC 0, RU late <= 1.25 x Peak R0 mean (3,628); confirmed by a second run each
+  average: {26x: 43, 26s: 61, 26n: 100}          # 26x 61 fails (B 400), 26s 100 fails (B 133)
+  peak:    {26x: 0,  26s: 43,  26n: 43}          # NOT passing the fixed criteria (10 req/s: 26s@43 B 3,060, 26n@43 B 2,921 vs R0 ~1,750): the
+                                                 # least-harm grid cap so the demo keeps serving in Peak; G5 (2026-10-16) uses this row

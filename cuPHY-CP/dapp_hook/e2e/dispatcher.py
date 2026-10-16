@@ -13,7 +13,7 @@ client and removes the file. Every request leaves one csv row with CLOCK_REALTIM
 
 Roles: the estimator (estimator/live.py) or this process (manual / timetable) says per model what is SAFE
 (cap_pct, gate_slots) in the control block (ABI 2); this process decides WHICH model runs (policy.yaml,
-choose_model(): rule fixed | target, replaceable).
+choose_model(): rule fixed | target | table, replaceable).
 
     python3 dispatcher.py --sched-sock /dev/shm/dapp_sched.sock --port 9000 --log disp.csv \\
         --policy-source manual --manual "26x=100/40,26s=100/40,26n=100/40"
@@ -170,6 +170,29 @@ def choose_model(entries, hist, t, cfg, profiles=None, queue_ahead=0):
     cx, gx = entries.get("26x", (0, 0))
     hist.note_gate("26x", gx > 0, t)
     closed_ms = hist.gate_closed_ms("26x", t)
+    if cfg.get("rule", "fixed") == "table":
+        # table rule (H2): the control block's cap > 0 defines the ALLOWED set (SafeCap table row of the load class);
+        # inside it the target rule (predicted E2E <= target_e2e_ms, accuracy order), else the most accurate allowed model.
+        allowed = [m for m in cfg["models"] if entries.get(m, (0, 0))[0] > 0]
+        if not allowed:
+            return cfg["models"][-1], "table: no model allowed (all caps 0) -> %s" % cfg["models"][-1], preds
+        svc = hist.mean_service(cfg["overhead_ms"] + 30.0)
+        wait = queue_ahead * svc
+        measured = cfg.get("overhead_mode", "measured") == "measured"
+        for m in allowed:
+            if m not in (profiles or {}):
+                continue
+            cap = entries[m][0]; prof = profiles[m]
+            dec = dur_at_cap(prof["dec"], cap) if (measured and prof["dec"]) else 5.3
+            ovh = (dec + hist.mean_overhead(cfg["overhead_ms"] - 5.3)) if measured else cfg["overhead_ms"]
+            preds[m] = wait + dur_at_cap(prof["dur"], cap) + ovh
+        fits = [m for m in allowed if m in preds and preds[m] <= cfg["target_e2e_ms"]]
+        if fits:
+            return fits[0], "table: allowed %s, %s pred %.1f <= %.0f ms (ahead %d)" % ("/".join(allowed), fits[0], preds[fits[0]], cfg["target_e2e_ms"], queue_ahead), preds
+        if preds:
+            m = min(preds, key=preds.get)
+            return m, "table: allowed %s, none <= %.0f ms, min pred %s %.1f" % ("/".join(allowed), cfg["target_e2e_ms"], m, preds[m]), preds
+        return allowed[0], "table: allowed %s, no profiles -> most accurate" % "/".join(allowed), preds
     # common clause 1: no 26x at all -> the small model
     if cx == 0 or closed_ms > cfg["gate_closed_ms"]:
         why = "cap_26x=0" if cx == 0 else "gate_26x closed %.0f ms" % closed_ms
@@ -242,26 +265,45 @@ class ManualSource:
 
 
 class TimetableSource:
-    """Step function from a csv: t_s, cap_26x, cap_26s, cap_26n, gate  (t_s relative to the dispatcher start)."""
-    def __init__(self, path, models):
+    """Step function from a csv: t_s, cap_26x, cap_26s, cap_26n, gate [, model]  (t_s relative to the dispatcher start, or,
+    with period_s > 0, the phase inside a period: origin 'start' = the dispatcher start, 'sfn0' = the L1's SFN-0 instant,
+    which the tick generator and the RU emulator place at CLOCK_REALTIME = k * 10.24 s + 3.64 s (GPS epoch alignment, TAI
+    offset 0) - so a 20,480-slot launch pattern repeats in phase with it). An optional model column forces that model
+    while the row is active (empty = the rule chooses)."""
+    SFN0_OFFSET_S = 3.64
+
+    def __init__(self, path, models, period_s=0.0, origin="start"):
         self.rows = []
         with open(path) as f:
             for r in csv.DictReader(f):
-                self.rows.append((float(r["t_s"]), {"26x": int(r["cap_26x"]), "26s": int(r["cap_26s"]), "26n": int(r["cap_26n"])}, int(r["gate"])))
+                self.rows.append((float(r["t_s"]), {"26x": int(r["cap_26x"]), "26s": int(r["cap_26s"]), "26n": int(r["cap_26n"])}, int(r["gate"]),
+                                  (r.get("model") or "").strip()))
         self.rows.sort(key=lambda x: x[0])
         if not self.rows:
             raise ValueError("empty timetable")
         self.t0 = now_ns()
         self.models = models
+        self.period_s, self.origin = period_s, origin
 
-    def entries(self, t):
-        el = (t - self.t0) / 1e9
+    def row_at(self, t):
+        if self.period_s > 0:
+            base = (t / 1e9 - self.SFN0_OFFSET_S) if self.origin == "sfn0" else (t - self.t0) / 1e9
+            el = base % self.period_s
+        else:
+            el = (t - self.t0) / 1e9
         cur = self.rows[0]
         for r in self.rows:
             if r[0] <= el:
                 cur = r
+        return cur
+
+    def entries(self, t):
+        cur = self.row_at(t)
         caps, gate = cur[1], cur[2]
         return {m: (caps.get(m, 0), gate) for m in self.models}
+
+    def forced_model(self, t):
+        return self.row_at(t)[3]
 
 
 class LiveSource:
@@ -352,12 +394,14 @@ def main():
     ap.add_argument("--policy-source", choices=["manual", "timetable", "live"], default="manual")
     ap.add_argument("--manual", default="26x=100/40,26s=100/40,26n=100/40", help="model=cap/gate,...")
     ap.add_argument("--timetable", default="")
+    ap.add_argument("--timetable-period", type=float, default=0.0, help="repeat the timetable with this period (s), e.g. 10.24")
+    ap.add_argument("--timetable-origin", choices=["start", "sfn0"], default="start", help="phase origin of a periodic timetable")
     ap.add_argument("--ctrl", default=CB.DEFAULT_NAME)
     ap.add_argument("--ctrl-period-ms", type=float, default=5.0)
     ap.add_argument("--inflight", type=int, default=1, help="worker threads sending to dapp_sched at once")
     ap.add_argument("--shm-dir", default="/dev/shm")
     ap.add_argument("--sched-timeout", type=float, default=30.0)
-    ap.add_argument("--rule", choices=["fixed", "target"], default=None, help="override policy.yaml")
+    ap.add_argument("--rule", choices=["fixed", "target", "table"], default=None, help="override policy.yaml (table = allowed set from the control block, H2)")
     ap.add_argument("--force-model", default="", help="ignore the rule and always run this model (SafeCap sweeps)")
     ap.add_argument("--overhead-mode", choices=["measured", "fixed"], default=None)
     ap.add_argument("--target-e2e-ms", type=float, default=None)
@@ -388,7 +432,7 @@ def main():
     elif a.policy_source == "timetable":
         if not a.timetable:
             ap.error("--policy-source timetable needs --timetable")
-        source = TimetableSource(a.timetable, models)
+        source = TimetableSource(a.timetable, models, a.timetable_period, a.timetable_origin)
     else:
         source = LiveSource(a.ctrl, models)
     writer = None
@@ -427,8 +471,9 @@ def main():
                 stats["busy"] += 1
             ent = source.entries(t_deq)
             with hist_lock:
-                if a.force_model:
-                    model, reason, preds = a.force_model, "forced", {}
+                tt_force = source.forced_model(t_deq) if isinstance(source, TimetableSource) else ""
+                if a.force_model or tt_force:
+                    model, reason, preds = (a.force_model or tt_force), "forced", {}
                 elif sel != SEL_POLICY and 0 <= sel < len(models):
                     model, reason, preds = models[sel], "client sel %d" % sel, {}
                 else:

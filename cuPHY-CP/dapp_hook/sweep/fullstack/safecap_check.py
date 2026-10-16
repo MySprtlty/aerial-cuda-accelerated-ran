@@ -166,15 +166,17 @@ def b_misses(name, d, first_s):
     return sum(v[1] for v in misses(channel_values(load_rows(name, d, first_s))).values())
 
 
-def check(r0, run, d, first_s=10.0, err_s=1.0, r0_late=None):
-    """Returns (passed, reasons, numbers)."""
+def check(r0, run, d, first_s=10.0, err_s=1.0, r0_late=None, b_max=None, late_factor=1.25):
+    """Returns (passed, reasons, numbers). b_max: absolute B-miss limit (default: max(1, R0's misses));
+    r0_late: RU late-slot reference (default: R0's own table); late_factor: allowed ratio over the reference."""
     b0, b1 = b_misses(r0, d, first_s), b_misses(run, d, first_s)
     e1 = errors_after(run, d, err_s)
     l0 = ru_late_slots(r0, d) if r0_late is None else r0_late
     l1 = ru_late_slots(run, d)
     why = []
-    if b1 > max(1, b0):
-        why.append("B misses %d > max(1, R0 %d)" % (b1, b0))
+    blim = b_max if b_max is not None else max(1, b0)
+    if b1 > blim:
+        why.append("B misses %d > %s" % (b1, ("%d" % blim) if b_max is not None else "max(1, R0 %d)" % b0))
     if e1[0]:
         why.append("Err.ind %d" % e1[0])
     if e1[1]:
@@ -183,8 +185,8 @@ def check(r0, run, d, first_s=10.0, err_s=1.0, r0_late=None):
         why.append("CRC errors %d" % e1[2])
     if l1 < 0:
         why.append("RU late slots unknown")
-    elif l0 is not None and l0 >= 0 and l1 > 1.25 * l0:
-        why.append("RU late slots %d > 1.25 x %.0f" % (l1, l0))
+    elif l0 is not None and l0 >= 0 and l1 > late_factor * l0:
+        why.append("RU late slots %d > %.2f x %.0f" % (l1, late_factor, l0))
     return (not why), why, {"b_miss_r0": b0, "b_miss": b1, "errind": e1[0], "drops": e1[1], "crc": e1[2], "ru_late_slots_r0": l0, "ru_late_slots": l1}
 
 

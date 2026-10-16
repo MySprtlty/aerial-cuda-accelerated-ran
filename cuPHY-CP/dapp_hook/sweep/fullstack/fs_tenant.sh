@@ -14,6 +14,8 @@
 #   TENANT_BACKEND  nvjpeg backend of the server: hw (default, NVJPG engines) | gpu | hybrid
 #   TENANT_DELAY    seconds between the start of this script and the first request (default 30: server load + traffic ramp-up)
 #   TENANT_SECS     client duration (default traffic_s - 45)
+#   TENANT_MODELS   dispatcher mode: models to load (default "26n 26s 26x"), TENANT_CLASSES SM classes (default "56 80 132"); missing engines skipped;
+#                   TENANT_MIG_UUID in dispatcher mode runs dapp_sched directly on that MIG instance (no MPS, uncapped)
 #   TENANT_MODE     server (default: infer_server.py as above) | dispatcher: dapp_sched (9 engines, 3 models x SM 56/80/132,
 #                   --ctrl) in the container + e2e/dispatcher.py (host, manual policy: cap TENANT_CAP, gate TENANT_GATE=40,
 #                   --force-model TENANT_FORCE) + e2e_client.py (TENANT_ARRIVALS default closed = closed loop, one in flight).
@@ -46,8 +48,13 @@ if [ "${TENANT_MODE:-server}" = "dispatcher" ]; then
   echo "$(date +%T) tenant $NAME: dispatcher mode, force '${TENANT_FORCE:-}' cap $CAP gate $GATE arrivals $ARR engines *$SFX*, delay $DELAY secs $SECS noclient ${TENANT_NOCLIENT:-0}"
   docker exec -u root $C bash -lc 'for p in $(pgrep -x dapp_sched); do kill -KILL $p 2>/dev/null; done; rm -f /dev/shm/dapp_sched.sock; true'
   for p in $(pgrep -f "dispatcher.py --sched-sock"); do kill -KILL $p 2>/dev/null; done
-  args=""; for m in 26n 26s 26x; do for sm in 56 80 132; do args="$args --engine $m:$sm=$CROOT/models/yolo${m}_1280_b8${SFX}_fp16_sm${sm}.engine"; done; done
-  CLASSES=56,80,132
+  # TENANT_MODELS / TENANT_CLASSES (2026-10-16 night): the engine grid dapp_sched loads; engines that do not exist are skipped
+  args=""; CLASSES=""; HROOT=$R/cuPHY-CP/dapp_hook
+  for m in ${TENANT_MODELS:-26n 26s 26x}; do for sm in ${TENANT_CLASSES:-56 80 132}; do
+    f=yolo${m}_1280_b8${SFX}_fp16_sm${sm}.engine
+    if [ -s $HROOT/models/$f ]; then args="$args --engine $m:$sm=$CROOT/models/$f"; CLASSES="$CLASSES,$sm"; else echo "$(date +%T) tenant $NAME: no engine $f (skipped)"; fi
+  done; done
+  CLASSES=$(echo ${CLASSES#,} | tr ',' '\n' | sort -n | uniq | tr '\n' ',' | sed 's/,$//')
   if [ -n "${TENANT_EXTRA_CLASS:-}" ]; then     # e.g. "32" or "32,104" with TENANT_EXTRA_MODELS="26x": extra SM-class engines (cap 24 / cap 80)
     for xc in ${TENANT_EXTRA_CLASS//,/ }; do
       CLASSES=$xc,$CLASSES
@@ -55,7 +62,8 @@ if [ "${TENANT_MODE:-server}" = "dispatcher" ]; then
     done
     CLASSES=$(echo $CLASSES | tr ',' '\n' | sort -n | uniq | tr '\n' ',' | sed 's/,$//')
   fi
-  docker exec -d -u root -e CUDA_MPS_PIPE_DIRECTORY=/var $C bash -lc "taskset -c 44-47 /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched --classes $CLASSES $args --image $CROOT/models/img4k/uhd_0_q85.jpg -s $SOCK -n /aerial_dapp_ring_unused --ctrl $CTRL --ctrl-max-age-ms 50 --cells 16 > /tmp/dapp_sched_$NAME.out 2>&1"
+  SCHED_ENV="-e CUDA_MPS_PIPE_DIRECTORY=/var"; [ -n "${TENANT_MIG_UUID:-}" ] && SCHED_ENV="-e CUDA_VISIBLE_DEVICES=$TENANT_MIG_UUID -e CUDA_MPS_PIPE_DIRECTORY=/var/mig_tenant_no_mps"   # MIG slice: direct CUDA, no MPS (dapp_sched falls back to an uncapped context)
+  docker exec -d -u root $SCHED_ENV $C bash -lc "taskset -c 44-47 /opt/nvidia/cuBB/build.aarch64/cuPHY-CP/dapp_hook/dapp_sched --classes $CLASSES $args --image $CROOT/models/img4k/uhd_0_q85.jpg -s $SOCK -n /aerial_dapp_ring_unused --ctrl $CTRL --ctrl-max-age-ms 50 --cells 16 > /tmp/dapp_sched_$NAME.out 2>&1"
   for i in $(seq 1 180); do [ -S $SOCK ] && break; sleep 1; done
   [ -S $SOCK ] || { echo "$(date +%T) dapp_sched did not come up"; docker exec $C tail -5 /tmp/dapp_sched_$NAME.out; exit 1; }
   echo "$(date +%T) dapp_sched up after $(( $(date +%s) - T0 )) s ($(docker exec $C grep -c 'yolo: model' /tmp/dapp_sched_$NAME.out) engine lines)"
@@ -74,6 +82,7 @@ if [ "${TENANT_MODE:-server}" = "dispatcher" ]; then
     policy="--policy-source live --rule table"
   else
     policy="--policy-source manual --manual 26x=$CAP/$GATE,26s=$CAP/$GATE,26n=$CAP/$GATE"
+    case "${TENANT_FORCE:-}" in ""|26x|26s|26n) ;; *) policy="--policy-source manual --manual ${TENANT_FORCE}=$CAP/$GATE,26x=$CAP/$GATE,26s=$CAP/$GATE,26n=$CAP/$GATE" ;; esac   # forced 26m/26l: its own control-block entry (ABI 2 holds 4)
   fi
   taskset -c 48-55 python3 $R/cuPHY-CP/dapp_hook/e2e/dispatcher.py --sched-sock $SOCK --port 9007 --log $O/disp_$NAME.csv --ctrl $CTRL \
     $policy $force > $O/dispatcher_$NAME.log 2>&1 &

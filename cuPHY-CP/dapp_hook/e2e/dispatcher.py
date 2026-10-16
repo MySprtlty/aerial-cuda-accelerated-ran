@@ -340,7 +340,8 @@ class CtrlWriter(threading.Thread):
             t = now_ns()
             e = self.source.entries(t)
             self.n += 1
-            self.cb.write(0, 0, 0, t, self.n, [(m, e[m][0], e[m][1]) for m in self.models])
+            names = ([m for m in e if m not in self.models] + list(self.models))[:4]     # a forced 26m/26l (manual spec) gets an entry too; ABI 2 holds 4
+            self.cb.write(0, 0, 0, t, self.n, [(m, e[m][0], e[m][1]) for m in names])
             time.sleep(self.period)
 
 

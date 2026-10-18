@@ -104,7 +104,7 @@ def live(a, table):
     lf = open(a.log, "w", newline="") if a.log else None
     lw = csv.writer(lf) if lf else None
     if lw:
-        lw.writerow(["t_wall_ns", "ts_ns", "sfn", "slot", "feature", "class", "cap_26x", "cap_26s", "cap_26n"])
+        lw.writerow(["t_wall_ns", "ts_ns", "sfn", "slot", "feature", "class"] + ["cap_%s" % m for m in table.models])
     publish(ctrl, table, clf.cls, None)
     print("table_policy live: ring %s, ctrl %s, table %s, start class %s -> %s" % (a.ring, ctrl.path, table.path, clf.cls, table.entries(clf.cls)), flush=True)
     last_cls, last_pub, t_end = clf.cls, time.monotonic(), (time.monotonic() + a.seconds if a.seconds > 0 else None)
@@ -131,7 +131,7 @@ def live(a, table):
             last_cls = cls
             if lw:
                 e = table.entries(cls)
-                lw.writerow([time.time_ns(), rec.ts_ns, rec.sfn, rec.slot, "%.0f" % (clf.history[-1][1] if clf.history else -1), cls, e[0][1], e[1][1], e[2][1]])
+                lw.writerow([time.time_ns(), rec.ts_ns, rec.sfn, rec.slot, "%.0f" % (clf.history[-1][1] if clf.history else -1), cls] + [c for (_, c, _) in e])
     print("table_policy: done, %d UL_TTI records, %d class switches, final %s" % (n_ul, clf.n_switch, clf.cls))
     if lf:
         lf.close()

@@ -10,7 +10,7 @@ rule: fixed                   # fixed | target | table
 #           estimator/table_policy.py); the target rule inside that set, else the most accurate allowed model; no share caps
 #   both:   cap_26x == 0 or 26x's gate closed > gate_closed_ms -> 26n (26s once 26n's share >= ratio_26n_max);
 #           share safety caps over the last window_s: 26s <= ratio_26s_max (else 26x), 26n <= ratio_26n_max (else 26s)
-models: [26x, 26s, 26n]       # accuracy order = the index a client may force with --engine-sel
+models: [26x, 26l, 26m, 26s, 26n]   # accuracy order = the index a client may force with --engine-sel (26l/26m: night-3 table rule)
 window_s: 60
 ratio_26s_max: 0.6
 ratio_26n_max: 0.1

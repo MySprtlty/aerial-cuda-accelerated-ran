@@ -26,6 +26,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include <atomic>
 
 #include <signal.h>
@@ -1303,9 +1306,47 @@ inline void increment_fss(struct fssId& fss, int max_slot_id)
  * @param[in] launch_pattern_slot_size Total launch pattern slots
  * @return Launch pattern slot index
  */
+// --- night-3 test option (2026-10-18), default OFF = the original mapping below, unchanged -----------------------------
+// RU_LP_BLOCK_REPEAT=<N> (with RU_LP_BLOCK_FRAMES, default 4; the file must stay within MAX_LAUNCH_PATTERN_SLOTS = 80 slots because
+// many per-slot arrays here and in aerial-fh-driver/packet_stats.hpp are sized by it): slow load alternation without a long pattern file. The file's
+// frames form blocks of RU_LP_BLOCK_FRAMES frames; block k is replayed for N consecutive real blocks (N x 40 ms), then block
+// k+1, wrapping. The real frame counter is extended beyond the 8-bit ORAN frameId with CLOCK_REALTIME (frame 0 of SFN 0 at
+// t = 3.64 s mod 10.24 s, the L1 / testMAC convention), nearest-match adjusted to the packet's frameId; testMAC implements
+// the same mapping (TESTMAC_LP_BLOCK_REPEAT) so both sides pick the same vectors for every slot.
+inline int lp_block_repeat()
+{
+    static const int v = [] { const char* e = getenv("RU_LP_BLOCK_REPEAT"); return e ? atoi(e) : 0; }();
+    return v;
+}
+inline int lp_block_frames()
+{
+    static const int v = [] { const char* e = getenv("RU_LP_BLOCK_FRAMES"); const int n = e ? atoi(e) : 4; return n > 0 ? n : 4; }();
+    return v;
+}
+inline int64_t lp_extended_frame(int frame_id, int modulus)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    const int64_t t_ns   = (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    const int64_t f_wall = (t_ns - 3640000000LL) / 10000000LL;          // 10 ms frames since the SFN-0 epoch
+    int64_t d = ((int64_t)frame_id - f_wall) % modulus;
+    if(d < 0) d += modulus;
+    if(d > modulus / 2) d -= modulus;
+    return f_wall + d;
+}
+
 inline int fss_to_launch_pattern_slot(const struct fssId& fss, int launch_pattern_slot_size)
 {
-    return fss.frameId % (launch_pattern_slot_size / (ORAN_MAX_SLOT_X_SUBFRAME_ID)) * (ORAN_MAX_SLOT_X_SUBFRAME_ID) + fss.subframeId * (ORAN_MAX_SLOT_ID) + fss.slotId;
+    const int rep = lp_block_repeat();
+    if(rep <= 0)
+        return fss.frameId % (launch_pattern_slot_size / (ORAN_MAX_SLOT_X_SUBFRAME_ID)) * (ORAN_MAX_SLOT_X_SUBFRAME_ID) + fss.subframeId * (ORAN_MAX_SLOT_ID) + fss.slotId;
+    const int     blk      = lp_block_frames();
+    const int     n_frames = launch_pattern_slot_size / (ORAN_MAX_SLOT_X_SUBFRAME_ID);
+    const int     n_blocks = (n_frames / blk) > 0 ? (n_frames / blk) : 1;
+    const int64_t ext      = lp_extended_frame(fss.frameId, 256);
+    const int64_t seg      = (ext / ((int64_t)blk * rep)) % n_blocks;
+    const int     fib      = (int)(ext % blk);
+    return (int)(seg * blk + fib) * (ORAN_MAX_SLOT_X_SUBFRAME_ID) + fss.subframeId * (ORAN_MAX_SLOT_ID) + fss.slotId;
 }
 
 //!< Map from test vector name to dataset

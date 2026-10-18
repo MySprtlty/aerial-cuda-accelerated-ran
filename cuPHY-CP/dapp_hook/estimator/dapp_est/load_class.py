@@ -38,7 +38,13 @@ class Table:
         if self.heavy_min < self.light_max:
             raise ValueError("table %s: peak min %.0f < average max %.0f" % (path, self.heavy_min, self.light_max))
         self.gate_slots = int(y.get("gate_slots", 40))
-        self.table = {c: {m: int(v.get(m, 0)) for m in MODELS} for c, v in y["table"].items()}
+        # models = the union of the names in the table rows (accuracy order 26x > 26l > 26m > 26s > 26n), at most 4 (control block ABI 2)
+        order = ("26x", "26l", "26m", "26s", "26n")
+        names = {m for v in y["table"].values() for m in v}
+        self.models = tuple(m for m in order if m in names) + tuple(sorted(names - set(order)))
+        if len(self.models) > 4:
+            raise ValueError("table %s: %d models, the control block holds 4" % (path, len(self.models)))
+        self.table = {c: {m: int(v.get(m, 0)) for m in self.models} for c, v in y["table"].items()}
         for c in ("average", "peak"):
             if c not in self.table:
                 raise ValueError("table %s: no row for class %s" % (path, c))
@@ -48,7 +54,7 @@ class Table:
 
     def entries(self, cls):
         """(name, cap_pct, gate_slots) tuples for the control block, cap 0 = model not allowed."""
-        return [(m, self.table[cls][m], self.gate_slots if self.table[cls][m] > 0 else 0) for m in MODELS]
+        return [(m, self.table[cls][m], self.gate_slots if self.table[cls][m] > 0 else 0) for m in self.models]
 
 
 class Classifier:

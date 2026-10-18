@@ -18,6 +18,9 @@
 #ifndef _LAUNCH_PATTERN_HPP_
 #define _LAUNCH_PATTERN_HPP_
 
+#include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
 #include <vector>
 #include <unordered_map>
 
@@ -177,6 +180,32 @@ public:
     int populate_launch_pattern(slot_pattern_t& slots_data, yaml::node cell_config, int cell_id, int slot_idx);
     cv_membank_config_req_t& get_mem_bank_configs(int cell_id) {
         return mem_bank_config_req[cell_id];
+    }
+
+    // night-3 test option (2026-10-18), default OFF = the original (sfn * slots_per_frame + slot) % pattern size.
+    // TESTMAC_LP_BLOCK_REPEAT=<N> (+ TESTMAC_LP_BLOCK_FRAMES, default 4): the pattern file's frames form blocks of
+    // TESTMAC_LP_BLOCK_FRAMES frames, block k is replayed for N consecutive real blocks, then block k+1 (wrapping). The real
+    // frame counter is extended beyond SFN 1023 with CLOCK_REALTIME (frame 0 of SFN 0 at t = 3.64 s mod 10.24 s), nearest-match
+    // adjusted to the slot's SFN. The RU emulator implements the same mapping (RU_LP_BLOCK_REPEAT), so both pick the same vectors.
+    uint32_t lp_pattern_index(uint16_t sfn, uint16_t slot, size_t pattern_slots)
+    {
+        static const int rep = [] { const char* e = getenv("TESTMAC_LP_BLOCK_REPEAT"); return e ? atoi(e) : 0; }();
+        if (rep <= 0 || pattern_slots == 0 || slots_per_frame == 0)
+            return get_slot_in_frame(sfn, slot) % pattern_slots;
+        static const int blk = [] { const char* e = getenv("TESTMAC_LP_BLOCK_FRAMES"); const int n = e ? atoi(e) : 4; return n > 0 ? n : 4; }();
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        const int64_t t_ns   = (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        const int64_t f_wall = (t_ns - 3640000000LL) / 10000000LL;
+        int64_t d = ((int64_t)sfn - f_wall) % 1024;
+        if (d < 0) d += 1024;
+        if (d > 512) d -= 1024;
+        const int64_t ext      = f_wall + d;
+        const int     n_frames = (int)(pattern_slots / slots_per_frame);
+        const int     n_blocks = (n_frames / blk) > 0 ? (n_frames / blk) : 1;
+        const int64_t seg      = (ext / ((int64_t)blk * rep)) % n_blocks;
+        const int     fib      = (int)(ext % blk);
+        return (uint32_t)(((seg * blk + fib) * slots_per_frame + slot) % pattern_slots);
     }
 
     uint32_t get_slot_in_frame(uint16_t sfn, uint16_t slot)

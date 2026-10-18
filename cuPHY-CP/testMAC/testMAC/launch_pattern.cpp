@@ -3235,7 +3235,7 @@ int launch_pattern::save_harq_pid(int cell_id, uint16_t sfn, uint16_t slot, int 
 {
     int ret = 0;
     std::unordered_map<uint32_t, std::vector<uint8_t>>& m = hpid_maps[cell_id];
-    uint32_t sfn_slot = get_slot_in_frame(sfn, slot) % get_slot_cell_patterns(0).size();
+    uint32_t sfn_slot = lp_pattern_index(sfn, slot, get_slot_cell_patterns(0).size());   // night-3 option, default = the original modulo
 
     if (m.find(sfn_slot) == m.end())
     {
@@ -3264,7 +3264,7 @@ int launch_pattern::read_harq_pid(int cell_id, uint16_t sfn, uint16_t slot, int 
 {
     int ret = 0;
     std::unordered_map<uint32_t, std::vector<uint8_t>>& m = hpid_maps[cell_id];
-    uint32_t sfn_slot = get_slot_in_frame(sfn, slot) % get_slot_cell_patterns(0).size();
+    uint32_t sfn_slot = lp_pattern_index(sfn, slot, get_slot_cell_patterns(0).size());   // night-3 option, default = the original modulo
 
     if (m.find(sfn_slot) == m.end())
     {

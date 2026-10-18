@@ -120,7 +120,10 @@ cp cuPHY/nvlog/config/nvlog_config.yaml $S/nvlog_$NAME.yaml
 cp cuPHY-CP/ru-emulator/config/config.yaml $S/ru_config_$NAME.yaml
 cp cuPHY-CP/testMAC/testMAC/test_mac_config.yaml $S/testmac_config_$NAME.yaml
 if [ "${DRY:-0}" = "1" ]; then echo "   dry-run: configuration applied and snapshotted in $S, restoring the lab files $(date +%T)"; restore_lab; echo "== $NAME dry-run done"; exit 0; fi
-docker exec c_aerial_troy bash -lc "$P/run1_RU.sh --timeout $((TRAFFIC_S + 330))" > $S/run1_$NAME.log 2>&1 & RU=$!
+# RUN_ENV="VAR=val VAR2=val" (night 3): environment handed to the RU emulator and testMAC inside the container (e.g. the
+# RU_LP_BLOCK_REPEAT / TESTMAC_LP_BLOCK_REPEAT pattern options); empty = unchanged behaviour
+RUN_ENV_ARGS=""; for kv in ${RUN_ENV:-}; do RUN_ENV_ARGS="$RUN_ENV_ARGS -e $kv"; done
+docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run1_RU.sh --timeout $((TRAFFIC_S + 330))" > $S/run1_$NAME.log 2>&1 & RU=$!
 sleep 25
 docker exec -u root ${MIG_UUID:+-e CUDA_VISIBLE_DEVICES=$MIG_UUID} c_aerial_troy bash -lc "$P/run2_cuPHYcontroller.sh --timeout $((TRAFFIC_S + 280))" > $S/run2_$NAME.log 2>&1 & L1=$!
 for i in $(seq 1 120); do grep -q "L1 is ready" $S/run2_$NAME.log 2>/dev/null && break; kill -0 $L1 2>/dev/null || break; sleep 2; done
@@ -131,7 +134,7 @@ MP=""
 if [ "$MPSTAT" = "1" ]; then mpstat -P ALL 1 > $S/mpstat_$NAME.txt 2>&1 & MP=$!; fi
 REC=""
 if [ "$RECORD" = "1" ] && [ "$HOOK" != "off" ]; then python3 cuPHY-CP/dapp_hook/tools/dapp_ring_record.py --out prof/ring_16C_$NAME.bin --seconds ${RECORD_SECS:-$((TRAFFIC_S + 90))} > $S/record_$NAME.log 2>&1 & REC=$!; fi
-docker exec c_aerial_troy bash -lc "$P/run3_testMAC.sh --timeout $((TRAFFIC_S + 120))" > $S/run3_$NAME.log 2>&1 & MAC=$!
+docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run3_testMAC.sh --timeout $((TRAFFIC_S + 120))" > $S/run3_$NAME.log 2>&1 & MAC=$!
 TEN=""
 if [ -n "${TENANT_SPEC:-}" ] || [ "${TENANT_MODE:-}" = "dispatcher" ]; then FS_OUT=$S bash "$(dirname "$0")/fs_tenant.sh" start "$NAME" "$TRAFFIC_S" > $S/tenant_$NAME.log 2>&1 & TEN=$!; fi
 for i in $(seq 1 $((TRAFFIC_S + 150))); do
@@ -155,5 +158,8 @@ elif [ "$KEEP_RAW" = "2" ]; then
 else
   docker exec c_aerial_troy bash -lc "mkdir -p $CS && grep -F '[L2A.PROCESSING_TIMES]' /tmp/phy.log > $CS/l2a_$NAME.log; grep -E ' (WRN|ERR|FATAL) |Send Err.ind|recovery|not responsive|No available|Successive Non-availability|Attempting PUSCH pipeline termination|Order kernel timeout|exit handler|pipeline failed' /tmp/phy.log | head -2000000 > $CS/phy_warn_$NAME.log; cp /tmp/testmac.log $CS/testmac_$NAME.log; grep -E ' (WRN|ERR) |PACKET_SUMMARY|LATE' /tmp/ru.log | head -400000 > $CS/ru_warn_$NAME.log; ls -la $CS/ | grep _$NAME"
 fi
+# PURGE_TMP=1 (default since night 3): the raw logs in the container's /tmp are deleted right after the extraction above, so the
+# disk peak of a 10-min run (phy.log ~13 GB, ru.log ~10 GB with tag 503) does not carry into the next run; PURGE_TMP=0 keeps them
+[ "${PURGE_TMP:-1}" = "1" ] && docker exec -u root c_aerial_troy bash -lc "rm -f /tmp/phy.log /tmp/ru.log /tmp/testmac.log" && echo "   container /tmp raw logs purged"
 restore_lab
 echo "== $NAME done $(date +%T)"

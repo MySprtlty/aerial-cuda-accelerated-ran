@@ -520,7 +520,7 @@ int fapi_handler::set_prach_msg2_rapid(int cell_id, uint8_t* rapid)
 int fapi_handler::get_pramble_params(int cell_id, uint16_t sfn, uint16_t slot, preamble_params_t* preamble)
 {
     vector<vector<vector<vector<fapi_req_t*>>>>& slot_cell_patterns = lp->get_slot_cell_patterns(get_slot_in_frame(sfn, slot));
-    uint32_t                                     slot_idx           = get_slot_in_frame(sfn, slot) % slot_cell_patterns.size();
+    uint32_t                                     slot_idx           = lp->lp_pattern_index(sfn, slot, slot_cell_patterns.size());   // night-3 option (default = the original modulo)
     vector<vector<fapi_req_t*>>&                 fapi_groups        = slot_cell_patterns[slot_idx][cell_id_map[cell_id]];
     vector<fapi_req_t*>&                         fapi_reqs          = fapi_groups[UL_TTI_REQ];
 
@@ -660,7 +660,7 @@ pucch_tv_data_t* fapi_handler::get_pucch_tv_pf234_pdu(fapi_req_t* pucch_req, int
 fapi_req_t* fapi_handler::get_fapi_req_data(int cell_id, uint16_t sfn, uint16_t slot, channel_type_t channel)
 {
     vector<vector<vector<vector<fapi_req_t*>>>>& slot_cell_patterns = lp->get_slot_cell_patterns(get_slot_in_frame(sfn, slot));
-    uint32_t                                     slot_idx           = get_slot_in_frame(sfn, slot) % slot_cell_patterns.size();
+    uint32_t                                     slot_idx           = lp->lp_pattern_index(sfn, slot, slot_cell_patterns.size());   // night-3 option (default = the original modulo)
     vector<vector<fapi_req_t*>>&                 fapi_groups        = slot_cell_patterns[slot_idx][cell_id_map[cell_id]];
     vector<fapi_req_t*>&                         fapi_reqs          = fapi_groups[UL_TTI_REQ];
 
@@ -680,7 +680,7 @@ fapi_req_t* fapi_handler::get_fapi_req_data(int cell_id, uint16_t sfn, uint16_t 
 vector<fapi_req_t*>& fapi_handler::get_fapi_req_list(int cell_id, sfn_slot_t ss, fapi_group_t group_id)
 {
     slot_pattern_t &slot_cell_patterns = lp->get_slot_cell_patterns(get_slot_in_frame(ss));
-    uint32_t slot_idx = get_slot_in_frame(ss) % slot_cell_patterns.size();
+    uint32_t sif_ = get_slot_in_frame(ss); uint32_t slot_idx = lp->lp_pattern_index(sif_ / lp->get_slots_per_frame(), sif_ % lp->get_slots_per_frame(), slot_cell_patterns.size());   // night-3 option
     vector<vector<fapi_req_t*>> &fapi_groups = slot_cell_patterns[slot_idx][cell_id_map[cell_id]];
     return fapi_groups[group_id];
 }
@@ -970,7 +970,7 @@ void fapi_handler::update_dl_thrput(uint32_t sfn, uint32_t slot, uint64_t slot_c
     vector<vector<vector<vector<fapi_req_t*>>>>& slot_cell_patterns = lp->get_slot_cell_patterns(slot_counter);
 
     uint32_t cell_num = lp->get_cell_num();
-    uint32_t slot_idx = get_slot_in_frame(sfn, slot) % slot_cell_patterns.size();
+    uint32_t slot_idx = lp->lp_pattern_index(sfn, slot, slot_cell_patterns.size());   // night-3 option
 
     auto cells_size = slot_cell_patterns[slot_idx].size();
     auto start_cell_index = 0;

@@ -65,18 +65,33 @@ def frame_classes(pattern, peak_src, avg_src):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dir", required=True); ap.add_argument("--name", required=True); ap.add_argument("--pattern", required=True)
+    ap.add_argument("--dir", required=True); ap.add_argument("--name", required=True); ap.add_argument("--pattern", default="")
     tv = os.path.join(HERE, "..", "..", "..", "..", "testVectors", "multi-cell")
     ap.add_argument("--peak-src", default=os.path.join(tv, "launch_pattern_F08_16C_ddddddsuuu_peak.yaml"))
     ap.add_argument("--avg-src", default=os.path.join(tv, "launch_pattern_F08_16C_ddddddsuuu_average.yaml"))
     ap.add_argument("--first-s", type=float, default=10.0); ap.add_argument("--origin", type=float, default=3.64); ap.add_argument("--period", type=float, default=10.24)
-    ap.add_argument("--map", default="26x=57.5,26s=48.6,26n=40.9")
+    ap.add_argument("--map", default="26x=57.5,26l=55.0,26m=53.1,26s=48.6,26n=40.9")
+    ap.add_argument("--segments", default="", help='time segments instead of a pattern file, e.g. "average:0-60,peak:60-120" (seconds inside '
+                    '--period; night-3 block-repeat alternation: segment = floor((t - origin) / 60 s) mod 2)')
+    ap.add_argument("--ramp-s", type=float, default=0.0, help="with --segments: mark +-ramp-s around every boundary as ramp")
     a = ap.parse_args(); d = a.dir
     mp = {k: float(v) for k, v in (x.split("=") for x in a.map.split(","))}
-    cls, nfr = frame_classes(a.pattern, a.peak_src, a.avg_src)
-    segs = ("average", "ramp", "peak")
+    if a.segments:
+        nfr = int(round(a.period / 0.01)); rng = []
+        for part in a.segments.split(","):
+            lab, span = part.split(":"); lo_s, hi_s = (float(x) for x in span.split("-")); rng.append((lab, lo_s, hi_s))
+        cls = {}
+        for f in range(nfr):
+            t = f * 0.01 + 0.005
+            lab = next((lab for lab, lo_s, hi_s in rng if lo_s <= t < hi_s), "none")
+            if a.ramp_s > 0 and any(abs(t - b) < a.ramp_s or abs(t - b + a.period) < a.ramp_s or abs(t - b - a.period) < a.ramp_s for _, b, _ in rng):
+                lab = "ramp"
+            cls[f] = lab
+    else:
+        cls, nfr = frame_classes(a.pattern, a.peak_src, a.avg_src)
+    segs = tuple(x for x in ("average", "ramp", "peak") if any(cls[f] == x for f in cls))
     frames = {s: sum(1 for f in cls if cls[f] == s) for s in segs}
-    print("pattern %s: %d frames per period: " % (os.path.basename(a.pattern), nfr) + ", ".join("%s %d (%.1f s)" % (s, frames[s], frames[s] * 0.01) for s in segs))
+    print("%s: %d frames per period %.2f s: " % (os.path.basename(a.pattern) if a.pattern else "segments " + a.segments, nfr, a.period) + ", ".join("%s %d (%.1f s)" % (s, frames[s], frames[s] * 0.01) for s in segs))
     runs = []; prev = None
     for f in range(nfr):
         if cls[f] != prev:

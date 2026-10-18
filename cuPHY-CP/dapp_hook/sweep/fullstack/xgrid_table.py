@@ -139,7 +139,7 @@ def ru_late_rows(d, name, win):
 def ru_table_pkts(d, name):
     """total DL U-plane packets of the whole run (EARLY + ON TIME + LATE, all cells) from the RU end-of-run table."""
     tot = 0; seen = False
-    for q in (os.path.join(d, "ru_%s.log" % name), os.path.join(d, "ru_warn_%s.log" % name)):
+    for q in (os.path.join(d, "ru_%s.log" % name), os.path.join(d, "ru_warn_%s.log" % name), os.path.join(d, "run1_%s.log" % name)):   # run1 = RU stdout (table too)
         if not os.path.exists(q):
             continue
         with open(q, errors="replace") as f:

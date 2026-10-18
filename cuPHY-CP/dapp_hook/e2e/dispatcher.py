@@ -73,7 +73,7 @@ CSV_FIELDS = ["req_id", "t_arrival", "t_enqueue", "t_dequeue", "t_shm_written", 
 
 DEFAULT_POLICY = {
     "rule": "fixed",                      # fixed | target
-    "models": ["26x", "26s", "26n"],      # accuracy order = the --engine-sel index a client may force
+    "models": ["26x", "26l", "26m", "26s", "26n"],   # accuracy order = the --engine-sel index a client may force
     "window_s": 60.0,                     # W: share of a model among the requests of the last W seconds
     "ratio_26s_max": 0.6,                 # 26s is chosen while its share is below this
     "ratio_26n_max": 0.1,                 # 26n likewise (else 26s)
@@ -495,6 +495,15 @@ def main():
                 if verb != "HOLD":
                     break
                 n_hold += 1
+                # table rule (night 3): a HOLD usually means the held model just lost its allowance (class switch while the
+                # request was in flight) -> re-read the block and re-choose inside the new allowed set instead of retrying
+                if cfg.get("rule") == "table" and not a.force_model:
+                    ent_h = source.entries(now_ns())
+                    if ent_h.get(model, (0, 0))[0] == 0:
+                        model_h, reason_h, _ = choose_model(ent_h, hist, now_ns(), cfg, profiles, 0)
+                        if model_h != model:
+                            reason += "; HOLD -> %s" % model_h; model = model_h; ent = ent_h
+                            continue
                 if now_ns() > t_limit:
                     break
                 time.sleep(0.002)

@@ -43,7 +43,7 @@ disk_check() {  # <name>: free space rule before a run. < 25 GB: delete prof/rin
   echo "   disk: ${free} GB free before $1"
   if [ "$free" -lt 25 ] && [ -f $R/prof/ring_16C_as_pilot.bin ]; then rm -f $R/prof/ring_16C_as_pilot.bin; echo "   disk: removed prof/ring_16C_as_pilot.bin"; free=$(df --output=avail -BG / | tail -1 | tr -dc '0-9'); fi
   if [ "$free" -lt 20 ]; then
-    local f; for f in $O/phy_*.log $O/ru_*.log $O/testmac_*.log; do [ -f "$f" ] || continue; grep -qx "$(basename $f)" $O/keep_raw.txt 2>/dev/null && continue; rm -f "$f"; echo "   disk: removed $f"; done
+    local f; for f in $O/phy_*.log $O/ru_*.log $O/testmac_*.log; do [ -f "$f" ] || continue; case "$(basename $f)" in phy_warn_*|ru_warn_*) continue;; esac; grep -qx "$(basename $f)" $O/keep_raw.txt 2>/dev/null && continue; rm -f "$f"; echo "   disk: removed $f"; done
     free=$(df --output=avail -BG / | tail -1 | tr -dc '0-9'); echo "   disk: ${free} GB free after cleanup"
   fi
   [ "$free" -lt 20 ] && { echo "!! disk below 20 GB -> no new run"; return 1; }

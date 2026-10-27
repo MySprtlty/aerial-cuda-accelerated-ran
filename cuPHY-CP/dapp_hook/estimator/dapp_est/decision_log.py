@@ -10,7 +10,8 @@ and live mode so the two can be diffed. Columns:
   base_{ch}   rule-a base time (us) of the now slot
   lat_{ch}    rule-b latency estimate (us) of the now slot at the chosen cap
   gate_slots, cap_pct, safe_k, need_slots, reason
-  proc_us     wall time of base_times + decide for this slot (decode time excluded)
+  proc_us     wall time of base_times + decide for this slot, all profiles together (decode time excluded)
+  profile     name of the tenant profile this row was decided for (one row per profile per slot)
 """
 import csv
 
@@ -25,12 +26,12 @@ FIELDS = (["ts_ns", "sfn", "slot", "slot_id", "t0_ns", "n_cells", "ul", "dl"]
           + ["%s_%s" % (c, k) for c in CHANNELS for k in KERNELS[c]]
           + ["base_%s" % c for c in CHANNELS]
           + ["lat_%s" % c for c in CHANNELS]
-          + ["gate_slots", "cap_pct", "safe_k", "need_slots", "reason", "proc_us"])
+          + ["gate_slots", "cap_pct", "safe_k", "need_slots", "reason", "proc_us", "profile"])
 
 COMPARE_FIELDS = [f for f in FIELDS if f != "proc_us"]   # replay == live on these
 
 
-def make_record(ctx, ts_ns, slot_id, base_total, lat, gate_slots, cap_pct, info, proc_us):
+def make_record(ctx, ts_ns, slot_id, base_total, lat, gate_slots, cap_pct, info, proc_us, profile=""):
     r = {"ts_ns": ts_ns, "sfn": ctx.sfn, "slot": ctx.slot, "slot_id": slot_id, "t0_ns": ctx.t0_ns,
          "n_cells": len(ctx.cells), "ul": int(ctx.is_ul), "dl": int(ctx.is_dl)}
     for c in CHANNELS:
@@ -47,6 +48,7 @@ def make_record(ctx, ts_ns, slot_id, base_total, lat, gate_slots, cap_pct, info,
     r["need_slots"] = round(info.get("need_slots", 0.0), 2)
     r["reason"] = info.get("reason", "")
     r["proc_us"] = round(proc_us, 1)
+    r["profile"] = profile
     return r
 
 

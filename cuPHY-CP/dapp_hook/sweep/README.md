@@ -180,7 +180,7 @@ cd cuPHY-CP/dapp_hook/models
 ~/.venvs/dapp_yolo/bin/python -c "from ultralytics import YOLO; YOLO('yolo26n.pt'); YOLO('yolo26x.pt')"
 for m in yolo26n yolo26x; do for b in 1 8; do ~/.venvs/dapp_yolo/bin/yolo export model=$m.pt format=onnx imgsz=640 batch=$b device=cpu; mv $m.onnx ${m}_b$b.onnx; done; done
 ~/.venvs/dapp_yolo/bin/python export_1280.py          # 1280 입력판: yolo26{n,s,x}_1280_b{1,8}.onnx, bus_1280.npy (4K 입력용, FLOPs 4배)
-# 컨테이너: FP16 엔진. 반드시 작은 cap 아래서 빌드 (전체 GPU에서 빌드한 엔진은 48 SM 이하 파티션에서 실행 실패)
+# 컨테이너: FP16 엔진. (모델, 배치, cap)마다 하나: 엔진은 빌드할 때 본 SM 수 근처에서만 돈다 (matrix.yaml 주석, 메인 README "Engines and SM classes")
 docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=10 c_aerial_troy \
   /usr/src/tensorrt/bin/trtexec --onnx=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_b1.onnx --fp16 \
   --saveEngine=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_b1_fp16_atp10.engine --skipInference
@@ -244,3 +244,43 @@ docker exec -u root -e CUDA_MPS_PIPE_DIRECTORY=/var -e CUDA_MPS_ACTIVE_THREAD_PE
 
 - 커밋: 하네스 코드, `matrix.yaml`, `points/`(점 파일; `pick_minmax.py`의 출력은 `runs/<scan>/minmax_points.yaml`에 생기므로 쓸 것은 `points/`로 복사), `results/<run>/`(그림·집계 CSV 사본), `../models/build_engines.sh`, `testVectors/sweep_tv_manifest.yaml`·`sweep_expanded.yaml`(TV 규격).
 - 커밋하지 않음(.gitignore): `runs/`(nsys 트레이스 포함, 수십 GB), `tv_index*.csv`, `testVectors/GPU_test_input/`(TV h5, 5 GB)와 그 FAPI 심링크, 엔진·ONNX·가중치, 전달용 tgz.
+
+## SafeCap 스윕 (fullstack/safecap_runs.sh, 2026-10-15)
+
+16셀 59c 풀스택 + 타일 tenant(dapp_sched 엔진 9개 + 디스패처 `--force-model` + closed-loop 클라이언트, 코어 44~63)로
+모델 {26x, 26s, 26n} × cap {43, 61, 100}을 한 런(240,000슬롯)씩 돌린다. R0 = tenant 없음(hook 링 녹화), R1 = tenant 유휴.
+모델마다 43 → 61 → 100 순서로 가고 `safecap_check.py`가 R0보다 miss가 늘었다고 하면 그 모델의 더 높은 cap은 건너뛴다.
+
+```bash
+bash cuPHY-CP/dapp_hook/sweep/fullstack/safecap_runs.sh sc            # prof/run61/sc_*_16c
+python3 cuPHY-CP/dapp_hook/sweep/fullstack/safecap_report.py sc --plot prof/run61/sc_tdd_period.png
+```
+
+마감 두 세트를 같이 본다. A = NVIDIA `check_cell_capacity.py`(4T4R DDDSUUDDDD, 채널 작업 **지속 시간**: PUSCH 1500, PUCCH 1500,
+SRS 500, PRACH 1500, PDSCH 375, PDCCH 375 µs) ↔ cuphydriver `[GPU Run]` 지속 시간; B = `estimator/rules.yaml` D_c(작업 시작 가능
+시점부터의 예산) ↔ UL은 GPU 완료 − (t0+500 µs), DL은 CPU run end + GPU run + 1500 µs. 여기에 L1 과부하 문자열과 RU DL U-plane late
+슬롯 수를 더해 "R0보다 나빠졐는지"를 판정한다(`parse_phylog.py`가 PUCCH/PRACH/SRS Aggr 줄도 읽는다).
+
+
+## R0 ladder (no-tenant baseline hygiene, 2026-10-15 night)
+
+`fullstack/r0_ladder.sh <list> [prefix]` runs one full-stack R0 per line of a configuration list (keys `hook eh gc bfp ports nicd
+mpstat ru_hist record record_secs keep_phy tags ncells slots tc`), with a precheck (foreign RAN processes abort the ladder), the
+disk rule, a PTP-core record, lab-file pre-snapshots restored and diffed after every run, parsing (`parse_phylog.py`, `ru_late.py`)
+and one row per run in `ladder_table.csv` (`r0_ladder_report.py`; `--post <name>` re-parses finished runs). Helpers:
+`night_gate.sh` (wait for a free GPU/host), `gpu_clock_lock.sh` (do not use on GH200: -lgc 1980 runs at 1830 MHz),
+`ptp_move.sh` (ptp4l/phc2sys core, passwordless taskset), `b2p_run.sh` (green contexts with MPS kept), `e6_parse_cache.sh`
+(testMAC parse-cache patch / rebuild / revert), `e7_restore.sh`; analyses `e3_overlap.py` (RU late vs PUSCH overrun per TDD
+position), `b3_split.py` (L1 CPU transmit end vs RU deadline, needs nvlog tag 240), `ring_content_compare.py` (FAPI content of two
+hook-ring dumps). Results of the night: `prof/run62` (see the memory note r0-ladder-night-run).
+
+## SafeCap re-sweep and load tools (2026-10-16 night)
+
+`fullstack/g4_sweep.sh grid|eval|rerun|table` runs the tenant grid (3 models x caps 43/61/100 x Peak 59c / Average 60c, closed
+loop, 60 s, plus 10 req/s Poisson spots) through `r0_ladder.sh` (tenant keys `tenant= model= cap= arrivals= rate= tdelay=
+tsecs=`), judges every run with the fixed criteria of `safecap_check.py` (B misses <= max(1, R0), Err.ind / drops / CRC 0 after
+1 s, RU late slots <= 1.25 x the mean of the R0 runs) and prints the SafeCap table (`g4_table.py`). `fullstack/g2_ptp.sh`
+= PTP-core A/B runs. Vector / pattern tools: `tools/make_pusch_load_tvs.py` (UL vectors with 2-5 of the 6 PUSCH UEs, new ids
+90000 + 1000 L + (id - 4471), gitignored), `tools/make_pattern_load.py` (59c with those UL vectors), `tools/make_launch_pattern_tdd.py`
+(any D/S/U pattern from an official pattern as the vector library; reproduces 59c byte for byte; `--slots 20480` = the 10.24 s
+SFN period, `--alt-src 60c --alt-every F` alternates Peak / Average frames). Results: `prof/run63`.

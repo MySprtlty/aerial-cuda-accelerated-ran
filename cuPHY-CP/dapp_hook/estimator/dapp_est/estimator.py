@@ -9,7 +9,9 @@ Rules a-g (numbers live in rules.yaml, reasoning in README.md):
   a. base_c = fixed_c + sum_k w_ck * work_ck * cell_scale   (total: all PDUs of all cells;
      critical: the largest single PDU per kernel = the chain the slot can never beat)
   b. sm_avail = 1 - cap/100 * sm_fill ; latency_c = max(base_crit_c, base_total_c / sm_avail)
-  c. margin = profile.kernel_max_us + jitter_us  (one tenant kernel that cannot be preempted + timer jitter)
+  c. margin(cap) = profile.delay_increase_us[cap] + rules.safety_us   (margin.mode measured: the cuPHY delay increase
+     measured with this tenant at that cap in the SafeCap sweep, plus a safety allowance)
+     or profile.kernel_max_us + jitter_us                              (margin.mode kernel, or no table in the profile)
   d. gate: over the confirmed slots (now, +1, +2 ...) count consecutive safe slots k;
      if all are safe and the max context of the last W seconds is safe, k = max_gate_slots;
      gate_slots = k if k * slot_us >= dur_us[batch][cap] else 0
@@ -156,6 +158,15 @@ def predict_latency_us(ctx, cap_pct, profile, rules, cells, batch=None):
     return latency_from_base(total, crit, cap_pct, profile.fill(b, cap_pct))
 
 
+def margin_for(profile, rules, cap_pct):
+    """Rule c. measured: delay_increase_us[cap] + safety_us (falls back to the kernel rule without a table)."""
+    if getattr(rules, "margin_mode", "kernel") == "measured":
+        inc = profile.delay_increase(cap_pct)
+        if inc is not None:
+            return inc + rules.safety_us
+    return profile.kernel_max_us + rules.jitter_us
+
+
 def is_safe(lat, margin, rules):
     """True if every active channel meets its deadline: latency + margin <= D_c."""
     D = rules.deadline_us
@@ -181,7 +192,8 @@ def decide(ctx_now, ctx_future, profile, state, cells, now_ns=None, batch=None, 
         info["reason"] = "no profile"
         return 0, 0, info
     b = batch or profile.batches[0]
-    margin = profile.kernel_max_us + rules.jitter_us      # rule c
+    margin_of = lambda cap: margin_for(profile, rules, cap)   # rule c, per cap  # noqa: E731
+    margin = margin_of(state.cap_pct if state.cap_pct else rules.caps[-1])
 
     if ctx_now is None or not ctx_now.complete:            # rule f
         state.n_gate_closed += 1
@@ -202,7 +214,7 @@ def decide(ctx_now, ctx_future, profile, state, cells, now_ns=None, batch=None, 
         for cap in rules.caps:
             if cap == 0:
                 continue
-            if is_safe(latency_from_base(pt, pc, cap, profile.fill(b, cap)), margin, rules):
+            if is_safe(latency_from_base(pt, pc, cap, profile.fill(b, cap)), margin_of(cap), rules):
                 cand = cap
         info["lat_win"] = latency_from_base(pt, pc, cand, profile.fill(b, cand if cand else rules.caps[-1]))
     if cand < state.cap_pct:
@@ -216,6 +228,7 @@ def decide(ctx_now, ctx_future, profile, state, cells, now_ns=None, batch=None, 
     else:
         state.raise_votes = 0
     cap = state.cap_pct
+    margin = margin_of(cap) if cap else margin
     if cap == 0:
         state.n_gate_closed += 1
         if cand > 0:

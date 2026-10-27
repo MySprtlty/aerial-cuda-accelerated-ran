@@ -1,0 +1,12 @@
+# X=10 (10 cells) table policy, night 3 (2026-10-18). Classifier per UL slot: PUSCH PRB sum over the cells of ONE UL slot
+# (window_ul_slots 1); heavy (peak) at once when >= 1,626, light (average) when <= 1,464 for 0.5 s; between: keep. cap 0 = not allowed.
+classes:
+  average: {pusch_prb_per_ul_slot_max: 1327}
+  peak:    {pusch_prb_per_ul_slot_min: 1491}
+window_ul_slots: 1
+light_hold_s: 0.5
+start_class: peak
+gate_slots: 40
+table:
+  average: {26x: 61, 26s: 0}
+  peak:    {26x: 0, 26s: 43}

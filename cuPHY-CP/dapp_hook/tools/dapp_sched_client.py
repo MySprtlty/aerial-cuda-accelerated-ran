@@ -3,10 +3,13 @@
 Send one request to dapp_sched and print the reply. Replaces `nc -U`, which the
 Aerial container does not ship.
 
-    dapp_sched_client.py [-s /tmp/dapp_sched.sock] RUN [image.jpg | milliseconds]
-    dapp_sched_client.py -n 20 -i 0.5 RUN bus.jpg      # 20 requests, 0.5 s apart
+    dapp_sched_client.py [-s /tmp/dapp_sched.sock] [-m MODEL] RUN [image.jpg | milliseconds]
+    dapp_sched_client.py -n 20 -i 0.5 RUN bus.jpg          # 20 requests, 0.5 s apart
+    dapp_sched_client.py -m 26x RUN /opt/.../img4k/uhd_0_q85.jpg   # pick the model (name given to dapp_sched --engine)
 
-Each request is one connection: write a line, read one line back.
+Each request is one connection: write a line, read one line back. The line is
+"RUN [model=NAME] [image]"; without model= dapp_sched uses its default model
+(the first --engine), without image its --image.
 """
 import argparse
 import socket
@@ -32,11 +35,15 @@ def ask(sock_path, line, timeout=30.0):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-s", "--sock", default="/tmp/dapp_sched.sock")
+    ap.add_argument("-m", "--model", default="", help="model name as given to dapp_sched --engine NAME:SM=file")
     ap.add_argument("-n", "--count", type=int, default=1)
     ap.add_argument("-i", "--interval", type=float, default=0.0, help="seconds between requests")
     ap.add_argument("words", nargs="*", default=["RUN"])
     a = ap.parse_args()
-    line = " ".join(a.words)
+    words = list(a.words) or ["RUN"]
+    if a.model:
+        words.insert(1, "model=%s" % a.model)
+    line = " ".join(words)
     for k in range(a.count):
         t0 = time.time()
         try:

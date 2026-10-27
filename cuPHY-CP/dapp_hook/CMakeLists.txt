@@ -40,7 +40,7 @@ if(TARGET CUDA::cuda_driver)
     set_target_properties(dapp_sched PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     install(TARGETS dapp_sched DESTINATION ${PROJECT_NAME}/bin OPTIONAL)
 
-    # Real inference: a YOLO engine through TensorRT, one instance per SM class
+    # Real inference: a YOLO engine through TensorRT, one instance per (model, SM class)
     # (sched/dapp_yolo.hpp). Optional; without TensorRT the placeholder kernel
     # is all dapp_sched can run. Image decoding is the vendored stb_image,
     # compiled on its own with warnings off so -Werror does not apply to it.
@@ -53,6 +53,23 @@ if(TARGET CUDA::cuda_driver)
         target_include_directories(dapp_sched PRIVATE ${DAPP_NVINFER_INC} ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
         target_link_libraries(dapp_sched PRIVATE ${DAPP_NVINFER_LIB} CUDA::cudart)
         message(STATUS "dapp_sched: TensorRT YOLO runner enabled (${DAPP_NVINFER_LIB})")
+        # Tiled 4K inference: the JPEG is decoded on the NVJPG hardware engines straight into the engine input
+        # (e2e/nvjpeg_dec.cu, the same code the E2E server loads through ctypes). Optional: without nvjpeg only
+        # batch-1 engines run (CPU letterbox).
+        if(TARGET CUDA::nvjpeg)
+            set(DAPP_NVJPEG_LIB CUDA::nvjpeg)
+        else()
+            find_library(DAPP_NVJPEG_LIB nvjpeg HINTS ${CUDAToolkit_LIBRARY_DIR})
+        endif()
+        if(DAPP_NVJPEG_LIB)
+            target_sources(dapp_sched PRIVATE e2e/nvjpeg_dec.cu)
+            set_source_files_properties(e2e/nvjpeg_dec.cu PROPERTIES COMPILE_OPTIONS "-w")
+            target_compile_definitions(dapp_sched PRIVATE DAPP_SCHED_NVJPEG=1)
+            target_link_libraries(dapp_sched PRIVATE ${DAPP_NVJPEG_LIB})
+            message(STATUS "dapp_sched: nvjpeg tiled decode enabled (${DAPP_NVJPEG_LIB})")
+        else()
+            message(STATUS "dapp_sched: nvjpeg not found, batch-1 engines only")
+        endif()
     else()
         message(STATUS "dapp_sched: TensorRT not found, YOLO runner disabled")
     endif()

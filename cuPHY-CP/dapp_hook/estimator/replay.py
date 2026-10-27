@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-replay: feed recorded ring dumps through the estimator, one run per
-(dump, profile), and write
+replay: feed recorded ring dumps through the estimator, all profiles decided side by side
+(one Runner per dump, like live.py), and write
 
   <out>/decisions_<dump>_<profile>.csv   one row per slot (dapp_est/decision_log.py)
-  <out>/summary.csv                      one row per run: cap distribution, gate-closed %, latencies
+  <out>/summary.csv                      one row per (dump, profile): cap distribution, gate-closed %, latencies
   <out>/<dump>_<profile>.png             cap / gate / latency-vs-deadline over time (needs matplotlib)
 
 Example:
   python3 replay.py --dump ../../../prof/ring_59c_8C.bin --profile profiles/yolov8n_b1.yaml \
                     --profile profiles/yolov8m_b8.yaml --out-dir out --plot
+
+--ctrl NAME also writes the control block (ABI 2, one entry per profile) while replaying, and
+--realtime paces the replay by the ring timestamps and stamps the block with the wall clock, so a
+live reader (dapp_sched --ctrl, e2e/dispatcher.py --policy-source live) can be driven from a
+recorded ring without an L1.
 """
 import argparse
 import csv
@@ -20,6 +25,7 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dapp_est import config as C          # noqa: E402
+from dapp_est import control_block as CB  # noqa: E402
 from dapp_est import decision_log as L    # noqa: E402
 from dapp_est import pipeline as P        # noqa: E402
 from dapp_est import ringio as R          # noqa: E402
@@ -103,12 +109,17 @@ def main():
     ap.add_argument("--out-dir", default="out")
     ap.add_argument("--plot", action="store_true")
     ap.add_argument("--max-slots", type=int, default=0)
+    ap.add_argument("--ctrl", default="", help="also write this control block (e.g. /aerial_dapp_ctrl) while replaying")
+    ap.add_argument("--realtime", action="store_true", help="pace the replay by the ring timestamps, wall-clock stamps in the block")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
 
     rules = C.Rules(a.rules)
     cells = C.Cells(a.cells)
     profiles = C.load_profiles(a.profile)
+    if len(profiles) > CB.MAX_MODELS:
+        ap.error("at most %d profiles" % CB.MAX_MODELS)
+    ctrl = CB.ControlBlock(a.ctrl) if a.ctrl else None
     os.makedirs(a.out_dir, exist_ok=True)
     rows = []
     for spec in a.dump:
@@ -116,32 +127,45 @@ def main():
         rf = R.RecordFile(path)
         mu = rf.header.mu if rf.header else 1
         n_cells_hdr = rf.header.num_cells if rf.header else 0
-        for prof in profiles:
-            log = L.CsvLog(os.path.join(a.out_dir, "decisions_%s_%s.csv" % (name, prof.name)))
-            runner = P.Runner(rules, cells, prof, mu=mu, log=log)
-            t = time.perf_counter()
-            decs = []
-            for rec in rf:
-                decs.extend(runner.feed(rec))
-                if a.max_slots and len(decs) >= a.max_slots:
-                    break
-            else:
-                decs.extend(runner.flush())
-            wall = time.perf_counter() - t
-            log.close()
-            n_cells = max((d["n_cells"] for d in decs), default=n_cells_hdr)
-            s = summarize(decs, rules, name, prof.name, n_cells, wall, runner.state.n_stale)
+        logs = {p.name: L.CsvLog(os.path.join(a.out_dir, "decisions_%s_%s.csv" % (name, p.name))) for p in profiles}
+        runner = P.Runner(rules, cells, profiles, mu=mu, ctrl=ctrl, ctrl_wall_clock=a.realtime)
+        t = time.perf_counter()
+        decs = []
+        t_wall0, ts0 = time.monotonic(), None
+        for rec in rf:
+            if a.realtime:
+                if ts0 is None:
+                    ts0 = rec.ts_ns
+                ahead = (rec.ts_ns - ts0) / 1e9 - (time.monotonic() - t_wall0)
+                if ahead > 0.0005:
+                    time.sleep(ahead)
+            for d in runner.feed(rec):
+                logs[d["profile"]].write(d)
+                decs.append(d)
+            if a.max_slots and len(decs) >= a.max_slots * len(profiles):
+                break
+        else:
+            for d in runner.flush():
+                logs[d["profile"]].write(d)
+                decs.append(d)
+        wall = time.perf_counter() - t
+        for lg in logs.values():
+            lg.close()
+        for prof, st in zip(profiles, runner.states):
+            pd = [d for d in decs if d["profile"] == prof.name]
+            n_cells = max((d["n_cells"] for d in pd), default=n_cells_hdr)
+            s = summarize(pd, rules, name, prof.name, n_cells, wall, st.n_stale)
             rows.append(s)
             if not a.quiet:
                 print("== %s x %s: %d records -> %d decisions in %.1fs | cells=%d gate closed %.1f%% | cap %s | "
                       "lat PUSCH p50/max %.0f/%.0f (D %.0f) PDSCH %.0f/%.0f (D %.0f) | proc_us p50/p99 %.0f/%.0f"
-                      % (name, prof.name, runner.n_records, len(decs), wall, n_cells, s["gate_closed_pct"], s["cap_dist"],
+                      % (name, prof.name, runner.n_records, len(pd), wall, n_cells, s["gate_closed_pct"], s["cap_dist"],
                          s["lat_PUSCH_p50"], s["lat_PUSCH_max"], s["D_PUSCH"], s["lat_PDSCH_p50"], s["lat_PDSCH_max"],
                          s["D_PDSCH"], s["proc_us_p50"], s["proc_us_p99"]))
-                reasons = Counter(d["reason"].split(" (")[0] for d in decs)
+                reasons = Counter(d["reason"].split(" (")[0] for d in pd)
                 print("   reasons: " + ", ".join("%s=%d" % kv for kv in reasons.most_common()))
-            if a.plot and decs:
-                plot(decs, rules, os.path.join(a.out_dir, "%s_%s.png" % (name, prof.name)), "%s / %s" % (name, prof.name))
+            if a.plot and pd:
+                plot(pd, rules, os.path.join(a.out_dir, "%s_%s.png" % (name, prof.name)), "%s / %s" % (name, prof.name))
     with open(os.path.join(a.out_dir, "summary.csv"), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS)
         w.writeheader()

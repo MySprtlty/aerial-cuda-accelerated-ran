@@ -12,7 +12,8 @@ max/min = packet arrival time minus the expected start of its symbol (ns); late 
 
 Outputs
   <out_prefix>_slots.csv   one row per (frame, slot, cell): t0_ns, n_pkts, max_ns, min_ns, late, earliest/latest sym
-  <out_prefix>_late.csv    rows with late > 0 plus the per-symbol late counts sym0..sym13
+  <out_prefix>_late.csv    rows with late > 0 plus max_ns / min_ns and the per-symbol late counts sym0..sym13
+                           (lateness of the slot's latest packet = max_ns / 1e3 + (dl_u_plane_timing_delay - dl_u_plane_window_size) us)
   stdout                   per-TDD-position summary and the symbol distribution of the late packets
 """
 import sys, re, csv, collections
@@ -37,7 +38,7 @@ with open(src, errors="replace") as f:
             slot = sf * 2 + sl
             rows.append((fr, slot, cell, t0, n, mx, mn, late, es, ls))
             if late > 0:
-                pending[(fr, slot, cell)] = late
+                pending[(fr, slot, cell)] = (late, mx, mn)
             continue
         if pending:
             m = re_sym.search(ln)
@@ -46,16 +47,20 @@ with open(src, errors="replace") as f:
                 key = (fr, sf * 2 + sl, cell)
                 if key in pending:
                     syms = [int(x) for x in re.findall(r"Sym \d+ (\d+)", m.group(6))]
-                    late_rows.append((fr, key[1], cell, int(m.group(5)), pending.pop(key), syms))
+                    late, mx, mn = pending.pop(key)
+                    late_rows.append((fr, key[1], cell, int(m.group(5)), late, syms, mx, mn))
 
 with open(out + "_slots.csv", "w", newline="") as f:
     w = csv.writer(f); w.writerow(["frame", "slot", "cell", "t0_ns", "n_pkts", "max_ns", "min_ns", "late", "earliest_sym", "latest_sym"])
     w.writerows(rows)
 with open(out + "_late.csv", "w", newline="") as f:
-    w = csv.writer(f); w.writerow(["frame", "slot", "cell", "t0_ns", "late"] + ["sym%d" % i for i in range(14)])
-    for fr, slot, cell, t0, late, syms in late_rows:
-        w.writerow([fr, slot, cell, t0, late] + syms)
+    w = csv.writer(f); w.writerow(["frame", "slot", "cell", "t0_ns", "late", "max_ns", "min_ns"] + ["sym%d" % i for i in range(14)])
+    for fr, slot, cell, t0, late, syms, mx, mn in late_rows:
+        w.writerow([fr, slot, cell, t0, late, mx, mn] + syms)
 
+if not rows:
+    print("no RU.LATE_PACKETS lines in %s (tag 503 INFO off?) - nothing to summarize" % src)
+    sys.exit(0)
 a = np.array([(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]) for r in rows], dtype=np.int64)
 t0 = a[:, 3]
 keep = t0 > t0.min() + 1_000_000_000          # first second excluded

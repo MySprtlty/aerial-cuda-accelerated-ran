@@ -1,0 +1,20 @@
+# Tenant profile written by profile_tenant.py on 2026-10-14 22:34
+# source: dapp_sched --sweep 56=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_1280_b8_e2e_fp16_sm56.engine,80=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_1280_b8_e2e_fp16_sm80.engine,132=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/yolo26n_1280_b8_e2e_fp16_sm132.engine, caps [43, 61, 100] = SM classes [56, 80, 132], image uhd_0_q85.jpg
+name: yolo26n_b8
+ctrl_name: 26n
+framework: tensorrt
+input_res: 1280
+batches: [8]
+# dur_ms[batch][cap]: median GPU time (h2d + network + d2h) of 22 runs per cap, first 2 excluded. status: measured
+dur_ms:
+  8: {43: 6.350, 61: 4.970, 100: 3.840}
+# dec_ms[batch][cap]: nvjpeg decode + tiles of the tiled path (NVJPG engines, cap independent), not in dur_ms
+dec_ms:
+  8: {43: 5.310, 61: 5.250, 100: 5.200}
+# sm_fill[batch][cap]: status: nsys_time_fill
+sm_fill:
+  8: {43: 0.545, 61: 0.477, 100: 0.407}
+kernel_max_us: 290.9        # status: nsys
+status: {dur_ms: measured, sm_fill: nsys_time_fill, kernel_max_us: nsys}
+# delay_increase_us[cap]: SafeCap sweep sc, cuPHY channel completion p99 increase over the no-tenant run (us, max over channels)
+delay_increase_us: {43: 176}

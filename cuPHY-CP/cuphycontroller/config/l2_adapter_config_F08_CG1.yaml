@@ -12,11 +12,6 @@ mu_highest: 1
 dl_tb_loc: 1
 timer_thread_wakeup_threshold: 20000
 l2a_allowed_latency: 100000
-# dApp FAPI hook: export UL_TTI.request (and optionally DL_TTI.request) to a
-# shared-memory ring for an external consumer. See cuPHY-CP/dapp_hook/README.md.
-# Remove this block or set enable: 0 to switch the hook off completely.
-# async_export: 1 = records are written by the dapp_export thread on export_cpu
-# (an isolated core nothing else uses); 0 = inline on the msg_processing thread.
 dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 0, export_pdus: 1, async_export: 1, export_cpu: 43}
 enableTickDynamicSfnSlot: 0
 staticPucchSlotNum: 0
@@ -35,27 +30,27 @@ pucch_dtx_thresholds: [-100.0, -100.0, 1.0, 1.0, -100.0]
 pusch_dtx_thresholds: 1.0
 duplicate_config_all_cells: 0
 instances:
-- {name: scf_gnb_configure_module_0_instance_0}
-- {name: scf_gnb_configure_module_0_instance_1}
-- {name: scf_gnb_configure_module_0_instance_2}
-- {name: scf_gnb_configure_module_0_instance_3}
-- {name: scf_gnb_configure_module_0_instance_4}
-- {name: scf_gnb_configure_module_0_instance_5}
-- {name: scf_gnb_configure_module_0_instance_6}
-- {name: scf_gnb_configure_module_0_instance_7}
-- {name: scf_gnb_configure_module_0_instance_8}
-- {name: scf_gnb_configure_module_0_instance_9}
-- {name: scf_gnb_configure_module_0_instance_10}
-- {name: scf_gnb_configure_module_0_instance_11}
-- {name: scf_gnb_configure_module_0_instance_12}
-- {name: scf_gnb_configure_module_0_instance_13}
-- {name: scf_gnb_configure_module_0_instance_14}
-- {name: scf_gnb_configure_module_0_instance_15}
-- {name: scf_gnb_configure_module_0_instance_16}
-- {name: scf_gnb_configure_module_0_instance_17}
-- {name: scf_gnb_configure_module_0_instance_18}
-- {name: scf_gnb_configure_module_0_instance_19}
-nvipc_config_file: null
+  - {name: scf_gnb_configure_module_0_instance_0}
+  - {name: scf_gnb_configure_module_0_instance_1}
+  - {name: scf_gnb_configure_module_0_instance_2}
+  - {name: scf_gnb_configure_module_0_instance_3}
+  - {name: scf_gnb_configure_module_0_instance_4}
+  - {name: scf_gnb_configure_module_0_instance_5}
+  - {name: scf_gnb_configure_module_0_instance_6}
+  - {name: scf_gnb_configure_module_0_instance_7}
+  - {name: scf_gnb_configure_module_0_instance_8}
+  - {name: scf_gnb_configure_module_0_instance_9}
+  - {name: scf_gnb_configure_module_0_instance_10}
+  - {name: scf_gnb_configure_module_0_instance_11}
+  - {name: scf_gnb_configure_module_0_instance_12}
+  - {name: scf_gnb_configure_module_0_instance_13}
+  - {name: scf_gnb_configure_module_0_instance_14}
+  - {name: scf_gnb_configure_module_0_instance_15}
+  - {name: scf_gnb_configure_module_0_instance_16}
+  - {name: scf_gnb_configure_module_0_instance_17}
+  - {name: scf_gnb_configure_module_0_instance_18}
+  - {name: scf_gnb_configure_module_0_instance_19}
+nvipc_config_file: 'null'
 transport:
   type: shm
   shm_config:
@@ -81,4 +76,3 @@ transport:
     pcap_max_data_size: 8000
     msg_filter: []
     cell_filter: []
-...

@@ -36,7 +36,7 @@ cuphydriver_config:
   pdsch_fallback: 0
   dpdk_file_prefix: cuphycontroller
   nics:
-  - {nic: '0000:01:00.0', mtu: 1514, cpu_mbufs: 196608, uplane_tx_handles: 64, txq_size: 8192, rxq_size: 16384, gpu: 0}
+    - {nic: '0000:01:00.0', mtu: 1514, cpu_mbufs: 196608, uplane_tx_handles: 64, txq_size: 8192, rxq_size: 16384, gpu: 0}
   cus_port_failover: 0
   gpus: [0]
   workers_ul: [6, 7]
@@ -50,11 +50,11 @@ cuphydriver_config:
   enable_dl_cuphy_graphs: 1
   ul_order_kernel_mode: 0
   ul_order_timeout_cpu_ns: 8000000
-  ul_order_timeout_log_interval_ns: 1000000000
+  ul_order_timeout_log_interval_ns: 0
   ul_order_timeout_gpu_ns: 3000000
   ul_order_timeout_gpu_srs_ns: 5200000
   ul_srs_aggr3_task_launch_offset_ns: 500000
-  ul_order_timeout_gpu_log_enable: 0
+  ul_order_timeout_gpu_log_enable: 1
   ul_order_max_rx_pkts: 512
   ul_order_rx_pkts_timeout_ns: 100000
   cplane_disable: 0
@@ -79,14 +79,14 @@ cuphydriver_config:
   pusch_waitTimeOutPreEarlyHarqUs: 3000
   pusch_waitTimeOutPostEarlyHarqUs: 3000
   puxch_polarDcdrListSz: 8
-  enable_cpu_task_tracing: 0
-  enable_prepare_tracing: 0
+  enable_cpu_task_tracing: 1
+  enable_prepare_tracing: 1
   disable_empw: 0
   cqe_tracer_config: {enable_dl_cqe_tracing: 0, cqe_trace_cell_mask: 1, cqe_trace_slot_mask: 196800}
   ul_rx_pkt_tracing_level: 0
   ul_rx_pkt_tracing_level_srs: 0
   ul_warmup_frame_count: 8
-  pmu_metrics: 0
+  pmu_metrics: 3
   enable_h2d_copy_thread: 1
   h2d_copy_thread_cpu_affinity: 5
   h2d_copy_thread_sched_priority: 95
@@ -138,1064 +138,1064 @@ cuphydriver_config:
   bfw_c_plane_chaining_mode: 2
   notify_ul_harq_buffer_release: 0
   cells:
-  - name: O-RU 0
-    cell_id: 1
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:A3
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [8, 0, 1, 2]
-    eAxC_id_pdcch: [8, 0, 1, 2]
-    eAxC_id_pdsch: [8, 0, 1, 2]
-    eAxC_id_csirs: [8, 0, 1, 2]
-    eAxC_id_pusch: [8, 0, 1, 2]
-    eAxC_id_pucch: [8, 0, 1, 2]
-    eAxC_id_srs: [8, 0, 1, 2]
-    eAxC_id_prach: [15, 7, 0, 1]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 1
-    cell_id: 2
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 26:04:9D:9E:29:B3
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [1, 2, 4, 9]
-    eAxC_id_pdcch: [1, 2, 4, 9]
-    eAxC_id_pdsch: [1, 2, 4, 9]
-    eAxC_id_csirs: [1, 2, 4, 9]
-    eAxC_id_pusch: [1, 2, 4, 9]
-    eAxC_id_pucch: [1, 2, 4, 9]
-    eAxC_id_srs: [1, 2, 4, 9]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 2
-    cell_id: 3
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:34:9A:9E:29:B3
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [1, 2, 4, 9]
-    eAxC_id_pdcch: [1, 2, 4, 9]
-    eAxC_id_pdsch: [1, 2, 4, 9]
-    eAxC_id_csirs: [1, 2, 4, 9]
-    eAxC_id_pusch: [1, 2, 4, 9]
-    eAxC_id_pucch: [1, 2, 4, 9]
-    eAxC_id_srs: [1, 2, 4, 9]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 3
-    cell_id: 4
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 22:34:9C:9E:29:A3
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 4
-    cell_id: 5
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:05
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 5
-    cell_id: 6
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:06
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 6
-    cell_id: 7
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:07
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 7
-    cell_id: 8
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:08
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 8
-    cell_id: 9
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:09
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 9
-    cell_id: 10
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:0A
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 10
-    cell_id: 11
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:0B
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 11
-    cell_id: 12
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:0C
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 12
-    cell_id: 13
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:0D
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 13
-    cell_id: 14
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:0E
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 14
-    cell_id: 15
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:0F
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 15
-    cell_id: 16
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:10
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 16
-    cell_id: 17
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:11
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 17
-    cell_id: 18
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:12
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 18
-    cell_id: 19
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:13
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-  - name: O-RU 19
-    cell_id: 20
-    ru_type: 3
-    src_mac_addr: a0:88:c2:d5:63:c2
-    dst_mac_addr: 20:04:9B:9E:27:14
-    nic: '0000:01:00.0'
-    vlan: 2
-    pcp: 7
-    txq_count_uplane: 1
-    eAxC_id_ssb_pbch: [0, 1, 2, 3]
-    eAxC_id_pdcch: [0, 1, 2, 3]
-    eAxC_id_pdsch: [0, 1, 2, 3]
-    eAxC_id_csirs: [0, 1, 2, 3]
-    eAxC_id_pusch: [0, 1, 2, 3]
-    eAxC_id_pucch: [0, 1, 2, 3]
-    eAxC_id_srs: [0, 1, 2, 3]
-    eAxC_id_prach: [5, 6, 7, 10]
-    dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
-    section_3_time_offset: 484
-    fs_offset_dl: 0
-    exponent_dl: 4
-    ref_dl: 0
-    fs_offset_ul: 0
-    exponent_ul: 4
-    max_amp_ul: 65504
-    mu: 1
-    T1a_max_up_ns: 345000
-    T1a_max_cp_ul_ns: 336000
-    T1a_min_cp_ul_ns: 285000
-    Ta4_min_ns: 50000
-    Ta4_max_ns: 331000
-    Ta4_min_ns_srs: 676300
-    Ta4_max_ns_srs: 1800300
-    T1a_max_cp_dl_ns: 669000
-    T1a_min_cp_dl_ns: 419000
-    Tcp_adv_dl_ns: 125000
-    ul_u_plane_tx_offset_ns: 280000
-    fh_len_range: 0
-    pusch_prb_stride: 273
-    prach_prb_stride: 12
-    srs_prb_stride: 273
-    pusch_ldpc_max_num_itr_algo_type: 1
-    pusch_fixed_max_num_ldpc_itrs: 10
-    pusch_ldpc_early_termination: 0
-    pusch_ldpc_algo_index: 0
-    pusch_ldpc_flags: 2
-    pusch_ldpc_use_half: 1
-    pusch_nMaxPrb: 273
-    pusch_nMaxRx: 4
-    ul_gain_calibration: 48.68
-    lower_guard_bw: 845
-    tv_pusch: cuPhyChEstCoeffs.h5
-...
+    - name: O-RU 0
+      cell_id: 1
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:A3
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [8, 0, 1, 2]
+      eAxC_id_pdcch: [8, 0, 1, 2]
+      eAxC_id_pdsch: [8, 0, 1, 2]
+      eAxC_id_csirs: [8, 0, 1, 2]
+      eAxC_id_pusch: [8, 0, 1, 2]
+      eAxC_id_pucch: [8, 0, 1, 2]
+      eAxC_id_srs: [8, 0, 1, 2]
+      eAxC_id_prach: [15, 7, 0, 1]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 1
+      cell_id: 2
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 26:04:9D:9E:29:B3
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [1, 2, 4, 9]
+      eAxC_id_pdcch: [1, 2, 4, 9]
+      eAxC_id_pdsch: [1, 2, 4, 9]
+      eAxC_id_csirs: [1, 2, 4, 9]
+      eAxC_id_pusch: [1, 2, 4, 9]
+      eAxC_id_pucch: [1, 2, 4, 9]
+      eAxC_id_srs: [1, 2, 4, 9]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 2
+      cell_id: 3
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:34:9A:9E:29:B3
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [1, 2, 4, 9]
+      eAxC_id_pdcch: [1, 2, 4, 9]
+      eAxC_id_pdsch: [1, 2, 4, 9]
+      eAxC_id_csirs: [1, 2, 4, 9]
+      eAxC_id_pusch: [1, 2, 4, 9]
+      eAxC_id_pucch: [1, 2, 4, 9]
+      eAxC_id_srs: [1, 2, 4, 9]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 3
+      cell_id: 4
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 22:34:9C:9E:29:A3
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 4
+      cell_id: 5
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:05
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 5
+      cell_id: 6
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:06
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 6
+      cell_id: 7
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:07
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 7
+      cell_id: 8
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:08
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 8
+      cell_id: 9
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:09
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 9
+      cell_id: 10
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:0A
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 10
+      cell_id: 11
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:0B
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 11
+      cell_id: 12
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:0C
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 12
+      cell_id: 13
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:0D
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 13
+      cell_id: 14
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:0E
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 14
+      cell_id: 15
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:0F
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 15
+      cell_id: 16
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:10
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 16
+      cell_id: 17
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:11
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 17
+      cell_id: 18
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:12
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 18
+      cell_id: 19
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:13
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+    - name: O-RU 19
+      cell_id: 20
+      ru_type: 3
+      src_mac_addr: a0:88:c2:d5:63:c2
+      dst_mac_addr: 20:04:9B:9E:27:14
+      nic: '0000:01:00.0'
+      vlan: 2
+      pcp: 7
+      txq_count_uplane: 1
+      eAxC_id_ssb_pbch: [0, 1, 2, 3]
+      eAxC_id_pdcch: [0, 1, 2, 3]
+      eAxC_id_pdsch: [0, 1, 2, 3]
+      eAxC_id_csirs: [0, 1, 2, 3]
+      eAxC_id_pusch: [0, 1, 2, 3]
+      eAxC_id_pucch: [0, 1, 2, 3]
+      eAxC_id_srs: [0, 1, 2, 3]
+      eAxC_id_prach: [5, 6, 7, 10]
+      dl_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      ul_iq_data_fmt: {comp_meth: 1, bit_width: 9}
+      section_3_time_offset: 484
+      fs_offset_dl: 0
+      exponent_dl: 4
+      ref_dl: 0
+      fs_offset_ul: 0
+      exponent_ul: 4
+      max_amp_ul: 65504
+      mu: 1
+      T1a_max_up_ns: 345000
+      T1a_max_cp_ul_ns: 336000
+      T1a_min_cp_ul_ns: 285000
+      Ta4_min_ns: 50000
+      Ta4_max_ns: 331000
+      Ta4_min_ns_srs: 676300
+      Ta4_max_ns_srs: 1800300
+      T1a_max_cp_dl_ns: 669000
+      T1a_min_cp_dl_ns: 419000
+      Tcp_adv_dl_ns: 125000
+      ul_u_plane_tx_offset_ns: 280000
+      fh_len_range: 0
+      pusch_prb_stride: 273
+      prach_prb_stride: 12
+      srs_prb_stride: 273
+      pusch_ldpc_max_num_itr_algo_type: 1
+      pusch_fixed_max_num_ldpc_itrs: 10
+      pusch_ldpc_early_termination: 0
+      pusch_ldpc_algo_index: 0
+      pusch_ldpc_flags: 2
+      pusch_ldpc_use_half: 1
+      pusch_nMaxPrb: 273
+      pusch_nMaxRx: 4
+      ul_gain_calibration: 48.68
+      lower_guard_bw: 845
+      tv_pusch: cuPhyChEstCoeffs.h5
+  enable_compression_tracing: 1

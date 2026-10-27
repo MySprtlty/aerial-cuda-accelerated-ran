@@ -1,0 +1,69 @@
+KPI experiment: UE-to-UE latency of a 4K inference request, static MIG vs MPS sharing - 2026-10-05 23:47 - 10-06 01:53 KST
+=====================================================================================================================
+No UE attached. What a UE would add (upload air time, core, UE processing, DL slot timing) is GIVEN: identical in both
+arms for the same radio conditions. Measured are the terms our knobs can move:
+
+  E2E(arm) = GIVEN + last-UL-slot term (PUSCH GPU completion after the slot's air time t0, L1 log)
+                   + GH200 term (server: receive -> NVJPG decode -> inference -> NMS -> reply)
+                   + step terms (events that would cost a HARQ round trip / TDD period with a real UE)
+
+Setup: 16-cell full stack (cuphycontroller + testMAC + RU emulator, loopback, DDDSUUDDDD, hook async), official peak
+patterns 65a (heaviest 16-cell 4T4R: 6 UE x 2 layers x 273 PRB UL, MCS 27) and 59c, 3-minute runs (360,000 slots,
+~36,000 UL slots per TDD position). Tenant = e2e/infer_server.py + e2e_client.py over loopback: 4K q85 JPEGs
+(1.6-2.2 MB), TILED request (batch-8 engine at 1280: 6 native crops + global views), 10 requests/s periodic with
++-5 ms jitter, 1,350 requests per run. RAN statistics inside the client window. p50/p99 only (run length).
+  baseline  static MIG: cuphycontroller in 4g.48gb (64 SM, NVIDIA's MIG mps_sm caps), server in 3g.48gb (60 SM, no MPS)
+  ours      MPS sharing on the whole GPU (132 SM), server = MPS client with a cap; model and cap fixed per run (what the
+            scheduler would hold at this load); no gate
+Scripts: e2e_prep/kpi_shared.sh, e2e_prep/kpi_mig.sh, fullstack/fs_tenant.sh, fullstack/fs_report.py.
+Per-run reports: kpi_shared.txt / .csv, kpi_mig.txt / .csv.
+
+1. Pattern 65a (ms; "last UL" = PUSCH GPU end after t0 at the later UL position, p50 / p99)
+
+   arm / tenant           decode  infer   NMS   server p50 | last UL p50 / p99 | DL-U late slots | L1 events | knob part p50 (p99+p99)
+   MIG   no tenant           -      -      -        -      |   3.46 / 3.50     |    0.032 %      |     0     |
+   MIG   26x in 3g         4.79  44.55   7.16     57.33    |   3.46 / 3.50     |    0.032 %      |     0     |  60.79  (62.33)   <- baseline
+   MIG   26s in 3g         4.78  12.82   6.61     25.05    |   3.46 / 3.49     |    0.035 %      |     0     |  28.51  (29.90)
+   MIG   26n in 3g         4.78   8.51   6.03     20.12    |   3.46 / 3.49     |    0.032 %      |     0     |  23.58  (24.93)
+   MPS   no tenant           -      -      -        -      |   2.07 / 2.11     |    0.105 %      |     0     |
+   MPS   26n cap 100       4.76   6.14   6.06     18.17    |   2.07 / 2.57     |    0.171 %      |     0     |  20.24  (22.09)   <- ours
+   MPS   26n cap 50        4.78   7.99   6.04     20.13    |   2.07 / 2.42     |    0.144 %      |     0     |  22.20  (23.96)
+   MPS   26n cap 30        4.82  11.04   6.05     23.19    |   2.07 / 2.36     |    0.187 %      |     0     |  25.26  (27.02)
+   MPS   26s cap 50        4.78  12.76   6.65     25.50    |   2.07 / 2.53     |    0.150 %      |     0     |  27.57  (29.53)
+   MPS   26s cap 30        4.83  18.04   6.65     30.78    |   2.07 / 2.42     |    0.142 %      |     0     |  32.85  (34.69)
+   MPS   26x cap 100       4.77  35.53   7.20     48.52    |   2.11 / 3.98     |    1.184 %      |     0     |  50.63  (54.16)
+   MPS   26x cap 30        4.83  68.71   7.17     82.15    |   2.34 / 2.57     |    0.356 %      |     0     |  84.49  (86.97)
+
+   Pattern 59c: MIG no tenant 3.21 / 3.30, MIG 26x in 3g 57.31 -> 60.52; MPS no tenant 1.94 / 1.98, MPS 26n cap 30
+   23.08 -> 25.03, MPS 26x cap 30 81.05 -> 83.20 (one UL slot with order-kernel timeouts on 4 cells inside the window).
+
+2. Result
+   - Baseline (MIG, 26x fixed) vs ours (26n, cap 100): knob-dependent part 60.8 -> 20.2 ms (-67 %). With an estimated
+     GIVEN of ~31 ms (upload of a 1.9 MB frame at 2 layers 256QAM ~26 ms incl. the first grant, core 0.5, reply + UE
+     ~4.5; not measured) the E2E is ~92 -> ~51 ms (-44 %). With 26n at cap 50 / 30: -63 % / -58 % of the knob part.
+   - Where it comes from: inference 44.6 -> 6.1 ms (model), last UL slot 3.46 -> 2.07 ms (cuPHY keeps 132 SMs instead
+     of 64: +1.39 ms in MIG at 65a, +1.27 ms at 59c; every later-position UL slot in MIG completes after 3 ms).
+   - Like for like: 26n in 3g 23.6 ms vs 26n shared at cap 100 20.2 ms (-14 %), cap 50 22.2 (-6 %), cap 30 25.3 (+7 %);
+     26s in 3g 28.5 vs shared cap 50 27.6 (-3 %), cap 30 32.9 (+15 %); 26x in 3g 60.8 vs shared cap 30 84.5 (+39 %),
+     cap 100 50.6 (-17 %, with the RAN visibly degraded). So for the small model the shared GPU also wins with the same
+     model, by the RAN term plus the larger SM budget; for the big model it loses unless the RAN is allowed to degrade.
+   - RAN safety of the shared arm at this request rate: no forced CRC failure, work cancel, pool exhaustion or recovery
+     with 26n or 26s at any cap tried; the last UL slot's p99 grows by 0.25-0.46 ms and stays below MIG's median.
+     26x: cap 100 puts 27 % of the later UL slots above 3 ms and makes 1.2 % of the DL slots late at the RU; cap 30 had
+     one UL slot with order-kernel timeouts (4 cells) in the 59c run. The saturating-tenant bench numbers
+     (summary_mig_off.txt) overstate the impact of a 10 req/s stream.
+   - What MIG does better: DL lateness at the RU (0.03 % of DL slots vs 0.10 % shared without tenant and 0.14-0.19 %
+     with 26n/26s). A late DL slot costs a HARQ round trip for the reply; at these rates the mean effect is < 0.02 ms.
+   - "The scheduler can only pick 26n" is not what the RAN side shows at 65a: 26s is as harmless as 26n. 26n is the
+     choice because it minimises latency while the RAN stays intact; 26x is excluded on RAN grounds.
+
+3. Caveats
+   - No UE, no HARQ loop: step terms are counted events, not measured retransmissions; the first-grant slip is not seen.
+   - Model and cap fixed by hand, no gate; the estimator/scheduler loop was not in the path.
+   - The 6-7 ms numpy NMS is a tool artefact common to all arms (it shrinks every relative number a little).
+   - Tearing the tenant's MPS client down during traffic caused one UL slot of order-kernel timeouts on all 16 cells
+     (sh_n30_65a_16c, 0.12 s after the last reply); the server is now stopped after the traffic. Worker restarts as a
+     way of changing the cap carry this risk.
+   - 3-minute runs: p99 at best; one event in 135 s is one event.
+   - The comparison "baseline 26x vs ours 26n" trades accuracy for latency (median detections per 4K frame 90 (26x) vs 81.5 (26s) vs 58 (26n)
+     in these runs); report it together with the like-for-like rows.

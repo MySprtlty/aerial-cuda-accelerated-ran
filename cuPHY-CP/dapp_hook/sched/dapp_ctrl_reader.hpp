@@ -3,8 +3,11 @@
  * (/dev/shm/aerial_dapp_ctrl, layout in dapp_hook/dapp_ctrl_abi.h).
  *
  * The estimator (estimator/live.py) rewrites the block at every slot under a
- * seqlock (seq odd while writing). A reader copies the block when seq is even
- * and the same before and after the copy. No locks, no syscalls after open().
+ * seqlock (seq odd while writing); the dispatcher writes it in its manual and
+ * timetable modes. A reader copies the block when seq is even and the same
+ * before and after the copy. No locks, no syscalls after open(). ABI 2: one
+ * {name, cap_pct, gate_slots} entry per model; find_model() picks the entry of
+ * the model a request names.
  */
 #pragma once
 #include "dapp_hook/dapp_ctrl_abi.h"
@@ -85,6 +88,16 @@ public:
             if (s1 == s2) { return true; }
         }
         return false;
+    }
+
+    // Entry of the model `name` (RUN model=NAME) in a copied block, or null.
+    static const dapp_ctrl_model* find_model(const dapp_ctrl_block& cb, const std::string& name)
+    {
+        const uint32_t n = cb.n_models < DAPP_CTRL_MAX_MODELS ? cb.n_models : DAPP_CTRL_MAX_MODELS;
+        for (uint32_t i = 0; i < n; ++i) {
+            if (std::strncmp(cb.models[i].name, name.c_str(), DAPP_CTRL_NAME_LEN) == 0) { return &cb.models[i]; }
+        }
+        return nullptr;
     }
 
     static int64_t now_ns()

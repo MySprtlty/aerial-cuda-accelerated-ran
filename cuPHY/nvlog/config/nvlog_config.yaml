@@ -24,10 +24,9 @@ nvlog:
   max_rotating_file_num: 8 # Number of rotating log files
   log_file_path: "/tmp"
   nvlog_tags:
-    - 0: ""             # Reserve number 0 for no tag print
-      shm_level: 5      # Example: overlay shm_log_level for a tag
-
-    - 10: "NVLOG"       # nvlog
+    - 0: "" # Reserve number 0 for no tag print
+      shm_level: 5 # Example: overlay shm_log_level for a tag
+    - 10: "NVLOG" # nvlog
     - 11: "NVLOG.TEST"
     - 12: "NVLOG.ITAG"
     - 13: "NVLOG.STAG"
@@ -38,8 +37,7 @@ nvlog:
     - 18: "NVLOG.UTILS"
     - 19: "NVLOG.C"
     - 20: "NVLOG.EXIT_HANDLER"
-
-    - 30: "NVIPC"         # nvipc
+    - 30: "NVIPC" # nvipc
     - 31: "NVIPC:YAML"
     - 32: "NVIPC.SHM_UTILS"
     - 33: "NVIPC.CUDAPOOL"
@@ -71,8 +69,7 @@ nvlog:
     - 59: "PHY"
     - 60: "MAC"
     - 61: "NVIPC.PCAP"
-
-    - 100: "CTL"        # cuPHYController
+    - 100: "CTL" # cuPHYController
     - 101: "CTL.SCF"
     - 103: "CTL.DRV"
     - 104: "CTL.YAML"
@@ -81,8 +78,7 @@ nvlog:
       #shm_level: 5
     - 107: "CTL.E3"
       #shm_level: 5
-
-    - 200: "DRV"        # cuPHYDriver
+    - 200: "DRV" # cuPHYDriver
     - 201: "DRV.SA"
     - 202: "DRV.TIME"
     - 203: "DRV.CTX"
@@ -100,8 +96,12 @@ nvlog:
     - 215: "DRV.PDSCH"
     - 216: "DRV.MAP_DL"
       #shm_level: 5
+
+      shm_level: 5
     - 217: "DRV.FUNC_DL"
       #shm_level: 5
+
+      shm_level: 5
     - 218: "DRV.HARQ_POOL"
     - 219: "DRV.ORDER_CUDA"
     - 220: "DRV.ORDER_ENTITY"
@@ -110,8 +110,12 @@ nvlog:
     - 223: "DRV.PUSCH"
     - 224: "DRV.MAP_UL"
       #shm_level: 5
+
+      shm_level: 5
     - 225: "DRV.FUNC_UL"
       #shm_level: 5
+
+      shm_level: 5
     - 226: "DRV.ULBUF"
     - 227: "DRV.MPS"
     - 228: "DRV.METRICS"
@@ -129,6 +133,8 @@ nvlog:
       #shm_level: 5
     - 238: "DRV.UL_PACKET_SUMMARY"
       #shm_level: 5
+
+      shm_level: 5
     - 239: "DRV.SRS"
       #shm_level: 6
     - 240: "DRV.MAP_DL_VERBOSE"
@@ -137,6 +143,8 @@ nvlog:
       shm_level: 5
     - 243: "DRV.SRS_PACKET_SUMMARY"
       #shm_level: 5
+
+      shm_level: 5
     - 244: "DRV.SRS_FAPI_PACKET_SUMMARY"
       #shm_level: 5
     - 245: "DRV.SYMBOL_TIMINGS_SRS"
@@ -145,8 +153,7 @@ nvlog:
       #shm_level: 5
     - 247: "DRV.WAVGCFO_POOL"
       #shm_level: 5
-
-    - 300: "L2A"        # cuphyl2adapter
+    - 300: "L2A" # cuphyl2adapter
     - 301: "L2A.MAC"
     - 302: "L2A.MACFACT"
     - 303: "L2A.PROXY"
@@ -159,10 +166,13 @@ nvlog:
     - 310: "L2A.SIM"
     - 311: "L2A.PROCESSING_TIMES"
       #shm_level: 5
+
+      shm_level: 5
     - 312: "L2A.TICK_TIMES"
       #shm_level: 5
 
-    - 330: "SCF"        # scfl2adapter
+      shm_level: 5
+    - 330: "SCF" # scfl2adapter
     - 331: "SCF.MAC"
     - 332: "SCF.DISPATCH"
     - 333: "SCF.PHY"
@@ -175,8 +185,7 @@ nvlog:
     - 338: "SCF.TICK_TEST"
     - 339: "SCF.UL_FAPI_VALIDATE"
     - 340: "SCF.DL_FAPI_VALIDATE"
-
-    - 400: "MAC"        # testMAC
+    - 400: "MAC" # testMAC
     - 401: "MAC.LP"
     - 402: "MAC.FAPI"
     - 403: "MAC.UTILS"
@@ -188,7 +197,8 @@ nvlog:
     - 409: "MAC.PROCESSING_TIMES"
       #shm_level: 5
 
-    - 420: "CUMAC"  # testMAC - cuMAC
+      shm_level: 5
+    - 420: "CUMAC" # testMAC - cuMAC
       shm_level: 5
     - 421: "CUMAC.CFG"
     - 422: "CUMAC.HANDLER"
@@ -196,8 +206,7 @@ nvlog:
       shm_level: 5
     - 424: "CUMAC.VALD"
       shm_level: 5
-
-    - 450: "CUMCP"  # cuMAC-CP
+    - 450: "CUMCP" # cuMAC-CP
     - 451: "CUMCP.MAIN"
       shm_level: 5
     - 452: "CUMCP.CFG"
@@ -207,8 +216,7 @@ nvlog:
       shm_level: 5
     - 455: "CUMCP.TASK"
       shm_level: 5
-
-    - 500: "RU"         # ru-emulator
+    - 500: "RU" # ru-emulator
     - 501: "RU.EMULATOR"
     - 502: "RU.PARSER"
     - 503: "RU.LATE_PACKETS"
@@ -225,8 +233,7 @@ nvlog:
       shm_level: 5
     - 509: "RU.CP_WORKER_TRACING"
       # shm_level: 5
-
-    - 600: "FH"         # aerial-fh-driver
+    - 600: "FH" # aerial-fh-driver
     - 601: "FH.FLOW"
     - 602: "FH.FH"
     - 603: "FH.GPU_MP"
@@ -256,28 +263,22 @@ nvlog:
       shm_level: 5
     - 625: "FH.DEBUG"
       shm_level: 5
-
-    - 650: "FHGEN"      # fh_generator
+    - 650: "FHGEN" # fh_generator
     - 651: "FHGEN.GEN"
     - 652: "FHGEN.WORKER"
     - 653: "FHGEN.YAML"
     - 654: "FHGEN.ORAN_SLOT_ITER"
-
-    - 700: "COMP"       # compression_decompression
-
-    - 800: "OAM"              # cuphyoam
-    - 801: "OAM.YMMGR"        # cuphyoam YANG Model Manager
+    - 700: "COMP" # compression_decompression
+    - 800: "OAM" # cuphyoam
+    - 801: "OAM.YMMGR" # cuphyoam YANG Model Manager
       #shm_level: 5
-    - 802: "OAM.YMSVC"        # cuphyoam YANG Model OAM Service
+    - 802: "OAM.YMSVC" # cuphyoam YANG Model OAM Service
       #shm_level: 5
-    - 803: "OAM.CUSConnMgr"   # cuphyoam AerialCUSConnMgr
+    - 803: "OAM.CUSConnMgr" # cuphyoam AerialCUSConnMgr
       #shm_level: 5
-    - 804: "OAM.COMMSVC"      # cuphyoam Common SVC
+    - 804: "OAM.COMMSVC" # cuphyoam Common SVC
       #shm_level: 5
-      
-
-
-    - 900: "CUPHY"      # cuPHY
+    - 900: "CUPHY" # cuPHY
     - 901: "CUPHY.SSB_TX"
     - 902: "CUPHY.PDCCH_TX"
     - 904: "CUPHY.PDSCH_TX"
@@ -289,7 +290,6 @@ nvlog:
     - 910: "CUPHY.SRS_RX"
     - 911: "CUPHY.SRS_TX"
     - 912: "CUPHY.CSIRS_RX"
-
     # cuPHY components and common utilities (not channels)
     - 931: "CUPHY.UTILS"
     - 932: "CUPHY.MEMFOOT"
@@ -298,22 +298,18 @@ nvlog:
     - 934: "CUPHY.CUPTI"
       #shm_level: 5
     - 935: "CUPHY.PYAERIAL"
-
     # test bench (currently phase-3)
     - 1000: "TESTBENCH"
     - 1001: "TESTBENCH.PHY"
     - 1002: "TESTBENCH.MAC"
-    
     # Unit test bench
     - 1010: "UNIT_TB"
     - 1011: "UNIT_TB.COMMON"
     - 1012: "UNIT_TB.DLC"
-
     # order kernel test bench
     - 1050: "ORDER_TB"
     - 1051: "ORDER_TB.INIT"
     - 1052: "ORDER_TB.RUN"
-
     # App Configs and utilities
     - 1100: "APP"
     - 1101: "APP.CONFIG"
@@ -321,4 +317,3 @@ nvlog:
     # CuMAC
     - 1200: "CUMAC"
     - 1210: "CUMAC.UTILS"
-...

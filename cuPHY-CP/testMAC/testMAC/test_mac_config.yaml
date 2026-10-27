@@ -10,15 +10,15 @@ sched_thread_config: {name: mac_sched, cpu_affinity: 16, sched_priority: 96}
 recv_thread_config: {name: mac_recv, cpu_affinity: 17, sched_priority: 95}
 builder_thread_config: {name: fapi_builder, cpu_affinity: 18, sched_priority: 95}
 enableTickDynamicSfnSlot: 0
-builder_thread_enable: 0
+builder_thread_enable: 1
 estimate_send_time: -1
-schedule_total_time: 0
-fapi_delay_bit_mask: 0
+schedule_total_time: 455000
+fapi_delay_bit_mask: 0xFF
 duplicate_fapi_bit_mask: 0
 duplicate_fapi_num_max: 1
 worker_cores: []
 restart_option: 0
-test_slots: 60000
+test_slots: 240000
 restart_interval: 0
 cell_run_slots: 0
 cell_stop_slots: 0
@@ -35,15 +35,15 @@ srs_early_deadline_ns: 1759000
 test_cell_update:
   test_cells: []
   test_sequence:
-  - slot_point: 0
-    configs:
-    - {cell_id: 0, dst_mac: '26:04:9D:9E:29:B3', vlan: 2, pcp: 7}
-  - slot_point: 20000
-    configs:
-    - {cell_id: 0, dst_mac: '20:04:9B:9E:27:A3', vlan: 2, pcp: 7}
-  - slot_point: 40000
-    configs:
-    - {cell_id: 0, dst_mac: '26:04:9D:9E:29:B3', vlan: 2, pcp: 7}
+    - slot_point: 0
+      configs:
+        - {cell_id: 0, dst_mac: '26:04:9D:9E:29:B3', vlan: 2, pcp: 7}
+    - slot_point: 20000
+      configs:
+        - {cell_id: 0, dst_mac: '20:04:9B:9E:27:A3', vlan: 2, pcp: 7}
+    - slot_point: 40000
+      configs:
+        - {cell_id: 0, dst_mac: '26:04:9D:9E:29:B3', vlan: 2, pcp: 7}
 ipc_sync_mode: 0
 validate_enable: 2
 validate_log_opt: 2
@@ -104,4 +104,3 @@ conf_test:
   pusch: null
   pucch: {ack_nack_pattern: 1}
   stats_file: conformance_test_stats_file.txt
-...

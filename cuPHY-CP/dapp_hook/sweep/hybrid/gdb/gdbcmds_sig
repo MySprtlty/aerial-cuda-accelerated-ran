@@ -1,0 +1,19 @@
+set pagination off
+set confirm off
+handle SIGUSR1 SIGUSR2 SIG34 SIG35 SIG36 SIG37 SIG38 nostop noprint pass
+handle SIGPWR stop print nopass
+run
+echo \n=== SNAPSHOT 1 (SIGPWR) ===\n
+thread apply all bt 20
+continue
+echo \n=== SNAPSHOT 2 (SIGPWR) ===\n
+thread apply all bt 20
+continue
+echo \n=== SNAPSHOT 3 (SIGPWR) ===\n
+thread apply all bt 20
+continue
+echo \n=== CRASH: backtrace of the faulting thread ===\n
+bt 40
+echo \n=== all threads (8 frames) ===\n
+thread apply all bt 8
+quit

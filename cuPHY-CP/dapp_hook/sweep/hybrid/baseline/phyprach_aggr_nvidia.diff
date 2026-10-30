@@ -1,0 +1,6 @@
+421a422,426
+> 		constexpr float prach_force_threshold = 20.0f;
+> 
+> for (uint16_t i = 0; i < pDynParams.nOccaProc; ++i) {
+>     pDynParams.pOccaPrms[i].force_thr0 = prach_force_threshold;
+> }

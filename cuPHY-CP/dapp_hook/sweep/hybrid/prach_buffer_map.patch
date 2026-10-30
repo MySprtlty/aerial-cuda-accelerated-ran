@@ -1,0 +1,102 @@
+diff --git a/cuPHY-CP/cuphydriver/src/uplink/phyprach_aggr.cpp b/cuPHY-CP/cuphydriver/src/uplink/phyprach_aggr.cpp
+index b49ce84..2ed70ad 100644
+--- a/cuPHY-CP/cuphydriver/src/uplink/phyprach_aggr.cpp
++++ b/cuPHY-CP/cuphydriver/src/uplink/phyprach_aggr.cpp
+@@ -26,6 +26,7 @@
+ #include "exceptions.hpp"
+ #include "cuda_events.hpp"
+ #include <unordered_map>
++#include <cstdlib>
+ 
+ static void print_prach_static_params(const cuphyPrachStatPrms_t * prach_stat_params)
+ {
+@@ -401,7 +402,6 @@ int PhyPrachAggr::setup(
+     t_ns          t1    = Time::nowNs();
+ 
+     slot_command_api::oran_slot_ind oran_ind     = getOranAggrSlotIndication();
+-    
+     setCtx();
+ 
+     slot_command_api::prach_params* pparms = getDynParams();
+@@ -419,6 +419,18 @@ int PhyPrachAggr::setup(
+ 
+     pDynParams.pOccaPrms = pparms->rach.data();
+     pDynParams.nOccaProc = pparms->nOccasion;
++    // Real-RU port (2026-10-29): the L1 build that serves the Benetel RU + COTS UE (/home/nvidia/hsw/25_3_hsw, built 2026-08-02) carries an
++    // unconditional local change here: force_thr0 = 20.0 for every PRACH occasion (cuphy_api.h: 0 = cuPHY's computed detection threshold,
++    // > 0 = use this value). Same effect here, but only when CUPHY_PRACH_FORCE_THR0 is set in the environment (value = threshold), so the
++    // lab build behaves as upstream when the variable is absent. See cuPHY-CP/dapp_hook/sweep/hybrid/baseline/phyprach_aggr_nvidia.diff.
++    static const float prach_force_thr0 = []() { const char* s = std::getenv("CUPHY_PRACH_FORCE_THR0"); return s ? std::strtof(s, nullptr) : 0.0f; }();
++    if(prach_force_thr0 > 0.0f)
++    {
++        for(uint32_t i = 0; i < pDynParams.nOccaProc; ++i)
++        {
++            pDynParams.pOccaPrms[i].force_thr0 = prach_force_thr0;
++        }
++    }
+     //print_prach_dynamic_params(pDynParams.pOccaPrms, pDynParams.nOccaProc);
+ 
+     // Buffer-to-cell mapping: Reconciles two different orderings
+@@ -432,6 +444,17 @@ int PhyPrachAggr::setup(
+     for(const Cell* cell : aggr_cell_list) 
+     {
+         const int phy_cell_id = cell->getPhyId();
++        // Hybrid fix (2026-10-30): SlotMapUl::addCell allocates rach_occasion (= the cell's static occasion count) stage-3 buffers
++        // only for cells that carry PRACH in this slot and none for the others (cuphydriver_api.cpp: rach_occasion = 0 when the
++        // cell has no PRACH PDU). A cell that is in the slot for PUSCH/PUCCH only (COTS-UE cell while the emulator cells
++        // have PRACH) must therefore not consume a buffer range here, otherwise every later cell is shifted by one range
++        // and the last occasion indexes past ulbuf_st3_v (segfault / stale buffer -> UL stall, runs ue8-ue20).
++        bool has_prach_this_slot = false;
++        for(int k = 0; k < pDynParams.nOccaProc; k++)
++        {
++            if(pparms->phy_cell_index_list[k] == phy_cell_id) { has_prach_this_slot = true; break; }
++        }
++        if(!has_prach_this_slot) continue;
+         const size_t num_occasions = cell->getPrachOccaSize();
+         
+         if(num_occasions > 0) 
+@@ -443,6 +466,12 @@ int PhyPrachAggr::setup(
+         }
+     }
+ 
++    if(static_cast<size_t>(buffer_idx) != ulbuf_st3_v.size())
++    {
++        NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "{}: PRACH buffer map ({} buffers over {} cells) does not match the {} stage-3 buffers of this slot, skipping PRACH", __FUNCTION__, buffer_idx, (int)cell_buffer_info_size, ulbuf_st3_v.size());
++        return -1;
++    }
++
+     // Reorder PRACH PDUs (L2 order) and map to corresponding buffers
+     int previous_cell_id = -1;
+     int occasion_counter = 0;
+diff --git a/cuPHY-CP/cuphydriver/src/uplink/task_function_ul_aggr.cpp b/cuPHY-CP/cuphydriver/src/uplink/task_function_ul_aggr.cpp
+index b08d09f..f49d8aa 100644
+--- a/cuPHY-CP/cuphydriver/src/uplink/task_function_ul_aggr.cpp
++++ b/cuPHY-CP/cuphydriver/src/uplink/task_function_ul_aggr.cpp
+@@ -1066,6 +1066,13 @@ int task_work_function_ul_aggr_1_prach(Worker* worker, void* param, int first_ce
+     {
+         try
+         {
++            if(slot_map->aggr_cell_list.empty() || slot_map->aggr_ulbuf_st3.empty())
++            {
++                NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "HYBRID_DBG prach task Map {} SFN {}.{}: slot map already released (cells {} ulbufs {}), skipping", slot_map->getId(), sfn, slot, slot_map->aggr_cell_list.size(), slot_map->aggr_ulbuf_st3.size());
++                slot_map->addChannelEndTask();
++                slot_map->addSlotEndTask();
++                return 0;
++            }
+             TI_ADD("Cuda Setup");
+             if(prach->setup(slot_map->aggr_cell_list, slot_map->aggr_ulbuf_st3, stream))
+             {
+@@ -1081,8 +1088,11 @@ int task_work_function_ul_aggr_1_prach(Worker* worker, void* param, int first_ce
+             if(!oentity->getOrderLaunchedStatus()){
+                 if(oentity->waitOrderLaunched(1*NS_X_MS))
+                 {
+-                    NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "{}: waitOrderLaunched returned error for Map {}",__func__,slot_map->getId());
+-                    goto error_next;
++                    NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "{}: waitOrderLaunched returned error for Map {} (HYBRID_DBG: soft-skip instead of exit)",__func__,slot_map->getId());
++                    prach->setRunStatus(CH_RUN_DONE_ERROR);
++                    slot_map->addChannelEndTask();
++                    slot_map->addSlotEndTask();
++                    return 0;
+                 }
+             }
+             TI_ADD("Wait To Start GPU");

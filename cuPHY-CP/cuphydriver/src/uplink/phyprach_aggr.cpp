@@ -26,6 +26,7 @@
 #include "exceptions.hpp"
 #include "cuda_events.hpp"
 #include <unordered_map>
+#include <cstdlib>
 
 static void print_prach_static_params(const cuphyPrachStatPrms_t * prach_stat_params)
 {
@@ -401,7 +402,6 @@ int PhyPrachAggr::setup(
     t_ns          t1    = Time::nowNs();
 
     slot_command_api::oran_slot_ind oran_ind     = getOranAggrSlotIndication();
-    
     setCtx();
 
     slot_command_api::prach_params* pparms = getDynParams();
@@ -419,6 +419,18 @@ int PhyPrachAggr::setup(
 
     pDynParams.pOccaPrms = pparms->rach.data();
     pDynParams.nOccaProc = pparms->nOccasion;
+    // Real-RU port (2026-10-29): the L1 build that serves the Benetel RU + COTS UE (/home/nvidia/hsw/25_3_hsw, built 2026-08-02) carries an
+    // unconditional local change here: force_thr0 = 20.0 for every PRACH occasion (cuphy_api.h: 0 = cuPHY's computed detection threshold,
+    // > 0 = use this value). Same effect here, but only when CUPHY_PRACH_FORCE_THR0 is set in the environment (value = threshold), so the
+    // lab build behaves as upstream when the variable is absent. See cuPHY-CP/dapp_hook/sweep/hybrid/baseline/phyprach_aggr_nvidia.diff.
+    static const float prach_force_thr0 = []() { const char* s = std::getenv("CUPHY_PRACH_FORCE_THR0"); return s ? std::strtof(s, nullptr) : 0.0f; }();
+    if(prach_force_thr0 > 0.0f)
+    {
+        for(uint32_t i = 0; i < pDynParams.nOccaProc; ++i)
+        {
+            pDynParams.pOccaPrms[i].force_thr0 = prach_force_thr0;
+        }
+    }
     //print_prach_dynamic_params(pDynParams.pOccaPrms, pDynParams.nOccaProc);
 
     // Buffer-to-cell mapping: Reconciles two different orderings
@@ -432,6 +444,17 @@ int PhyPrachAggr::setup(
     for(const Cell* cell : aggr_cell_list) 
     {
         const int phy_cell_id = cell->getPhyId();
+        // Hybrid fix (2026-10-30): SlotMapUl::addCell allocates rach_occasion (= the cell's static occasion count) stage-3 buffers
+        // only for cells that carry PRACH in this slot and none for the others (cuphydriver_api.cpp: rach_occasion = 0 when the
+        // cell has no PRACH PDU). A cell that is in the slot for PUSCH/PUCCH only (COTS-UE cell while the emulator cells
+        // have PRACH) must therefore not consume a buffer range here, otherwise every later cell is shifted by one range
+        // and the last occasion indexes past ulbuf_st3_v (segfault / stale buffer -> UL stall, runs ue8-ue20).
+        bool has_prach_this_slot = false;
+        for(int k = 0; k < pDynParams.nOccaProc; k++)
+        {
+            if(pparms->phy_cell_index_list[k] == phy_cell_id) { has_prach_this_slot = true; break; }
+        }
+        if(!has_prach_this_slot) continue;
         const size_t num_occasions = cell->getPrachOccaSize();
         
         if(num_occasions > 0) 
@@ -441,6 +464,12 @@ int PhyPrachAggr::setup(
             __FUNCTION__, phy_cell_id, num_occasions, buffer_idx, buffer_idx + num_occasions - 1);
             buffer_idx += num_occasions;
         }
+    }
+
+    if(static_cast<size_t>(buffer_idx) != ulbuf_st3_v.size())
+    {
+        NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "{}: PRACH buffer map ({} buffers over {} cells) does not match the {} stage-3 buffers of this slot, skipping PRACH", __FUNCTION__, buffer_idx, (int)cell_buffer_info_size, ulbuf_st3_v.size());
+        return -1;
     }
 
     // Reorder PRACH PDUs (L2 order) and map to corresponding buffers

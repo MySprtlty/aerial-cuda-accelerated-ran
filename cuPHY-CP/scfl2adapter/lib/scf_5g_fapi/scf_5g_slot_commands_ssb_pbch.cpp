@@ -63,13 +63,13 @@ namespace scf_5g_fapi {
             grp_params->ncells++;
             new_cell = true;
         }
-        uint16_t slot = (config_option.staticSsbSlotNum != -1) ? config_option.staticSsbSlotNum : slotinfo.slot_;
+        uint16_t slot = (config_option.staticSlot(config_option.staticSsbSlotNum, cell_index) != -1) ? config_option.staticSsbSlotNum : slotinfo.slot_;
 
         if (new_cell) {
-            cell_dyn_params.NID = (config_option.staticSsbPcid != -1) ? config_option.staticSsbPcid : cell_params.cell_config_.phy_cell_id;
+            cell_dyn_params.NID = (config_option.staticSlot(config_option.staticSsbPcid, cell_index) != -1) ? config_option.staticSsbPcid : cell_params.cell_config_.phy_cell_id;
             cell_dyn_params.nHF = slot/ (5 << cell_params.ssb_config_.sub_c_common);
             cell_dyn_params.Lmax = l_max;
-            if (config_option.enableTickDynamicSfnSlot)
+            if (config_option.enableTickDynamicSfnSlot && !config_option.staticSfnForCell(cell_index))
             {
                 cell_dyn_params.SFN = slotinfo.sfn_;
             }

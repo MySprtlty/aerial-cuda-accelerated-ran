@@ -920,12 +920,12 @@ void phy::prepare_ul_slot_command(slot_command_api::slot_indication& slot_ind, s
     auto& cell_l1_limit = phy_module().get_cell_limit_errors(get_carrier_id());
     auto ret = validate_pdcch_pdu_l1_limits(pdu, cell_l1_limit.pdcch_errors);
     if (phy_module().cell_group() && !ret) {
-        update_cell_command(grp_cmd, slot_cmd, pdu, 0, get_carrier_id(), slot_ind, phy_cell_params, phy_module().staticPdcchSlotNum(), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info(), &cell_l1_limit.pdcch_errors);
+        update_cell_command(grp_cmd, slot_cmd, pdu, 0, get_carrier_id(), slot_ind, phy_cell_params, phy_module().config_options().staticSlot(phy_module().staticPdcchSlotNum(), get_carrier_id()), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info(), &cell_l1_limit.pdcch_errors);
     }
 #else
     auto ret = VALID_FAPI_PDU;
     if (phy_module().cell_group() && !ret) {
-        update_cell_command(grp_cmd, slot_cmd, pdu, 0, get_carrier_id(), slot_ind, phy_cell_params, phy_module().staticPdcchSlotNum(), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info());
+        update_cell_command(grp_cmd, slot_cmd, pdu, 0, get_carrier_id(), slot_ind, phy_cell_params, phy_module().config_options().staticSlot(phy_module().staticPdcchSlotNum(), get_carrier_id()), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info());
     }
 #endif
 
@@ -1150,7 +1150,7 @@ void phy::on_dl_tti_request(scf_fapi_dl_tti_req_t &msg, nv_ipc_msg_t& ipc_msg, u
                     cell_idx = pdsch_info->cell_grp_info.nCells;
                     pdsch_info->cell_dyn_info[cell_idx].cellPrmStatIdx = cell_stat_prm_idx;
                     pdsch_info->cell_dyn_info[cell_idx].cellPrmDynIdx = cell_idx;
-                    pdsch_info->cell_dyn_info[cell_idx].slotNum = ((phy_module().staticPdschSlotNum() > -1)? phy_module().staticPdschSlotNum() : msg.slot);
+                    pdsch_info->cell_dyn_info[cell_idx].slotNum = ((phy_module().config_options().staticSlot(phy_module().staticPdschSlotNum(), get_carrier_id()) > -1)? phy_module().staticPdschSlotNum() : msg.slot);
                     pdsch_info->cell_dyn_info[cell_idx].pdschStartSym = 0;
                     pdsch_info->cell_dyn_info[cell_idx].nPdschSym = 0;
                     pdsch_info->cell_dyn_info[cell_idx].dmrsSymLocBmsk = 0;
@@ -2040,7 +2040,7 @@ void phy::prepare_ul_slot_command(slot_command_api::slot_indication& slot_ind, s
 
     if(phy_module().cell_group())
     {
-        update_cell_command(grp_cmd, slot_cmd, pdu, get_carrier_id(), slot_ind, phy_module().staticPuschSlotNum(), phy_module().lbrm(), phy_module().bf_enabled(), (uint16_t) cell_stat_prm_idx, phy_module().dtx_thresholds_pusch(),bfwCoeff_mem_info, get_mMIMO_enable_info(), get_slot_detail(slot_ind), phy_cell_params.nPrbUlBwp);
+        update_cell_command(grp_cmd, slot_cmd, pdu, get_carrier_id(), slot_ind, phy_module().config_options().staticSlot(phy_module().staticPuschSlotNum(), get_carrier_id()), phy_module().lbrm(), phy_module().bf_enabled(), (uint16_t) cell_stat_prm_idx, phy_module().dtx_thresholds_pusch(),bfwCoeff_mem_info, get_mMIMO_enable_info(), get_slot_detail(slot_ind), phy_cell_params.nPrbUlBwp);
     }
 }
 
@@ -2083,12 +2083,12 @@ void phy::prepare_dl_slot_command(slot_command_api::slot_indication& slot_ind, s
     auto ret = validate_pdcch_pdu_l1_limits(pdu, cell_l1_limit.pdcch_errors);
     if (phy_module().cell_group() && !ret) {
         // update_cell_command(nv::PHY_module::group_command(), slot_cmd, pdu, get_carrier_id(), slot_ind, phy_cell_params, false, phy_module().staticPdcchSlotNum(), phy_module().bf_enabled());
-        update_cell_command(grp_cmd, slot_cmd, pdu, testMode, get_carrier_id(), slot_ind, phy_cell_params, phy_module().staticPdcchSlotNum(), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info(), &cell_l1_limit.pdcch_errors);
+        update_cell_command(grp_cmd, slot_cmd, pdu, testMode, get_carrier_id(), slot_ind, phy_cell_params, phy_module().config_options().staticSlot(phy_module().staticPdcchSlotNum(), get_carrier_id()), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info(), &cell_l1_limit.pdcch_errors);
     }
 #else
     auto ret = VALID_FAPI_PDU;
     if (phy_module().cell_group() && !ret) {
-        update_cell_command(grp_cmd, slot_cmd, pdu, testMode, get_carrier_id(), slot_ind, phy_cell_params, phy_module().staticPdcchSlotNum(), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info());
+        update_cell_command(grp_cmd, slot_cmd, pdu, testMode, get_carrier_id(), slot_ind, phy_cell_params, phy_module().config_options().staticSlot(phy_module().staticPdcchSlotNum(), get_carrier_id()), phy_module().config_options(), phy_module().pm_map(), get_slot_detail(slot_ind), get_mMIMO_enable_info());
     }
 #endif
 

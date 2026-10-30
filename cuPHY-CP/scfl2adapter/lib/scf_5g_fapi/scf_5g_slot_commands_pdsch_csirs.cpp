@@ -2965,7 +2965,7 @@ namespace scf_5g_fapi {
         cell_cmd.slot.slot_3gpp = slotinfo;
         cell_grp_cmd->slot.type = SLOT_DOWNLINK;
         cell_grp_cmd->slot.slot_3gpp = slotinfo;
-        auto& staticCsiRsSlotNum = config_option.staticCsiRsSlotNum;
+        const int staticCsiRsSlotNum = config_option.staticSlot(config_option.staticCsiRsSlotNum, cell_index);
 
         if(pdsch_exist)
         {

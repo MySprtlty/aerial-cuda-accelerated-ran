@@ -319,6 +319,12 @@ PHY_module::PHY_module(yaml::node node_config) :
         config_options_.staticPucchSlotNum = node_config["staticPucchSlotNum"].as<int>();
     }
 
+    if (node_config.has_key("staticSlotCellMask")) {   // hybrid L1: static*SlotNum / staticSsb* apply only to the cells in this mask (decimal, bit c = cell c)
+        config_options_.staticSlotCellMask = node_config["staticSlotCellMask"].as<uint64_t>();
+        config_options_.staticSlotCellMaskSet = true;
+        NVLOGC_FMT(TAG, "staticSlotCellMask=0x{:X}: static slot numbers / static SSB SFN apply to these cells only", config_options_.staticSlotCellMask);
+    }
+
     if (node_config.has_key("lbrm"))
     {
         if(node_config["lbrm"].as<unsigned int>() > 0)

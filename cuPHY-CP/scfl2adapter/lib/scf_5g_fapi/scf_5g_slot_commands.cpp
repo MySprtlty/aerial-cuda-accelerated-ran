@@ -655,7 +655,7 @@ namespace scf_5g_fapi
             cuphyPucchCellDynPrm_t& dyn = pucch_grp_params->dyn_pars[grp.nCells];
             dyn.cellPrmStatIdx              = cell_stat_prm_idx;
             dyn.cellPrmDynIdx               = grp.nCells;
-            dyn.slotNum                     = (config_option.staticPucchSlotNum != -1)? config_option.staticPucchSlotNum :slotinfo.slot_;
+            dyn.slotNum                     = (config_option.staticSlot(config_option.staticPucchSlotNum, cell_index) != -1)? config_option.staticPucchSlotNum :slotinfo.slot_;
             dyn.pucchHoppingId = pucch_hopping_id;
             grp.nCells++;
         }

@@ -1,0 +1,26 @@
+diff --git a/openair2/NR_PHY_INTERFACE/NR_IF_Module.c b/openair2/NR_PHY_INTERFACE/NR_IF_Module.c
+index 18944a8099..ab791a8a19 100644
+--- a/openair2/NR_PHY_INTERFACE/NR_IF_Module.c
++++ b/openair2/NR_PHY_INTERFACE/NR_IF_Module.c
+@@ -423,8 +423,19 @@ static void NR_UL_indication(NR_UL_IND_t *UL_info)
+     if (gnb_uci_ind_queue.num_items > 0) {
+       LOG_D(NR_MAC, "gnb_uci_ind_queue size = %zu\n", gnb_uci_ind_queue.num_items);
+       uci_ind = get_queue(&gnb_uci_ind_queue);
+-      AssertFatal(uci_ind->num_ucis > 0, "Invalid number of PDUs\n");
+-      UL_info->uci_ind = *uci_ind;
++      if (uci_ind->num_ucis == 0) {
++        /* Aerial hybrid L1 (2026-10-27): when another cell of the same cuPHY cell group has UCI on PUSCH in this slot, the L1
++         * (scf_5g_fapi_phy.cpp send_uci_indication, gated by the group's totNumUciSegs) also sends a UCI.indication with
++         * NumUCIs 0 for a cell whose PUSCH carries no UCI (e.g. Msg3). It carries nothing: drop it instead of aborting. */
++        static unsigned empty_uci_count = 0;
++        ++empty_uci_count;
++        if (empty_uci_count <= 10 || (empty_uci_count % 1000) == 0)
++          LOG_W(NR_MAC, "UCI.indication %d.%d with 0 UCIs ignored (count %u)\n", uci_ind->sfn, uci_ind->slot, empty_uci_count);
++        free_and_zero(uci_ind->uci_list);
++        free_and_zero(uci_ind);
++      } else {
++        UL_info->uci_ind = *uci_ind;
++      }
+     }
+     if (gnb_rx_ind_queue.num_items > 0 && gnb_crc_ind_queue.num_items > 0) {
+       LOG_D(NR_MAC, "gnb_rx_ind_queue size = %zu and gnb_crc_ind_queue size = %zu\n",

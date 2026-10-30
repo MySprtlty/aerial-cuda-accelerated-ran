@@ -1066,6 +1066,13 @@ int task_work_function_ul_aggr_1_prach(Worker* worker, void* param, int first_ce
     {
         try
         {
+            if(slot_map->aggr_cell_list.empty() || slot_map->aggr_ulbuf_st3.empty())
+            {
+                NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "HYBRID_DBG prach task Map {} SFN {}.{}: slot map already released (cells {} ulbufs {}), skipping", slot_map->getId(), sfn, slot, slot_map->aggr_cell_list.size(), slot_map->aggr_ulbuf_st3.size());
+                slot_map->addChannelEndTask();
+                slot_map->addSlotEndTask();
+                return 0;
+            }
             TI_ADD("Cuda Setup");
             if(prach->setup(slot_map->aggr_cell_list, slot_map->aggr_ulbuf_st3, stream))
             {
@@ -1081,8 +1088,11 @@ int task_work_function_ul_aggr_1_prach(Worker* worker, void* param, int first_ce
             if(!oentity->getOrderLaunchedStatus()){
                 if(oentity->waitOrderLaunched(1*NS_X_MS))
                 {
-                    NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "{}: waitOrderLaunched returned error for Map {}",__func__,slot_map->getId());
-                    goto error_next;
+                    NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "{}: waitOrderLaunched returned error for Map {} (HYBRID_DBG: soft-skip instead of exit)",__func__,slot_map->getId());
+                    prach->setRunStatus(CH_RUN_DONE_ERROR);
+                    slot_map->addChannelEndTask();
+                    slot_map->addSlotEndTask();
+                    return 0;
                 }
             }
             TI_ADD("Wait To Start GPU");

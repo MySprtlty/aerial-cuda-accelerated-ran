@@ -39,6 +39,7 @@ PhyPuschAggr::PhyPuschAggr(
     PhyChannel(_pdh, _gDev, 0, _s_channels[0], _mpsCtx)
 {
     PhyDriverCtx * pdctx = StaticConversion<PhyDriverCtx>(_pdh).get();
+    s_channels = _s_channels;
 
     mf.init(_pdh, std::string("PhyPuschAggr"), sizeof(PhyPuschAggr));
     cuphyMf.init(_pdh, std::string("cuphyPuschRx"), 0);

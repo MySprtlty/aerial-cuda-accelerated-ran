@@ -204,7 +204,7 @@ int task_work_function_ul_aggr_1_pucch_pusch(Worker* worker, void* param, int fi
     #endif
 
     //Determine PUSCH Phase1, PUSCH Phase1, and PUCCH stream
-    cudaStream_t* pusch_streams = pdctx->getUlOrderStreamsPusch();
+    cudaStream_t* pusch_streams = (pusch != nullptr && pusch->getStreams() != nullptr) ? pusch->getStreams() : pdctx->getUlOrderStreamsPusch(); // dApp profiles: the object's partition
     cudaStream_t* pucch_streams = pdctx->getUlOrderStreamsPucch();
     cudaStream_t phase1_stream;
     cudaStream_t phase2_stream;
@@ -572,7 +572,7 @@ int task_work_function_ul_aggr_1_pusch(Worker* worker, void* param, int first_ce
         return 0;
     }
 
-    cudaStream_t* streams = pdctx->getUlOrderStreamsPusch();
+    cudaStream_t* streams = (pusch != nullptr && pusch->getStreams() != nullptr) ? pusch->getStreams() : pdctx->getUlOrderStreamsPusch(); // dApp profiles
     cudaStream_t phase1_stream;
     cudaStream_t phase2_stream;
 
@@ -1631,7 +1631,7 @@ int task_work_function_ul_aggr_3_early_uci_ind(Worker* worker, void* param,int f
                         goto error_next;
                     }
 
-                    cudaStream_t* streams = pdctx->getUlOrderStreamsPusch();
+                    cudaStream_t* streams = (pusch != nullptr && pusch->getStreams() != nullptr) ? pusch->getStreams() : pdctx->getUlOrderStreamsPusch(); // dApp profiles
                     cudaStream_t phase2_stream;
                     if(pdctx->splitUlCudaStreamsEnabled()) //Revisit for TDD pattern, Assume DDDSUUDDDD pattern
                     {

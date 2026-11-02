@@ -20,6 +20,8 @@
 #   env TC_EXTRA  extra test_config.sh arguments appended after --num-cells/--num-slots (e.g. "--ehq=0 --BFP=14 --log-nic-timings")
 #   env DRY=1     apply the configuration (setup1/setup2/test_config.sh + the edits below), snapshot it, restore the lab files and exit:
 #                 no RU / L1 / testMAC, no GPU (r0_ladder.sh dry-run)
+#   env SM_OVERRIDE="pusch=48 pdsch=104"  per-run mps_sm_* values (restored after the run)
+#   env GREEN=1   cuphycontroller use_green_contexts 1 (green contexts; mps_sm_* = SM partitions)
 #   env MIG_SM=1  set the cuphycontroller mps_sm_* caps to NVIDIA's MIG 4g.48gb values (docs: E2E gNodeB on MIG:
 #                 pusch 60, pucch 2, prach 2, ul_order 20, pdsch 62, pdcch 10, pbch 2, gpu_comms 16, srs 16; sum 190);
 #                 the file is restored after the run like the other lab files
@@ -52,13 +54,22 @@ PY
 kill_ran() { docker exec -u root c_aerial_troy bash -c 'pkill -TERM -x phy_main; sleep 6; pkill -KILL -x phy_main; pkill -TERM -x ru_emulator; for i in $(seq 1 20); do pgrep -x ru_emulator > /dev/null || break; sleep 1; done; pkill -KILL -x ru_emulator; pkill -KILL -x test_mac; sleep 1; ps -eo pid,comm | grep -E "phy_main|ru_emulator|test_mac" | grep -v defunct || echo "RAN down"'; }
 TRAFFIC_S=$(( SLOTS / 2000 ))
 echo "== $NAME: $N cells, $SLOTS slots (${TRAFFIC_S} s), dl cores '${DLCORES}', nvlog tags '${NVTAGS}', hook $HOOK, record $RECORD, ru_hist $RU_HIST, keep_raw $KEEP_RAW, mpstat $MPSTAT, ru cores ul '${RU_UL_CORES}' dl '${RU_DL_CORES}', mig '${MIG_UUID}' mig_sm $MIG_SM $(date +%T)"
+# back up the lab files before setup1/setup2/test_config and this script's edits touch them; restored at the end of the run (2026-11-02: was taken after test_config, so the restore left the run's cell count / PRB config in the lab yamls)
+for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml cuPHY-CP/testMAC/testMAC/test_mac_config.yaml; do cp $f $S/before_$NAME.$(basename $f); done
 docker exec -u root c_aerial_troy bash -lc "cd $P && ./setup1_DU.sh --ru-host-type=_LOOPBACK --du-eth0=aerial02 -y F08_CG1 && ./setup2_RU.sh --ru-eth0=aerial03" > $S/setup_$NAME.log 2>&1 || { echo "setup failed"; tail -3 $S/setup_$NAME.log; exit 1; }
 strip_summary
-docker exec -u root c_aerial_troy bash -lc "cd $P && ./test_config.sh ${PATTERN:-59c} --num-cells=$N --num-slots=$SLOTS ${TC_EXTRA:-}" > $S/test_config_$NAME.log 2>&1
+# 2026-11-02: GREEN=1 must also reach test_config.sh (--green-ctx=1 -> USE_GREEN_CONTEXT=1 in test_config_summary.sh): run2_cuPHYcontroller.sh
+# reads that flag and STOPS MPS for green contexts; with the yaml-only edit below it restarted MPS and every green-context run so far
+# was an MPS client (green contexts + MPS = the combination cuphycontroller_scf.cpp warns about; %smid virtual, cross-context stalls).
+docker exec -u root c_aerial_troy bash -lc "cd $P && ./test_config.sh ${PATTERN:-59c} --num-cells=$N --num-slots=$SLOTS $([ "${GREEN:-0}" = 1 ] && [ "${GREEN_MPS:-0}" != 1 ] && echo --green-ctx=1) ${TC_EXTRA:-}" > $S/test_config_$NAME.log 2>&1
 grep -q "total $N cells" $S/test_config_$NAME.log || { echo "test_config failed"; tail -3 $S/test_config_$NAME.log; exit 1; }
-# back up the lab files this script edits; restored at the end of the run
-for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml cuPHY-CP/testMAC/testMAC/test_mac_config.yaml; do cp $f $S/before_$NAME.$(basename $f); done
-restore_lab() { for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml cuPHY-CP/testMAC/testMAC/test_mac_config.yaml; do cp $S/before_$NAME.$(basename $f) $f; done; }
+restore_lab() { for f in cuPHY-CP/cuphycontroller/config/l2_adapter_config_F08_CG1.yaml cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml cuPHY-CP/ru-emulator/config/config.yaml cuPHY/nvlog/config/nvlog_config.yaml cuPHY-CP/testMAC/testMAC/test_mac_config.yaml; do
+  # 2026-11-01: a cp on a full disk truncates the lab file to 0 bytes (seen three times when a 10-min run filled the disk);
+  # wait for the purged logs to be released, verify the copy, and fall back to the committed lab state otherwise
+  for i in 1 2 3 4 5 6; do [ "$(df --output=avail / | tail -1)" -gt 200000 ] && break; sleep 5; done
+  cp $S/before_$NAME.$(basename $f) $f 2>/dev/null
+  if [ ! -s $f ] || [ "$(wc -l < $f)" != "$(wc -l < $S/before_$NAME.$(basename $f))" ]; then echo "!! restore of $f failed (disk full?) -> git checkout"; git checkout -- $f; fi
+done; }
 # hook: async (default) = UL+DL+PDUs, exported by the dApp export thread on core EXPORT_CPU (default 43),
 #       full = the same inline on the msg_processing thread, summary = inline without PDUs, off = disabled,
 #       legacy = a block without async keys (pre-async yaml: falls back to inline), keep = leave the yaml line as it is
@@ -88,6 +99,16 @@ if [ "$MIG_SM" = "1" ]; then
   for kv in pusch:60 pucch:2 prach:2 ul_order:20 pdsch:62 pdcch:10 pbch:2 gpu_comms:16 srs:16; do
     sed -i "s/^  mps_sm_${kv%%:*}: .*/  mps_sm_${kv%%:*}: ${kv##*:}/" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml
   done
+fi
+# GREEN=1 (2026-10-31): run the channels on CUDA green contexts (cuphycontroller use_green_contexts 1; the mps_sm_* values become
+# the SM partitions, 8-SM rounding) - restored with the other lab files
+if [ "${GREEN:-0}" = "1" ]; then
+  sed -i "s/^  use_green_contexts: .*/  use_green_contexts: 1/" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml
+fi
+grep -n "^  use_green_contexts" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml | tr -d ' '
+# SM_OVERRIDE="pusch=48 pdsch=104 ..." (2026-10-31): per-run mps_sm_<key> values (SM ladder for the per-channel SM sizer); restored after
+if [ -n "${SM_OVERRIDE:-}" ]; then
+  for kv in $SM_OVERRIDE; do sed -i "s/^  mps_sm_${kv%%=*}: .*/  mps_sm_${kv%%=*}: ${kv##*=}/" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml; done
 fi
 grep -n "^  mps_sm_" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml | tr -d ' ' | tr '\n' ' '; echo
 grep -n "workers_ul\|workers_dl\|debug_worker\|enable_cpu_task_tracing" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml
@@ -123,18 +144,40 @@ if [ "${DRY:-0}" = "1" ]; then echo "   dry-run: configuration applied and snaps
 # RUN_ENV="VAR=val VAR2=val" (night 3): environment handed to the RU emulator and testMAC inside the container (e.g. the
 # RU_LP_BLOCK_REPEAT / TESTMAC_LP_BLOCK_REPEAT pattern options); empty = unchanged behaviour
 RUN_ENV_ARGS=""; for kv in ${RUN_ENV:-}; do RUN_ENV_ARGS="$RUN_ENV_ARGS -e $kv"; done
-docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run1_RU.sh --timeout $((TRAFFIC_S + 330))" > $S/run1_$NAME.log 2>&1 & RU=$!
+# BUILD_DIR=build.aarch64_f1002 (2026-11-01): L1 and testMAC binaries from another build directory (default: the lab build
+# build.aarch64); both come from the same directory so their FAPI layouts match.
+# TENANT=1 (2026-11-01): one-process cuphycontroller + YOLO tenant (cuPHY-CP/dapp_hook/tenant) with per-slot PUSCH / PDSCH
+# green-context profiles (cuphydriver DAPP_PUSCH_PROFILES / DAPP_PDSCH_PROFILES) chosen by the in-process sizer
+# (include/dapp_hook/dapp_sizer.hpp, model estimator/sm_model.txt). Needs GREEN=1, the async hook (export_dl 1) and a build
+# with the patches (BUILD_DIR). PROFILES_ONLY=1: profiles + sizer without the tenant thread (A/B). Knobs: PUSCH_PROFILES,
+# PDSCH_PROFILES, SIZER_MODEL (file name under estimator/), TENANT_CLASSES, TENANT_FIXED, TENANT_ENV (extra "-e K=V" args).
+L1_ENV_ARGS=""
+if [ "${TENANT:-0}" = "1" ] || [ "${PROFILES_ONLY:-0}" = "1" ]; then
+  L1_ENV_ARGS="-e DAPP_PUSCH_PROFILES=${PUSCH_PROFILES:-40,56,72,96} -e DAPP_PDSCH_PROFILES=${PDSCH_PROFILES:-40,56} -e DAPP_SIZER_MODEL=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/estimator/${SIZER_MODEL:-sm_model.txt}"
+  [ "${TENANT:-0}" = "1" ] && L1_ENV_ARGS="$L1_ENV_ARGS -e DAPP_TENANT=1 -e DAPP_TENANT_CLASSES=${TENANT_CLASSES:-40,48,64,88} -e DAPP_TENANT_FIXED=${TENANT_FIXED:-0} -e DAPP_TENANT_LOG=/tmp/dapp_tenant_$NAME.log -e DAPP_TENANT_CSV=/tmp/dapp_tenant_$NAME.csv ${TENANT_ENV:-}"
+  echo "   L1 env: $L1_ENV_ARGS (build ${BUILD_DIR:-build.aarch64})"
+fi
+docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run1_RU.sh ${BUILD_DIR:+--build_dir=$BUILD_DIR} --timeout $((TRAFFIC_S + 330))" > $S/run1_$NAME.log 2>&1 & RU=$!
 sleep 25
-docker exec -u root ${MIG_UUID:+-e CUDA_VISIBLE_DEVICES=$MIG_UUID} c_aerial_troy bash -lc "$P/run2_cuPHYcontroller.sh --timeout $((TRAFFIC_S + 280))" > $S/run2_$NAME.log 2>&1 & L1=$!
+# 2026-11-02: the tenant log/csv in the container are appended across runs; a stale "tenant ready" marker made the traffic start
+# before the engines were loaded (k1_26l_av4 03:22) -> remove them before the L1 starts
+docker exec -u root c_aerial_troy rm -f /tmp/dapp_tenant_$NAME.log /tmp/dapp_tenant_$NAME.csv /tmp/dapp_tenant.log /tmp/dapp_tenant_slots.csv 2>/dev/null
+docker exec -u root ${MIG_UUID:+-e CUDA_VISIBLE_DEVICES=$MIG_UUID} $L1_ENV_ARGS c_aerial_troy bash -lc "$P/run2_cuPHYcontroller.sh ${BUILD_DIR:+--build_dir=$BUILD_DIR} ${L1_EXTRA_ARGS:-} --timeout $((TRAFFIC_S + 280))" > $S/run2_$NAME.log 2>&1 & L1=$!
 for i in $(seq 1 120); do grep -q "L1 is ready" $S/run2_$NAME.log 2>/dev/null && break; kill -0 $L1 2>/dev/null || break; sleep 2; done
 grep -q "L1 is ready" $S/run2_$NAME.log || { echo "L1 did not come up"; kill_ran; wait $RU 2>/dev/null; restore_lab; exit 1; }
+# 2026-11-02: with the in-process tenant, wait until its engines are loaded and validated ("tenant ready" in its log) before the
+# traffic starts: TensorRT deserialisation + execution contexts of 10 engines stall the GPU for >10 ms and crash the L1 (k1_26x_av12)
+if [ "${TENANT:-0}" = "1" ]; then
+  for i in $(seq 1 180); do docker exec c_aerial_troy grep -q "tenant ready" /tmp/dapp_tenant_$NAME.log 2>/dev/null && break; grep -q "tenant not started\|FATAL exit" $S/run2_$NAME.log 2>/dev/null && break; kill -0 $L1 2>/dev/null || break; sleep 1; done
+  echo "   tenant ready after $i s ($(docker exec c_aerial_troy grep -c "tenant ready" /tmp/dapp_tenant_$NAME.log 2>/dev/null))"
+fi
 echo "   L1 ready $(date +%T); starting DCGM + testMAC (recorder: $RECORD)"
-dcgmi dmon -e 1002,1003,1004,1005,203,204,155 -d 1000 > $S/dcgm_$NAME.csv 2>&1 & DC=$!
+dcgmi dmon -e 1002,1003,1004,1005,203,204,155,100 -d 1000 > $S/dcgm_$NAME.csv 2>&1 & DC=$!
 MP=""
 if [ "$MPSTAT" = "1" ]; then mpstat -P ALL 1 > $S/mpstat_$NAME.txt 2>&1 & MP=$!; fi
 REC=""
 if [ "$RECORD" = "1" ] && [ "$HOOK" != "off" ]; then python3 cuPHY-CP/dapp_hook/tools/dapp_ring_record.py --out prof/ring_16C_$NAME.bin --seconds ${RECORD_SECS:-$((TRAFFIC_S + 90))} > $S/record_$NAME.log 2>&1 & REC=$!; fi
-docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run3_testMAC.sh --timeout $((TRAFFIC_S + 120))" > $S/run3_$NAME.log 2>&1 & MAC=$!
+docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run3_testMAC.sh ${BUILD_DIR:+--build_dir=$BUILD_DIR} --timeout $((TRAFFIC_S + 120))" > $S/run3_$NAME.log 2>&1 & MAC=$!
 TEN=""
 if [ -n "${TENANT_SPEC:-}" ] || [ "${TENANT_MODE:-}" = "dispatcher" ]; then FS_OUT=$S bash "$(dirname "$0")/fs_tenant.sh" start "$NAME" "$TRAFFIC_S" > $S/tenant_$NAME.log 2>&1 & TEN=$!; fi
 for i in $(seq 1 $((TRAFFIC_S + 150))); do
@@ -160,6 +203,12 @@ else
 fi
 # PURGE_TMP=1 (default since night 3): the raw logs in the container's /tmp are deleted right after the extraction above, so the
 # disk peak of a 10-min run (phy.log ~13 GB, ru.log ~10 GB with tag 503) does not carry into the next run; PURGE_TMP=0 keeps them
+if [ -n "$L1_ENV_ARGS" ]; then
+  # tenant / sizer / profile evidence: the tenant's own log and per-slot csv, and the L1 lines about profiles and the sizer
+  for f in log csv; do docker cp c_aerial_troy:/tmp/dapp_tenant_$NAME.$f $S/ 2>/dev/null; done
+  docker exec c_aerial_troy bash -lc "grep -aE 'dApp|green context with|profile [0-9]+ \\(|DL context' /tmp/phy.log | cut -c1-700 > $CS/dapp_$NAME.log; grep -ac 'profile .* requested, .* used' /tmp/phy.log" | sed 's/^/   profile fallbacks: /'
+  tail -2 $S/dapp_tenant_$NAME.log 2>/dev/null | cut -c1-400
+fi
 [ "${PURGE_TMP:-1}" = "1" ] && docker exec -u root c_aerial_troy bash -lc "rm -f /tmp/phy.log /tmp/ru.log /tmp/testmac.log" && echo "   container /tmp raw logs purged"
 restore_lab
 echo "== $NAME done $(date +%T)"

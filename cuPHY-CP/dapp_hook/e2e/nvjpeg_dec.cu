@@ -23,6 +23,29 @@
 
 namespace {
 
+// 2026-11-02: nvjpeg grows its pinned/device buffers (cudaFreeHost / cudaFree + re-malloc) whenever a larger JPEG or image arrives;
+// cudaFree synchronises the device and, inside cuphycontroller, blocks behind cuPHY's kernels for good (gdb: njd_decode_tiles ->
+// cudaFree -> cuMemFree, tenant thread hung). Arena allocators (bump pointer, free = no-op) and a fixed RGB buffer avoid every
+// free on the request path. Sizes: device 384 MB, pinned 96 MB, RGB 64 MB (4096 x 5461 x 3).
+struct Arena { unsigned char* base = nullptr; size_t cap = 0, used = 0; bool pinned = false; int fallbacks = 0; };
+Arena g_dev_arena, g_pin_arena;
+int arena_alloc(Arena& a, void** out, size_t n) {
+    const size_t al = 256; const size_t off = (a.used + al - 1) / al * al;
+    if (a.base && off + n <= a.cap) { *out = a.base + off; a.used = off + n; return 0; }
+    if (a.fallbacks++ == 0) fprintf(stderr, "nvjpeg_dec: %s arena exhausted (%zu of %zu used, request %zu): falling back to cudaMalloc (may synchronise)\n", a.pinned ? "pinned" : "device", a.used, a.cap, n);
+    return a.pinned ? (cudaHostAlloc(out, n, cudaHostAllocDefault) == cudaSuccess ? 0 : 1) : (cudaMalloc(out, n) == cudaSuccess ? 0 : 1);
+}
+int dev_malloc_fn(void** p, size_t n) { return arena_alloc(g_dev_arena, p, n); }
+int dev_free_fn(void*) { return 0; }
+int pin_malloc_fn(void** p, size_t n, unsigned int) { return arena_alloc(g_pin_arena, p, n); }
+int pin_free_fn(void*) { return 0; }
+nvjpegDevAllocator_t g_dev_alloc = {dev_malloc_fn, dev_free_fn};
+nvjpegPinnedAllocator_t g_pin_alloc = {pin_malloc_fn, pin_free_fn};
+void arenas_init() {
+    if (!g_dev_arena.base) { g_dev_arena.cap = (size_t)384 << 20; if (cudaMalloc((void**)&g_dev_arena.base, g_dev_arena.cap) != cudaSuccess) { g_dev_arena.base = nullptr; g_dev_arena.cap = 0; } }
+    if (!g_pin_arena.base) { g_pin_arena.pinned = true; g_pin_arena.cap = (size_t)96 << 20; if (cudaHostAlloc((void**)&g_pin_arena.base, g_pin_arena.cap, cudaHostAllocDefault) != cudaSuccess) { g_pin_arena.base = nullptr; g_pin_arena.cap = 0; } }
+}
+
 struct Ctx {
     nvjpegHandle_t handle = nullptr;
     nvjpegJpegDecoder_t decoder = nullptr;
@@ -81,12 +104,13 @@ extern "C" {
 void* njd_create(int backend) {
     Ctx* c = new Ctx();
     nvjpegBackend_t be = backend == 1 ? NVJPEG_BACKEND_HYBRID : backend == 2 ? NVJPEG_BACKEND_GPU_HYBRID : NVJPEG_BACKEND_HARDWARE;
-    if (nvjpegCreateEx(NVJPEG_BACKEND_DEFAULT, nullptr, nullptr, 0, &c->handle) != NVJPEG_STATUS_SUCCESS) { delete c; return nullptr; }
+    arenas_init();
+    if (nvjpegCreateEx(NVJPEG_BACKEND_DEFAULT, &g_dev_alloc, &g_pin_alloc, 0, &c->handle) != NVJPEG_STATUS_SUCCESS) { delete c; return nullptr; }
     nvjpegStatus_t st = nvjpegDecoderCreate(c->handle, be, &c->decoder);
     if (st != NVJPEG_STATUS_SUCCESS) { fprintf(stderr, "nvjpeg_dec: nvjpegDecoderCreate(backend %d) status %d\n", backend, (int)st); nvjpegDestroy(c->handle); delete c; return nullptr; }
     if (nvjpegDecoderStateCreate(c->handle, c->decoder, &c->state) != NVJPEG_STATUS_SUCCESS ||
-        nvjpegBufferPinnedCreate(c->handle, nullptr, &c->pinned) != NVJPEG_STATUS_SUCCESS ||
-        nvjpegBufferDeviceCreate(c->handle, nullptr, &c->devbuf) != NVJPEG_STATUS_SUCCESS ||
+        nvjpegBufferPinnedCreate(c->handle, &g_pin_alloc, &c->pinned) != NVJPEG_STATUS_SUCCESS ||
+        nvjpegBufferDeviceCreate(c->handle, &g_dev_alloc, &c->devbuf) != NVJPEG_STATUS_SUCCESS ||
         nvjpegStateAttachPinnedBuffer(c->state, c->pinned) != NVJPEG_STATUS_SUCCESS ||
         nvjpegStateAttachDeviceBuffer(c->state, c->devbuf) != NVJPEG_STATUS_SUCCESS ||
         nvjpegJpegStreamCreate(c->handle, &c->jstream) != NVJPEG_STATUS_SUCCESS ||
@@ -97,6 +121,8 @@ void* njd_create(int backend) {
         return nullptr;
     }
     cudaEventCreate(&c->e0); cudaEventCreate(&c->e1); cudaEventCreate(&c->e2);
+    c->d_rgb_bytes = (size_t)64 << 20;    // fixed RGB buffer, never reallocated on the request path
+    if (cudaMalloc((void**)&c->d_rgb, c->d_rgb_bytes) != cudaSuccess) { c->d_rgb = nullptr; c->d_rgb_bytes = 0; }
     return c;
 }
 
@@ -125,11 +151,7 @@ int njd_decode_tiles(void* vc, const unsigned char* jpeg, size_t n, float* d_ten
     if (st != NVJPEG_STATUS_SUCCESS) return (int)st;
     if (supported != 0) return -1;     // e.g. progressive JPEG on the hardware backend
     size_t need = (size_t)w * 3 * h;
-    if (need > c->d_rgb_bytes) {
-        if (c->d_rgb) cudaFree(c->d_rgb);
-        if (cudaMalloc((void**)&c->d_rgb, need) != cudaSuccess) { c->d_rgb = nullptr; c->d_rgb_bytes = 0; return -2; }
-        c->d_rgb_bytes = need;
-    }
+    if (need > c->d_rgb_bytes) return -2;   // larger than the fixed RGB buffer (no reallocation on the request path)
     st = nvjpegDecodeJpegHost(c->handle, c->decoder, c->state, c->params, c->jstream);
     if (st != NVJPEG_STATUS_SUCCESS) return (int)st;
     auto a1 = std::chrono::steady_clock::now();

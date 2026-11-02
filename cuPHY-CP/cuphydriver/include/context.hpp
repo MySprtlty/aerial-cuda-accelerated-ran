@@ -336,6 +336,12 @@ public:
     uint16_t            getForcedNumCsi2Bits(void) const;
     uint32_t            getPuschMaxNumLdpcHetConfigs(void) const;
     uint8_t             getPuschAggrPerCtx(void) const;
+    const std::vector<int>& getPuschProfileSm() const { return puschProfileSm; }   ///< dApp profiles: actual PUSCH partition SM counts (ascending; empty = none)
+    const std::vector<int>& getPdschProfileSm() const { return pdschProfileSm; }   ///< dApp profiles: actual PDSCH partition SM counts
+    int getUlOrderSm() const { return ulOrderSm; }        ///< dApp (2026-11-02): actual SM count of the UL order green context (0 = unknown)
+    int getUlOrderMode() const { return ulOrderMode; }    ///< 0 = remainder of the PUSCH complement (common case), 1 = exceptional split of the full device (prefix)
+    int getUlCtrlPucchSm() const { return ulCtrlPucchSm; } ///< dApp (2026-11-02): actual SM counts of the PUCCH / PRACH green contexts (0 = unknown)
+    int getUlCtrlPrachSm() const { return ulCtrlPrachSm; }
     uint8_t             getPrachAggrPerCtx(void) const;
     uint8_t             getPucchAggrPerCtx(void) const;
     uint8_t             getSrsAggrPerCtx(void) const;
@@ -661,6 +667,23 @@ private:
     Mutex                                  aggr_lock_cell_phy_srs;
     std::vector<std::unique_ptr<PhyUlBfwAggr>> aggr_ulbfw_items;
     std::vector<std::unique_ptr<PhyPuschAggr>> aggr_pusch_items;
+    // dApp per-slot profiles (2026-11-01, env DAPP_PUSCH_PROFILES / DAPP_PDSCH_PROFILES, green contexts only): profile p of
+    // a channel = green context + stream set + its own pool of pipeline objects (aggr_<ch>_items[p * per_ctx ..]); the
+    // largest profile is the context the yaml value would have created (puschMpsCtx / pdschMpsCtx, its streams are the
+    // driver-wide aggr_stream_*). getNext{Pusch,Pdsch}Aggr() pick the pool of the profile requested for the slot through
+    // cuphydriver_dapp_set_profile() (cuphydriver_api.hpp). Empty vectors = regular single-context behaviour.
+    std::vector<int>                       dapp_pusch_profiles;   // requested SM counts, ascending
+    std::vector<int>                       dapp_pdsch_profiles;
+    std::vector<MpsCtx*>                   puschProfileCtx;       // ascending SM counts; back() == puschMpsCtx
+    std::vector<int>                       puschProfileSm;        // actual partition SM counts
+    std::vector<std::array<cudaStream_t, 4>> puschProfileStreams;
+    std::vector<int>                       aggr_last_pusch_prof;
+    std::vector<MpsCtx*>                   pdschProfileCtx;       // ascending; back() == pdschMpsCtx; front() is the DL ctx (compression, cell DL streams)
+    std::vector<int>                       pdschProfileSm;
+    int                                    ulOrderSm = 0, ulOrderMode = 0;   // dApp (2026-11-02): exported through cuphydriver_dapp_profile_sms(2, ...)
+    int                                    ulCtrlPucchSm = 0, ulCtrlPrachSm = 0;   // dApp (2026-11-02): exported through cuphydriver_dapp_profile_sms(3, ...)
+    std::vector<cudaStream_t>              pdschProfileStreams;
+    std::vector<int>                       aggr_last_pdsch_prof;
     std::vector<std::unique_ptr<PhyPucchAggr>> aggr_pucch_items;
     std::vector<std::unique_ptr<PhyPrachAggr>> aggr_prach_items;
     std::vector<std::unique_ptr<PhySrsAggr>> aggr_srs_items;

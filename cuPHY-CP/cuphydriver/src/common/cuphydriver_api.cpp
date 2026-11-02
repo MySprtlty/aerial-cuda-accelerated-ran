@@ -31,6 +31,78 @@
 #include "cell.hpp"
 #include "slot_map_ul.hpp"
 #include "slot_map_dl.hpp"
+#include <atomic>
+
+// ---- dApp per-slot profile table (2026-11-01), see cuphydriver_api.hpp ------------------------------------------------
+namespace {
+struct DappProfEntry { std::atomic<uint32_t> key{0xFFFFFFFFu}; uint8_t want[2]{0xFF, 0xFF}; uint8_t used[2]{0xFF, 0xFF}; };
+DappProfEntry          g_dapp_prof[64];
+std::atomic<uint64_t>  g_dapp_prof_count[2][16];
+std::atomic<uint64_t>  g_dapp_fallback[2];
+inline uint32_t dapp_key(uint16_t sfn, uint16_t slot) { return (static_cast<uint32_t>(sfn) << 16) | slot; }
+inline DappProfEntry& dapp_entry(uint16_t sfn, uint16_t slot) { return g_dapp_prof[((static_cast<uint32_t>(sfn) << 5) | (slot & 31u)) & 63u]; }
+}
+void cuphydriver_dapp_set_profile(uint16_t sfn, uint16_t slot, uint8_t pusch_idx, uint8_t pdsch_idx)
+{
+    DappProfEntry& e = dapp_entry(sfn, slot);
+    e.key.store(0xFFFFFFFFu, std::memory_order_release);
+    e.want[0] = pusch_idx; e.want[1] = pdsch_idx; e.used[0] = 0xFF; e.used[1] = 0xFF;
+    e.key.store(dapp_key(sfn, slot), std::memory_order_release);
+}
+int cuphydriver_dapp_get_profile(uint16_t sfn, uint16_t slot, int channel)
+{
+    DappProfEntry& e = dapp_entry(sfn, slot);
+    if(e.key.load(std::memory_order_acquire) != dapp_key(sfn, slot) || channel < 0 || channel > 1) return -1;
+    return e.want[channel] == 0xFF ? -1 : e.want[channel];
+}
+void cuphydriver_dapp_note_used(uint16_t sfn, uint16_t slot, int channel, int profile)
+{
+    if(channel < 0 || channel > 1 || profile < 0 || profile >= 16) return;
+    DappProfEntry& e = dapp_entry(sfn, slot);
+    if(e.key.load(std::memory_order_acquire) == dapp_key(sfn, slot)) e.used[channel] = static_cast<uint8_t>(profile);
+    else { e.key.store(0xFFFFFFFFu, std::memory_order_release); e.want[0] = e.want[1] = 0xFF; e.used[0] = e.used[1] = 0xFF; e.used[channel] = static_cast<uint8_t>(profile); e.key.store(dapp_key(sfn, slot), std::memory_order_release); }
+    g_dapp_prof_count[channel][profile].fetch_add(1, std::memory_order_relaxed);
+    const int want = e.want[channel];
+    if(want != 0xFF && want != profile) g_dapp_fallback[channel].fetch_add(1, std::memory_order_relaxed);
+}
+int cuphydriver_dapp_get_used(uint16_t sfn, uint16_t slot, int channel)
+{
+    DappProfEntry& e = dapp_entry(sfn, slot);
+    if(e.key.load(std::memory_order_acquire) != dapp_key(sfn, slot) || channel < 0 || channel > 1) return -1;
+    return e.used[channel] == 0xFF ? -1 : e.used[channel];
+}
+int cuphydriver_dapp_profile_sms(int channel, int* sm_counts, int max_count)
+{
+    if(l1_pdh == nullptr || sm_counts == nullptr) return 0;
+    PhyDriverCtx* pdctx = StaticConversion<PhyDriverCtx>(l1_pdh).get();
+    if(channel == 2)   // 2026-11-02: UL order green context {SM count, mode}; the tenant keeps that slice out of its partitions
+    {
+        int n = 0;
+        if(n < max_count) sm_counts[n++] = pdctx->getUlOrderSm();
+        if(n < max_count) sm_counts[n++] = pdctx->getUlOrderMode();
+        return n;
+    }
+    if(channel == 3)   // {PUCCH, PRACH} actual SM counts (the top-of-device UL control slice)
+    {
+        int n = 0;
+        if(n < max_count) sm_counts[n++] = pdctx->getUlCtrlPucchSm();
+        if(n < max_count) sm_counts[n++] = pdctx->getUlCtrlPrachSm();
+        return n;
+    }
+    const std::vector<int>& v = (channel == 0) ? pdctx->getPuschProfileSm() : pdctx->getPdschProfileSm();
+    int n = 0;
+    for(size_t i = 0; i < v.size() && n < max_count; i++) sm_counts[n++] = v[i];
+    return n;
+}
+uint64_t cuphydriver_dapp_profile_count(int channel, int profile)
+{
+    if(channel < 0 || channel > 1 || profile < 0 || profile >= 16) return 0;
+    return g_dapp_prof_count[channel][profile].load(std::memory_order_relaxed);
+}
+uint64_t cuphydriver_dapp_fallback_count(int channel)
+{
+    return (channel < 0 || channel > 1) ? 0 : g_dapp_fallback[channel].load(std::memory_order_relaxed);
+}
 #include "worker.hpp"
 #include "gpudevice.hpp"
 #include "time.hpp"

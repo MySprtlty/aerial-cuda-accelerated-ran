@@ -43,7 +43,7 @@
  *   dapp_sched [-n /aerial_dapp_ring] [-s /tmp/dapp_sched.sock] [--cells N]
  *              [--classes 16,32,48,64,96] [--engine NAME:SM=yolo.engine ...] [--image img.jpg]
  *              [--decode auto|cpu|gpu] [--conf 0.25] [--iou 0.7] [--max-det 300]
- *              [--sweep N] [--sweep-skip 2] [--self-test N] [--verbose]
+ *              [--sweep N] [--sweep-skip 2] [--self-test N] [--verbose] [--green]
  *              [--ctrl [/aerial_dapp_ctrl]] [--ctrl-max-age-ms 20] [--gate-wait-ms 50]
  */
 #include "dapp_sched.hpp"
@@ -635,7 +635,7 @@ int main(int argc, char** argv)
     std::string default_image;
     std::vector<EngineSpec> engines;
     std::vector<uint32_t> classes = {16, 32, 48, 64, 96};
-    int self_test = 0, work_ms = 10, sweep = 0, sweep_skip = 2;
+    int self_test = 0, work_ms = 10, sweep = 0, sweep_skip = 2; bool green = false;
     bool verbose = false;
     YoloRig rig;
     CtrlCfg ccfg;
@@ -660,6 +660,7 @@ int main(int argc, char** argv)
         }
         else if (a == "--self-test" && i + 1 < argc) self_test = atoi(argv[++i]);
         else if (a == "--sweep" && i + 1 < argc) sweep = atoi(argv[++i]);
+        else if (a == "--green") green = true;   // SM classes as CUDA green-context partitions (no MPS)
         else if (a == "--sweep-skip" && i + 1 < argc) sweep_skip = atoi(argv[++i]);
         else if (a == "--work-ms" && i + 1 < argc) work_ms = atoi(argv[++i]);
         else if (a == "--engine" && i + 1 < argc) {
@@ -711,7 +712,7 @@ int main(int argc, char** argv)
 
     SmPool pool;
     std::string err;
-    if (!pool.init(0, classes, err)) {
+    if (!pool.init(0, classes, err, green)) {
         std::fprintf(stderr, "GPU init failed: %s\n", err.c_str());
         return 1;
     }

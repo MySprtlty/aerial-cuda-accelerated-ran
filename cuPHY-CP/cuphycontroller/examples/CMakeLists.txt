@@ -38,6 +38,10 @@ target_compile_options(${TARGET_SCF} PRIVATE ${AERIAL_ARCH_TUNE_FLAGS})
 target_link_directories(${TARGET_SCF} PRIVATE "${CUDA_TOOLKIT_ROOT_DIR}/lib64")
 
 target_link_libraries(${TARGET_SCF} yaml cuphydriver scf_5g_fapi nvphy nvlog cuphyoamlib mimalloc app_config aerial_sdk_version app_utils CUDA::cudart)
+if(TARGET dapp_tenant)
+    target_link_libraries(${TARGET_SCF} dapp_tenant)
+    target_compile_definitions(${TARGET_SCF} PRIVATE ENABLE_DAPP_TENANT)
+endif()
 
 if (AERIAL_METRICS)
     target_link_libraries(${TARGET_SCF} aerial_metrics)

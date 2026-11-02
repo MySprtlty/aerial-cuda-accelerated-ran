@@ -34,10 +34,17 @@ public:
     struct Slot {
         uint32_t sm = 0;      // 0 means uncapped
         CUcontext ctx = nullptr;
+#if CUDA_VERSION >= 12040
+        CUgreenCtx green = nullptr;   // green mode: the partition this slot's ctx was converted from
+#endif
     };
 
     // classes: requested SM counts, e.g. {16, 32, 48, 64, 96}
-    bool init(int device_ordinal, const std::vector<uint32_t>& classes, std::string& err)
+    // green (2026-10-31): CUDA green contexts instead of MPS execution-affinity contexts: every class is an SM partition
+    // split from the full device set (8-SM granularity on Hopper, the count may round up), converted with cuCtxFromGreenCtx so
+    // streams created while it is current are confined to the partition. No MPS needed; all classes share the primary context
+    // (one address space), which is what a single cuphycontroller + YOLO process would use.
+    bool init(int device_ordinal, const std::vector<uint32_t>& classes, std::string& err, bool green = false)
     {
         CUresult rc = cuInit(0);
         if (rc != CUDA_SUCCESS) { err = cu_err("cuInit", rc); return false; }
@@ -54,6 +61,31 @@ public:
 #endif
         mps_enabled_ = (mps == 1);
 
+        green_ = green;
+#if CUDA_VERSION >= 12040
+        if (green) {
+            CUdevResource all = {};
+            rc = cuDeviceGetDevResource(dev_, &all, CU_DEV_RESOURCE_TYPE_SM);
+            if (rc != CUDA_SUCCESS) { err = cu_err("cuDeviceGetDevResource", rc); return false; }
+            for (uint32_t sm : classes) {
+                if (sm == 0 || sm > device_sm_) { continue; }
+                CUdevResource part = {}, rem = {}; unsigned ng = 1;
+                rc = cuDevSmResourceSplitByCount(&part, &ng, &all, &rem, 0, sm);
+                if (rc != CUDA_SUCCESS) { last_affinity_error_ = static_cast<int>(rc); continue; }
+                CUdevResourceDesc desc; rc = cuDevResourceGenerateDesc(&desc, &part, 1);
+                if (rc != CUDA_SUCCESS) { last_affinity_error_ = static_cast<int>(rc); continue; }
+                CUgreenCtx g = nullptr; rc = cuGreenCtxCreate(&g, desc, dev_, CU_GREEN_CTX_DEFAULT_STREAM);
+                if (rc != CUDA_SUCCESS) { last_affinity_error_ = static_cast<int>(rc); continue; }
+                CUcontext ctx = nullptr; rc = cuCtxFromGreenCtx(&ctx, g);
+                if (rc != CUDA_SUCCESS) { last_affinity_error_ = static_cast<int>(rc); cuGreenCtxDestroy(g); continue; }
+                Slot sl; sl.sm = part.sm.smCount; sl.ctx = ctx; sl.green = g; slots_.push_back(sl);
+            }
+            if (slots_.empty()) { err = "no green context could be created (error " + std::to_string(last_affinity_error_) + ")"; return false; }
+            std::sort(slots_.begin(), slots_.end(), [](const Slot& a, const Slot& b) { return a.sm < b.sm; });
+            capping_active_ = true;
+            return true;
+        }
+#endif
         for (uint32_t sm : classes) {
             if (sm == 0 || sm > device_sm_) { continue; }
             CUcontext ctx = nullptr;
@@ -91,6 +123,9 @@ public:
 
     ~SmPool()
     {
+#if CUDA_VERSION >= 12040
+        if (green_) { for (Slot& s : slots_) { if (s.green) { cuGreenCtxDestroy(s.green); } } return; }
+#endif
         for (Slot& s : slots_) { if (s.ctx) { cuCtxDestroy(s.ctx); } }
         if (fallback_) { cuCtxDestroy(fallback_); }
     }
@@ -112,6 +147,7 @@ public:
     }
 
     bool capping_active() const { return capping_active_; }
+    bool green() const { return green_; }
     bool mps_enabled() const { return mps_enabled_; }
     uint32_t device_sm() const { return device_sm_; }
     const std::vector<Slot>& slots() const { return slots_; }
@@ -129,6 +165,7 @@ private:
     std::vector<Slot>  slots_;
     CUcontext          fallback_ = nullptr;
     bool               capping_active_ = false;
+    bool               green_ = false;
     bool               mps_enabled_ = false;
     uint32_t           device_sm_ = 0;
     int                last_affinity_error_ = 0;

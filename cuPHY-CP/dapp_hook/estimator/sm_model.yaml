@@ -1,0 +1,69 @@
+# sm_model.yaml - per-channel SM sizing model for green-context partitions (dapp_est/sm_model.py, refit by sm_refit.py).
+# Beaver-style split (arXiv 2610.02522 4.1) of every kernel group's weight into an SM-insensitive part (w_ins, us per work
+# unit) and an SM-parallel part (w_par, us per work unit measured at s_ref SMs, scaling as s_ref / s):
+#     T_c(ctx, s) = fixed_us + sum_k work_ck * (w_ins_ck + w_par_ck * s_ref / s)
+#     s_min_c     = smallest s in {g, 2g, ..., s_max} with T_c(ctx, s) + margin_us <= budget_us
+# work_ck = dapp_est/work_formulas.py units summed over all cells of the slot (the hook ring's FAPI PDUs).
+# PROVISIONAL until sm_refit.py writes it from the SM ladder (prof/sm_ladder, 2026-10-31): the numbers below are the rules.yaml
+# weights split 55/45 (PUSCH insensitive share measured on gc1/gc2: 447 us at 100 SMs vs 541 us at 68 -> 247 + 19975/s).
+version: 1
+provisional: true
+sm_total: 132
+granularity: 8                 # Hopper green-context split unit
+headroom_sm: 8                 # never handed to the tenant
+budget_kind: completion        # completion: start_us[pos] + queue + T_work(s) + margin <= complete_by_us (us after the slot's t0);
+                               # duration: fixed_us + T_work(s) + margin <= budget_us (NVIDIA check_cell_capacity.py constraints)
+ul_positions: [7, 8, 9]        # U slots of DDDDDDSUUU (slot % 10)
+ul_start_offset_us: {7: 300, 8: 800, 9: 950}   # measured PUSCH GPU start after the slot's t0 (gc0/gc1 2026-10-31): the burst check
+                                               # queues slot n behind slot n-1 when T_{n-1} exceeds the start gap
+channels:
+  PUSCH:
+    class: dynamic
+    complete_by_us: 2100     # empirical (lab F08_CG1 config, 8 cells): pos-9 p99 2074 us at 52 SMs ran clean, 2560 us at 36 SMs hit Err.ind / UL buffer exhaustion; Beaver's 3-slot rule would be 1500
+    start_us: {7: 300, 8: 800, 9: 950}
+    s_ref: 100
+    s_min: 40                # below the measured range (36 SMs failed); the model is not trusted there
+    s_max: 100
+    fixed_us: 60
+    budget_us: 1500
+    margin_us: 50
+    w_ins: {chest: 2.4e-4, eq: 4.0e-5, llr: 3.5e-6, ldpc: 5.2e-4, uci: 4.8e-3}
+    w_par: {chest: 1.9e-4, eq: 3.2e-5, llr: 2.8e-6, ldpc: 4.3e-4, uci: 4.0e-3}
+  PDSCH:
+    class: dynamic
+    budget_kind: duration    # 8 cells: completion does not depend on the PDSCH partition (ladder 104/72/56/40 identical); size on the GPU run duration
+    complete_by_us: -470
+    start_us: {0: -900, 1: -900, 2: -900, 3: -900, 4: -900, 5: -900, 6: -900}
+    s_ref: 104
+    s_min: 8
+    s_max: 104
+    fixed_us: 40
+    budget_us: 375
+    margin_us: 30
+    w_ins: {enc: 1.2e-5, mod: 1.0e-5, prec: 8.0e-3}
+    w_par: {enc: 1.0e-5, mod: 8.0e-6, prec: 7.0e-3}
+  PDCCH:
+    class: fixed
+    budget_kind: duration
+    complete_by_us: -470
+    start_us: {0: -950, 1: -950, 2: -950, 3: -950, 4: -950, 5: -950, 6: -950}
+    context: DL_CTRL
+    s_fixed: 8               # probe sl_pk_dlc8 (2026-10-31): PDCCH completion +16 us, no errors
+    s_ref: 24
+    fixed_us: 20
+    budget_us: 375
+    margin_us: 20
+    w_ins: {agg: 0.5, bits: 0.05}
+    w_par: {agg: 0.0, bits: 0.0}
+  SSB:   {complete_by_us: -470, class: fixed, context: DL_CTRL, s_fixed: 24, s_ref: 24, fixed_us: 15, budget_us: 375, margin_us: 10, w_ins: {present: 5.0}, w_par: {present: 0.0}}
+  CSIRS: {complete_by_us: -470, class: fixed, context: DL_CTRL, s_fixed: 24, s_ref: 24, fixed_us: 15, budget_us: 375, margin_us: 10, w_ins: {count: 3.0}, w_par: {count: 0.0}}
+  PUCCH: {complete_by_us: 1500, class: fixed, context: PUCCH, s_fixed: 8, s_ref: 8, fixed_us: 30, budget_us: 1500, margin_us: 20, w_ins: {f01: 0.3, f234: 2.0e-3}, w_par: {f01: 0.0, f234: 0.0}}
+  PRACH: {complete_by_us: 1500, class: fixed, context: PRACH, s_fixed: 12, s_ref: 12, fixed_us: 30, budget_us: 1500, margin_us: 30, w_ins: {ocas: 20.0}, w_par: {ocas: 0.0}}
+  SRS:   {complete_by_us: 1500, class: off, context: SRS, s_fixed: 0, s_ref: 16, fixed_us: 30, budget_us: 500, margin_us: 30, w_ins: {ports: 2.0}, w_par: {ports: 0.0}}
+contexts_fixed:                # green contexts without a FAPI work model (probe runs decide them)
+  ORDER: 8                     # probe sl_pk_ord8: order run / PUSCH completion unchanged, no errors
+  COMMS: 16                    # probe sl_pk_com8: RU DL late slots +12..50 % -> keep 16
+layout:                        # how the per-slot footprint is summed for the tenant remainder (target layout: UL set and DL set
+  ul_set: [PUSCH, PUCCH, PRACH]        # disjoint; PUCCH/PRACH ride inside the PUSCH set, DL_CTRL/COMMS inside the PDSCH set,
+  dl_set: [PDSCH, DL_CTRL, COMMS]      # ORDER separate - as the cuphydriver split does today, minus the UL/DL overlap)
+  separate: [ORDER]

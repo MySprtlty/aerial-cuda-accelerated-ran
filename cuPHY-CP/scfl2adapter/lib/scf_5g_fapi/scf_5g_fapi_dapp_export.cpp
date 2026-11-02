@@ -9,6 +9,7 @@
 #ifdef ENABLE_DAPP_HOOK
 
 #include "scf_5g_fapi_dapp_export.hpp"
+#include "dapp_hook/dapp_sizer.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -197,6 +198,7 @@ void dapp_export_ul_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
             break;
         }
 
+        nv::dapp::sizer_add_ul(sfn, slot, o);   // in-process SM sizer (dapp_sizer.hpp)
         if (write_pdus)
         {
             dapp_rec_t* r = ring.begin(DAPP_REC_UL_PDU, sfn, slot, cell_id);
@@ -230,6 +232,7 @@ void dapp_export_ul_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     ring.commit(r);
     ring.count_ul_tti();
     ring.note_cell(sfn, slot, cell_id);
+    nv::dapp::sizer_done(sfn, slot, 0);
     if (w.truncated) { ring.count_pdu_truncated(); }
 }
 
@@ -408,6 +411,7 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
             break;
         }
 
+        nv::dapp::sizer_add_dl(sfn, slot, o);   // in-process SM sizer (dapp_sizer.hpp)
         if (write_pdus)
         {
             dapp_rec_t* r = ring.begin(DAPP_REC_DL_PDU, sfn, slot, cell_id);
@@ -442,6 +446,7 @@ void dapp_export_dl_tti(nv::dapp::Producer& ring, uint16_t cell_id, const scf_fa
     ring.commit(r);
     ring.count_dl_tti();
     ring.note_cell(sfn, slot, cell_id);
+    nv::dapp::sizer_done(sfn, slot, 1);
     if (w.truncated) { ring.count_pdu_truncated(); }
 }
 

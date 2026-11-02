@@ -222,3 +222,54 @@ provisional w_ck는 PUSCH를 2배 과소, PDSCH를 6배 과대 추정한다(8셀
   DL 채널들이 같은 task chain에서 처리되므로 DL 합산 예산이 더 맞을 수 있다(label로 확인).
 - 셀 간 병렬 실행(멀티 스트림)은 `total` 합산에 반영되지 않는다. 8셀 이상에서 과대추정
   가능성이 있고, calibrate가 `w_ck`를 낮추는 식으로 흡수한다.
+
+## 채널별 최소 SM 산정 (sm_model.yaml, dapp_est/sm_model.py, sm_refit.py, min_sm.py; 2026-10-31)
+
+cap/gate 대신 "각 cuPHY 채널 파이프라인이 마감을 지키는 데 필요한 최소 SM 분할"을 슬롯마다 낸다 (green context 전제).
+Beaver(arXiv 2610.02522 §4.1)의 τ 분해를 커널 그룹 단위로 옮긴 것: 채널 c의 GPU 실행 시간을
+
+    T_c(ctx, s) = fixed_c + Σ_k work_ck · (w_ins_ck + w_par_ck · s_ref_c / s)
+
+로 두고(w_ins = SM 수에 둔감한 부분, w_par = s_ref SM에서 잰 병렬 부분, work_ck = work_formulas.py 단위를 슬롯의 모든 셀에 대해 합산),
+`s_min_c = min{ s ∈ {8, 16, …, s_max} : T_c(ctx, s) + margin_c ≤ budget_c }` 로 뒤집는다. Beaver가 TV(셀 설정) 단위로 프로파일하고
+합성하는 것과 달리 FAPI PDU 단위 work라서 셀마다 다른 설정이 자연히 섞이고, PUSCH만이 아니라 전 채널을 다룬다.
+
+- 채널 class: `dynamic`(PUSCH, PDSCH: 슬롯마다 s_min), `fixed`(PDCCH·SSB·CSI-RS = DL_CTRL 컨텍스트, PUCCH, PRACH: 모든 슬롯에 한 분할
+  s_fixed, 마감 검사만), `off`(SRS). ORDER·COMMS는 FAPI work가 없어 `contexts_fixed`로 고정(프로브 런으로 정함).
+- budget_us = rules.yaml deadline_us와 같은 NVIDIA 지속시간 제약(PUSCH 1500, DL 375 µs). margin_us = 재적합 잔차 p99.
+- UL 버스트: 연속 U 슬롯이 같은 분할을 쓰면 앞 슬롯 파이프라인이 끝나기 전엔 뒤 슬롯이 줄을 선다. `ul_start_offset_us`(위치별 PUSCH GPU
+  시작 시각, 실측)로 대기 시간을 계산해 예산에서 뺀다 (gc0/gc1: 첫 U +300, 둘째·셋째 +560~820 µs).
+- footprint/tenant: `layout`대로 UL 집합(PUSCH 안에 PUCCH·PRACH)과 DL 집합(PDSCH 안에 DL_CTRL·COMMS)을 서로 겹치지 않게 두고 ORDER를
+  따로 더한 뒤 headroom을 빼서 `tenant_sm`(8 단위)을 낸다. 지금 cuphydriver 분할은 UL/DL이 겹치므로 이 수는 목표 배치 기준이다.
+
+실행
+```
+# 보정: SM 사다리(fullstack_run.sh GREEN=1 SM_OVERRIDE=... RECORD=1, prof/sm_ladder) → sm_model_fit.yaml
+python3 sm_refit.py --dir ../../../prof/sm_ladder --runs sl_pk_pu100 sl_pk_pu80 sl_pk_pu64 sl_pk_pu48 sl_pk_pu32 ... --out sm_model_fit.yaml --runlog ../../../prof/sm_ladder_runs.log
+# 재생: 링 덤프 → 슬롯별 s_min / 고정 채널 검사 / tenant 잔여
+python3 min_sm.py --dump ../../../prof/ring_16C_sl_pk_pu100.bin --model sm_model_fit.yaml --out out/min_sm_pk.csv
+# 실시간: L1이 떠 있을 때 (순수 Python, 슬롯당 plan 시간 출력)
+python3 min_sm.py --live --model sm_model_fit.yaml --seconds 60 --out out/min_sm_live.csv
+python3 tests/test_sm_model.py
+```
+아직 없는 것: 제어 블록으로 내보내기(지금은 CSV/콘솔), critical-chain 하한(가장 긴 단일 PDU), completion 기준 마감(지금은 지속시간 기준),
+SSB/CSI-RS의 개별 실측(phy csv에 없음: DL_CTRL은 PDCCH 시간으로 검사).
+
+### SM 사다리 결과 (2026-10-31, lab F08_CG1, 8셀 DDDDDDSUUU, green, 각 2분; prof/sm_ladder)
+
+| 채널 | peak 최소 SM | average 최소 SM | 근거 |
+|---|---|---|---|
+| PUSCH | 실측 52 (36: Err.ind·UL 버퍼 고갈), 모델 64 / 64~72 / 88 (U 슬롯 1/2/3) | 실측 36 실패·68 정상, 모델 40(하한) | 완료 마감 t0+2100 us, margin 461 us; 첫 U 슬롯 완료는 52~100 SM에서 ~1.49 ms로 고정 |
+| PDSCH | 모델 16 (S 슬롯 8); 104→40에서 완료 시각 불변 | 모델 8 | 지속시간 375 us, p99 123~181 us |
+| DL ctrl (PDCCH+SSB+CSI-RS) | 8 | 8 | 프로브 dlc8: PDCCH 완료 +16 us |
+| PUCCH / PRACH | 8 / 12 | 8 / 12 | 코드 최소 분할, p99 88 / 189 us |
+| UL order / GPU comms | 8 / 16 | 8 / 16 | 프로브 ord8 변화 없음, com8은 RU DL late +12~50 % |
+
+주의: PUSCH를 52로 줄이면 UL 마감은 지키지만 RU DL late 슬롯이 +35 % (UL→DL 결합), 68은 잡음 범위. 추천 peak 68 / average 52.
+
+### YOLO를 green context 분할에서 (2026-10-31, prof/green_yolo; `dapp_sched --green`)
+
+MPS cap으로 빌드한 TensorRT 엔진은 같은 SM 수의 green 분할 안에서 그대로 돈다(26n/26x b8 e2e, 32/56/80/104/132 SM; MPS보다 1~4 % 빠름).
+nsys 커널 길이(green): 26n b8 @132 약 184 커널, 최대 126 us, 3.3 ms; @56 최대 290 us, 5.7 ms → 0.5 ms 세그먼트 가능. 26x b8 @132 최대 692 us
+(>500 us 비중 5.6 %), @56 1,334 us (25 %), @32 2,315 us (50 %) → 0.5 ms 단위 불가(배치를 줄여야 함). 슬롯 단위 전환 설계: ONNX 세그먼트 × 클래스별
+엔진 + 슬롯의 green 스트림에 적시 인큐(TRT 10은 cudart 정적 링크라 런치 인터포저 불가, 엔진은 다른 SM 수를 거부).

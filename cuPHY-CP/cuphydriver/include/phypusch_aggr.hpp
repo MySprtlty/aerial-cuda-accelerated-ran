@@ -60,6 +60,10 @@ public:
      */
     ~PhyPuschAggr();
 
+    // dApp profiles (2026-11-01): the stream set this object was created with (its green context's streams); the UL task
+    // functions use it instead of the driver-wide aggr_stream_pusch so that a profile's pipeline runs on its own partition.
+    cudaStream_t*    getStreams() const { return s_channels; }
+
     ////////////////////////////////////////////////////////////
     /// Module generic
     ////////////////////////////////////////////////////////////
@@ -429,6 +433,7 @@ protected:
     
     ///< cuPHY PUSCH reception handle (created via cuphyCreatePuschRx())
     cuphyPuschRxHndl_t                 puschRxHndl;
+    cudaStream_t*                      s_channels = nullptr;   ///< dApp profiles: stream set of this object's green context
     
     ///< Tensor parameter for DFT frequency domain weights (standard size)
     cuphyTensorPrm_t                   tPrmWFreq;

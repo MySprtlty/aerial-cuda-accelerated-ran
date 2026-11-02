@@ -729,6 +729,23 @@ int get_num_dlc_tasks(int num_workers,bool commViaCpu, uint8_t mMIMO_enable);
  */
 int l1_enqueue_phy_work(phydriver_handle pdh, struct slot_command_api::slot_command* sc);
 
+// ---------------------------------------------------------------------------------------------------------------------
+// dApp per-slot GPU profiles (2026-11-01). With use_green_contexts 1 and the environment variables
+// DAPP_PUSCH_PROFILES="40,56,72,96" / DAPP_PDSCH_PROFILES="40,56" (SM counts, any order) cuphydriver keeps one green
+// context, one stream set and one pipeline-object pool per listed SM count ("profile"); the largest profile replaces the
+// yaml mps_sm_pusch / mps_sm_pdsch value. The L2 adapter hook sizes every slot from its FAPI content and calls
+// cuphydriver_dapp_set_profile() before l1_enqueue_phy_work(); getNextPuschAggr()/getNextPdschAggr() then take an object
+// from that profile's pool (falling back to larger profiles, then smaller ones, rather than dropping the slot) and record
+// the profile actually used. channel: 0 = PUSCH, 1 = PDSCH. Profile indices are ascending SM counts; 0xFF / -1 = default.
+// ---------------------------------------------------------------------------------------------------------------------
+void     cuphydriver_dapp_set_profile(uint16_t sfn, uint16_t slot, uint8_t pusch_idx, uint8_t pdsch_idx);
+int      cuphydriver_dapp_get_profile(uint16_t sfn, uint16_t slot, int channel);   // requested, -1 if none
+void     cuphydriver_dapp_note_used(uint16_t sfn, uint16_t slot, int channel, int profile);
+int      cuphydriver_dapp_get_used(uint16_t sfn, uint16_t slot, int channel);      // actually used, -1 if unknown
+int      cuphydriver_dapp_profile_sms(int channel, int* sm_counts, int max_count); // actual partition SM counts, ascending; returns count (0: no profiles). channel 2: {UL order SM count, mode 0 = remainder of the PUSCH complement / 1 = prefix of the device}; channel 3: {PUCCH, PRACH} SM counts
+uint64_t cuphydriver_dapp_profile_count(int channel, int profile);                 // slots served by this profile
+uint64_t cuphydriver_dapp_fallback_count(int channel);                             // slots served by a profile other than the requested one
+
 /******************************************************************/ /**
  * @brief Set the output callback for UL and DL
  *

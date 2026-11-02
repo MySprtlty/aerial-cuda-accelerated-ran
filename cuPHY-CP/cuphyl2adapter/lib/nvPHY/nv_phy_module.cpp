@@ -32,6 +32,7 @@
 #ifdef ENABLE_DAPP_HOOK
 #include "dapp_hook/dapp_ring.hpp"
 #include "dapp_hook/dapp_async.hpp"
+#include "dapp_hook/dapp_sizer.hpp"
 #endif
 
 #include <unistd.h> // usleep(), temporary!
@@ -462,6 +463,16 @@ PHY_module::PHY_module(yaml::node node_config) :
                 // thread only queues one descriptor per TTI request. That thread
                 // polls at real-time priority, so it must have a core of its own:
                 // without export_cpu (or with async_export: 0) the export is inline.
+                // in-process SM sizer (2026-11-01, dapp_sizer.hpp): enabled by DAPP_SIZER_MODEL in the environment
+                {
+                    std::string serr;
+                    if (nv::dapp::sizer_init(serr))
+                        NVLOGC_FMT(TAG, "dApp sizer enabled: model {} (PUSCH {}, PDSCH {}), max wait {} us", nv::dapp::g_sizer_model.path,
+                                   nv::dapp::g_sizer_model.pusch.completion ? "completion" : "duration", nv::dapp::g_sizer_model.pdsch.completion ? "completion" : "duration",
+                                   nv::dapp::g_sizer_wait_max_ns / 1000.0);
+                    else
+                        NVLOGC_FMT(TAG, "dApp sizer disabled: {}", serr);
+                }
                 const bool async_export = dcfg.has_key("async_export") ? (dcfg["async_export"].as<uint32_t>() != 0) : true;
                 const int  export_cpu   = dcfg.has_key("export_cpu") ? dcfg["export_cpu"].as<int>() : -1;
                 if (async_export && export_cpu < 0)
@@ -1225,6 +1236,14 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
         if ((check_time_threshold(now,ss_curr.u16.slot,slot_end_rcvd)) && (phy_list_size <= cells_size) && !(partial_cmd))
         {
             auto start_process_command_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
+#ifdef ENABLE_DAPP_HOOK
+            // in-process SM sizer: choose this slot's PUSCH / PDSCH green-context profiles before cuphydriver picks its pipeline objects
+            if (nv::dapp::g_sizer_enabled)
+            {
+                const int64_t dapp_t0_ns = slot_cmd.tick_original.count() + static_cast<int64_t>(tick_updater_.slot_advance_) * static_cast<int64_t>(nv::mu_to_ns(tick_updater_.mu_highest_));
+                nv::dapp::sizer_plan(slot_cmd.cell_groups.slot.slot_3gpp.sfn_, slot_cmd.cell_groups.slot.slot_3gpp.slot_, dapp_t0_ns);
+            }
+#endif
             ret = PHYDriverProxy::getInstance().l1_enqueue_phy_work(slot_cmd);
             to_clean = 1;
 #ifdef ENABLE_DAPP_HOOK
@@ -1357,6 +1376,21 @@ bool PHY_module::check_time_threshold(std::chrono::nanoseconds now, uint16_t slo
                                st.submitted, st.done, st.dropped, st.orphans, st.max_depth, st.max_held,
                                st.delay_n ? static_cast<double>(st.delay_sum_ns) / static_cast<double>(st.delay_n) / 1e3 : 0.0,
                                static_cast<double>(st.delay_max_ns) / 1e3, st.delay_n);
+                    if (nv::dapp::g_sizer_enabled)
+                    {
+                        // in-process SM sizer: decisions per profile (sizer-requested / cuphydriver-used) since start
+                        const nv::dapp::SizerStats& ss = nv::dapp::g_sizer_stats;
+                        std::string pu, pd;
+                        for (int i = 0; i < nv::dapp::g_sizer_profiles.n_pusch; i++)
+                            pu += fmt::format("{}{}:{}/{}", i ? " " : "", nv::dapp::g_sizer_profiles.pusch_sm[i], ss.pusch_prof[i].load(), cuphydriver_dapp_profile_count(0, i));
+                        for (int i = 0; i < nv::dapp::g_sizer_profiles.n_pdsch; i++)
+                            pd += fmt::format("{}{}:{}/{}", i ? " " : "", nv::dapp::g_sizer_profiles.pdsch_sm[i], ss.pdsch_prof[i].load(), cuphydriver_dapp_profile_count(1, i));
+                        NVLOGC_FMT(TAG, "dApp sizer: plans={} incomplete={} wait_max_us={:.1f} plan_max_us={:.1f} plan_avg_us={:.2f} | PUSCH slots={} infeasible={} prof[{}] fallback={} | PDSCH slots={} infeasible={} prof[{}] fallback={}",
+                                   ss.plans.load(), ss.incomplete.load(), ss.wait_max_ns.load() / 1e3, ss.plan_max_ns.load() / 1e3,
+                                   ss.plans.load() ? static_cast<double>(ss.plan_sum_ns.load()) / static_cast<double>(ss.plans.load()) / 1e3 : 0.0,
+                                   ss.pusch_slots.load(), ss.pusch_infeasible.load(), pu, cuphydriver_dapp_fallback_count(0),
+                                   ss.pdsch_slots.load(), ss.pdsch_infeasible.load(), pd, cuphydriver_dapp_fallback_count(1));
+                    }
                 }
             }
         }

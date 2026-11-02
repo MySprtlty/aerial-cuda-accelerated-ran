@@ -81,6 +81,38 @@ endif()
 # runs the same export code the L1 hook uses, and checks the records. Compiles
 # the export source directly so it needs no L1 library; the FAPI defines must
 # match the scf_5g_fapi build or the struct layouts diverge.
+# dapp_tenant (2026-11-01): the YOLO tenant thread linked into cuphycontroller_scf (tenant/dapp_tenant.hpp). Built when
+# TensorRT is available; cuphycontroller links it only when the target exists (DAPP_TENANT_AVAILABLE).
+set(DAPP_TENANT_AVAILABLE OFF CACHE INTERNAL "dapp_tenant target exists")
+if(ENABLE_DAPP_HOOK AND TARGET CUDA::cuda_driver AND TARGET CUDA::cudart)
+    find_library(DAPP_NVINFER_LIB nvinfer)
+    find_path(DAPP_NVINFER_INC NvInfer.h PATH_SUFFIXES aarch64-linux-gnu x86_64-linux-gnu)
+    if(DAPP_NVINFER_LIB AND DAPP_NVINFER_INC)
+        # 2026-11-02: + the xApp agent (tenant/dapp_agent.cpp, TCP JSON lines) and the NVJPG tiled decode of e2e/nvjpeg_dec.cu
+        add_library(dapp_tenant STATIC tenant/dapp_tenant.cu tenant/dapp_agent.cpp e2e/nvjpeg_dec.cu)
+        target_include_directories(dapp_tenant PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tenant PRIVATE ${DAPP_NVINFER_INC} ${CMAKE_CURRENT_SOURCE_DIR}/sched)
+        if(TARGET CUDA::nvjpeg)
+            set(DAPP_TENANT_NVJPEG_LIB CUDA::nvjpeg)
+        else()
+            find_library(DAPP_TENANT_NVJPEG_LIB nvjpeg HINTS ${CUDAToolkit_LIBRARY_DIR})
+        endif()
+        target_link_libraries(dapp_tenant PUBLIC dapp_hook PRIVATE ${DAPP_NVINFER_LIB} ${DAPP_TENANT_NVJPEG_LIB} CUDA::cuda_driver CUDA::cudart pthread)
+        set_target_properties(dapp_tenant PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CUDA_STANDARD 17 POSITION_INDEPENDENT_CODE ON)
+        set_source_files_properties(tenant/dapp_tenant.cu e2e/nvjpeg_dec.cu PROPERTIES COMPILE_OPTIONS "-w")
+        # standalone tenant (no L1: DAPP_TENANT_FREERUN=1) for agent / request-path tests, and the host-only protocol exerciser
+        add_executable(dapp_tenant_main tenant/dapp_tenant_main.cpp)
+        target_link_libraries(dapp_tenant_main PRIVATE dapp_tenant CUDA::cudart pthread)
+        set_target_properties(dapp_tenant_main PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+        add_executable(dapp_agent_test tenant/dapp_agent_test.cpp tenant/dapp_agent.cpp)
+        target_include_directories(dapp_agent_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tenant)
+        target_link_libraries(dapp_agent_test PRIVATE pthread)
+        set_target_properties(dapp_agent_test PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+        set(DAPP_TENANT_AVAILABLE ON CACHE INTERNAL "dapp_tenant target exists")
+        message(STATUS "dapp_tenant: in-process YOLO tenant enabled (${DAPP_NVINFER_LIB})")
+    else()
+        message(STATUS "dapp_tenant: TensorRT not found, in-process tenant disabled")
+    endif()
+endif()
 if(ENABLE_DAPP_HOOK)
     add_executable(dapp_export_test tools/dapp_export_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../scfl2adapter/lib/scf_5g_fapi/scf_5g_fapi_dapp_export.cpp)

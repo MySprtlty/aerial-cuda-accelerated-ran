@@ -27,6 +27,7 @@
 #include "cuphydriver_api.hpp"
 #ifdef ENABLE_DAPP_HOOK
 #include "scf_5g_fapi_dapp_export.hpp"
+#include "dapp_hook/dapp_sizer.hpp"
 #endif
 #include <cerrno>
 #include <functional>
@@ -1112,6 +1113,7 @@ void phy::on_dl_tti_request(scf_fapi_dl_tti_req_t &msg, nv_ipc_msg_t& ipc_msg, u
                 dapp_ts_send = 0;
             }
         }
+        nv::dapp::sizer_expect(msg.sfn, msg.slot, 1);   // in-process SM sizer: one more DL_TTI of this slot to account for
         if (nv::dapp::AsyncExporter* dapp_async = nv::dapp::async_exporter())
         {
             // async_export: the export thread walks the message; its buffer is
@@ -1408,6 +1410,7 @@ void phy::on_ul_tti_request(scf_fapi_ul_tti_req_t& msg, nv_ipc_msg_t& ipc_msg)
                 dapp_ts_send = 0;
             }
         }
+        nv::dapp::sizer_expect(msg.sfn, msg.slot, 0);   // in-process SM sizer: one more UL_TTI of this slot to account for
         if (nv::dapp::AsyncExporter* dapp_async = nv::dapp::async_exporter())
         {
             (void)dapp_submit_ul_tti(*dapp_async, static_cast<uint16_t>(get_carrier_id()), msg, ipc_msg, dapp_ts_send);

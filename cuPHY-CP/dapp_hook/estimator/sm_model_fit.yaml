@@ -1,0 +1,348 @@
+version: 1
+provisional: false
+sm_total: 132
+granularity: 8
+headroom_sm: 8
+budget_kind: completion
+ul_positions:
+- 7
+- 8
+- 9
+ul_start_offset_us:
+  7: 300
+  8: 800
+  9: 950
+channels:
+  PUSCH:
+    class: dynamic
+    complete_by_us: 2100
+    start_us:
+      7: 1208.5
+      8: 1301.8
+      9: 1330.1
+      17: 1258.2
+      18: 1253.6
+      19: 1373.4
+    s_ref: 100.0
+    s_min: 40
+    s_max: 100
+    fixed_us: 1027.66
+    budget_us: 1500
+    margin_us: 507.5
+    w_ins:
+      chest: 2.166e-36
+      eq: 2.053e-48
+      llr: 2.983e-39
+      ldpc: 1.747e-34
+      uci: 1.092e-31
+    w_par:
+      chest: 0.001212
+      eq: 3.089e-06
+      llr: 4.928e-07
+      ldpc: 0.0006365
+      uci: 1.21e-15
+    w_ins_dur:
+      chest: 0.0
+      eq: 0.0
+      llr: 0.0
+      ldpc: 0.0
+      uci: 0.0
+    w_par_dur:
+      chest: 0.0
+      eq: 0.0
+      llr: 0.0
+      ldpc: 0.0001885
+      uci: 0.0
+    margin_dur_us: 833.5
+    fit_runs:
+    - sl_av_pu100
+    - sl_av_pu32
+    - sl_av_pu64
+    - sl_l2_pu100
+    - sl_l2_pu48
+    - sl_l3_pu48
+    - sl_pk_com8
+    - sl_pk_dlc8
+    - sl_pk_ord8
+    - sl_pk_pd40
+    - sl_pk_pd56
+    - sl_pk_pd72
+    - sl_pk_pu100
+    - sl_pk_pu32
+    - sl_pk_pu48
+    - sl_pk_pu64
+    - sl_pk_pu80
+    fit_partitions:
+    - 36
+    - 52
+    - 68
+    - 84
+    - 100
+  PDSCH:
+    class: dynamic
+    budget_kind: duration
+    complete_by_us: -470
+    start_us:
+      0: -691.2
+      1: -717.1
+      2: -761.4
+      3: -779.6
+      4: -796.2
+      5: -797.9
+      6: -837.3
+      10: -717.6
+      11: -710.9
+      12: -756.4
+      13: -813.4
+      14: -808.8
+      15: -820.0
+      16: -839.9
+    s_ref: 104.0
+    s_min: 8
+    s_max: 104
+    fixed_us: 40.13
+    budget_us: 375
+    margin_us: 37.5
+    w_ins:
+      enc: 7.237e-06
+      mod: 0.0
+      prec: 0.0
+    w_par:
+      enc: 3.562e-05
+      mod: 0.0
+      prec: 0.0
+    margin_comp_us: 725.8
+    w_ins_comp:
+      enc: 6.732e-30
+      mod: 3.648e-05
+      prec: 8.049e-27
+    w_par_comp:
+      enc: 4.546e-20
+      mod: 4.509e-07
+      prec: 9.203e-15
+    fit_runs:
+    - sl_av_pu100
+    - sl_av_pu32
+    - sl_av_pu64
+    - sl_l2_pu100
+    - sl_l2_pu48
+    - sl_l3_pu48
+    - sl_pk_com8
+    - sl_pk_dlc8
+    - sl_pk_ord8
+    - sl_pk_pd40
+    - sl_pk_pd56
+    - sl_pk_pd72
+    - sl_pk_pu100
+    - sl_pk_pu32
+    - sl_pk_pu48
+    - sl_pk_pu64
+    - sl_pk_pu80
+    fit_partitions:
+    - 40
+    - 56
+    - 72
+    - 104
+  PDCCH:
+    class: fixed
+    budget_kind: duration
+    complete_by_us: -470
+    start_us:
+      0: -939.9
+      1: -937.7
+      2: -943.8
+      3: -951.9
+      4: -955.4
+      5: -956.3
+      6: -959.8
+      10: -940.4
+      11: -938.3
+      12: -946.3
+      13: -958.4
+      14: -957.7
+      15: -960.4
+      16: -965.1
+    context: DL_CTRL
+    s_fixed: 8
+    s_ref: 24.0
+    fixed_us: 33.15
+    budget_us: 375
+    margin_us: 38.6
+    w_ins:
+      agg: 0.0
+      bits: 0.0
+    w_par:
+      agg: 0.0
+      bits: 0.005779
+    margin_comp_us: 30.8
+    w_ins_comp:
+      agg: 3.371e-15
+      bits: 8.75e-17
+    w_par_comp:
+      agg: 0.2131
+      bits: 0.0007677
+    fit_runs:
+    - sl_av_pu100
+    - sl_av_pu32
+    - sl_av_pu64
+    - sl_l2_pu100
+    - sl_l2_pu48
+    - sl_l3_pu48
+    - sl_pk_com8
+    - sl_pk_dlc8
+    - sl_pk_ord8
+    - sl_pk_pd40
+    - sl_pk_pd56
+    - sl_pk_pd72
+    - sl_pk_pu100
+    - sl_pk_pu32
+    - sl_pk_pu48
+    - sl_pk_pu64
+    - sl_pk_pu80
+    fit_partitions:
+    - 8
+    - 24
+  SSB:
+    complete_by_us: -470
+    class: fixed
+    context: DL_CTRL
+    s_fixed: 24
+    s_ref: 24
+    fixed_us: 15
+    budget_us: 375
+    margin_us: 10
+    w_ins:
+      present: 5.0
+    w_par:
+      present: 0.0
+  CSIRS:
+    complete_by_us: -470
+    class: fixed
+    context: DL_CTRL
+    s_fixed: 24
+    s_ref: 24
+    fixed_us: 15
+    budget_us: 375
+    margin_us: 10
+    w_ins:
+      count: 3.0
+    w_par:
+      count: 0.0
+  PUCCH:
+    complete_by_us: 1500
+    class: fixed
+    context: PUCCH
+    s_fixed: 8
+    s_ref: 8.0
+    fixed_us: 64.82
+    budget_us: 1500
+    margin_us: 12.0
+    w_ins:
+      f01: 0.0005032
+      f234: 0.0
+    w_par:
+      f01: 0.0
+      f234: 0.0
+    start_us:
+      7: 936.4
+      8: 986.8
+      9: 984.1
+      17: 936.4
+      18: 1028.6
+      19: 986.2
+    w_ins_dur:
+      f01: 0.0
+      f234: 0.0
+    w_par_dur:
+      f01: 0.0
+      f234: 0.0
+    margin_dur_us: 23.3
+    fit_runs:
+    - sl_av_pu100
+    - sl_av_pu32
+    - sl_av_pu64
+    - sl_l2_pu100
+    - sl_l2_pu48
+    - sl_l3_pu48
+    - sl_pk_com8
+    - sl_pk_dlc8
+    - sl_pk_ord8
+    - sl_pk_pd40
+    - sl_pk_pd56
+    - sl_pk_pd72
+    - sl_pk_pu100
+    - sl_pk_pu32
+    - sl_pk_pu48
+    - sl_pk_pu64
+    - sl_pk_pu80
+    fit_partitions:
+    - 8
+  PRACH:
+    complete_by_us: 1500
+    class: fixed
+    context: PRACH
+    s_fixed: 12
+    s_ref: 12.0
+    fixed_us: 54.26
+    budget_us: 1500
+    margin_us: 12.9
+    w_ins:
+      ocas: 0.0378
+    w_par:
+      ocas: 0.0
+    start_us:
+      8: 1016.8
+      17: 966.7
+      19: 1015.6
+    w_ins_dur:
+      ocas: 2.42
+    w_par_dur:
+      ocas: 0.0
+    margin_dur_us: 61.0
+    fit_runs:
+    - sl_av_pu100
+    - sl_av_pu32
+    - sl_av_pu64
+    - sl_l2_pu100
+    - sl_l2_pu48
+    - sl_l3_pu48
+    - sl_pk_com8
+    - sl_pk_dlc8
+    - sl_pk_ord8
+    - sl_pk_pd40
+    - sl_pk_pd56
+    - sl_pk_pd72
+    - sl_pk_pu100
+    - sl_pk_pu32
+    - sl_pk_pu48
+    - sl_pk_pu64
+    - sl_pk_pu80
+    fit_partitions:
+    - 12
+  SRS:
+    complete_by_us: 1500
+    class: false
+    context: SRS
+    s_fixed: 0
+    s_ref: 16
+    fixed_us: 30
+    budget_us: 500
+    margin_us: 30
+    w_ins:
+      ports: 2.0
+    w_par:
+      ports: 0.0
+contexts_fixed:
+  ORDER: 8
+  COMMS: 16
+layout:
+  ul_set:
+  - PUSCH
+  - PUCCH
+  - PRACH
+  dl_set:
+  - PDSCH
+  - DL_CTRL
+  - COMMS
+  separate:
+  - ORDER

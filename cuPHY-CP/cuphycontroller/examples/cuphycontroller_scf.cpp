@@ -21,6 +21,9 @@
 #include "cuphydriver.hpp"
 #include "nv_phy_group.hpp"
 #include "scf_5g_fapi.hpp"
+#ifdef ENABLE_DAPP_TENANT
+#include "dapp_tenant.hpp"
+#endif
 #include "nv_phy_driver_proxy.hpp"
 #include "cuphyoam.hpp"
 #include <cuda_profiler_api.h>
@@ -521,6 +524,16 @@ int main(int argc,char* argv[]) {
         grp->start();
         NVLOGC_FMT(TAG, "cuPHYController configured for {} cells", parser_cfg.get_cuphydriver_cell_group_num());
         NVLOGC_FMT(TAG, "====> cuPHYController initialized, L1 is ready!");
+#ifdef ENABLE_DAPP_TENANT
+        {
+            // dApp (2026-11-01): the YOLO tenant thread in this process (DAPP_TENANT=1, see cuPHY-CP/dapp_hook/tenant)
+            std::string tenant_err;
+            if(nv::dapp::tenant::start(tenant_err))
+                NVLOGC_FMT(TAG, "dApp tenant started in process");
+            else if(!tenant_err.empty())
+                NVLOGC_FMT(TAG, "dApp tenant NOT started: {}", tenant_err);
+        }
+#endif
 
         TI_GENERIC_ADD("End Main");
         TI_GENERIC_ALL_NVLOGC(TAG_STARTUP_TIMES);
@@ -540,6 +553,9 @@ int main(int argc,char* argv[]) {
             nvlog_fmtlog_thread_init("phy_main");
             grp->join();
         }
+#ifdef ENABLE_DAPP_TENANT
+        nv::dapp::tenant::stop();
+#endif
         CuphyOAM *oam = CuphyOAM::getInstance();
         oam->shutdown();
         oam->wait_shutdown();

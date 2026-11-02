@@ -143,6 +143,32 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
     mps_sm_ul_order     = ctx_cfg.mps_sm_ul_order;
     mps_sm_srs          = ctx_cfg.mps_sm_srs;
     mps_sm_pdsch        = ctx_cfg.mps_sm_pdsch;
+    // dApp profiles (2026-11-01): DAPP_PUSCH_PROFILES="40,56,72,96" / DAPP_PDSCH_PROFILES="40,56" (SM counts). The largest
+    // value replaces the yaml mps_sm_pusch / mps_sm_pdsch (the regular green split below creates that context); the
+    // smaller ones become additional green contexts with their own stream sets and pipeline-object pools.
+    {
+        auto parse_list = [](const char* name) {
+            std::vector<int> v; const char* s = std::getenv(name);
+            if(s == nullptr) return v;
+            std::string t;
+            for(const char* p = s;; ++p) {
+                if(*p == ',' || *p == ' ' || *p == '\0') { if(!t.empty()) { v.push_back(std::atoi(t.c_str())); t.clear(); } if(*p == '\0') break; }
+                else t += *p;
+            }
+            std::sort(v.begin(), v.end()); v.erase(std::unique(v.begin(), v.end()), v.end());
+            v.erase(std::remove_if(v.begin(), v.end(), [](int x) { return x <= 0; }), v.end());
+            return v;
+        };
+        dapp_pusch_profiles = parse_list("DAPP_PUSCH_PROFILES");
+        dapp_pdsch_profiles = parse_list("DAPP_PDSCH_PROFILES");
+        if(use_green_contexts == 0 && (!dapp_pusch_profiles.empty() || !dapp_pdsch_profiles.empty())) {
+            NVLOGC_FMT(TAG, "dApp profiles ignored: use_green_contexts is 0");
+            dapp_pusch_profiles.clear(); dapp_pdsch_profiles.clear();
+        }
+        auto list_str = [](const std::vector<int>& v) { std::string o; for(int x : v) { if(!o.empty()) o += ","; o += std::to_string(x); } return o; };
+        if(!dapp_pusch_profiles.empty()) { NVLOGC_FMT(TAG, "dApp PUSCH profiles [{}]: yaml mps_sm_pusch {} replaced by the largest", list_str(dapp_pusch_profiles), mps_sm_pusch); mps_sm_pusch = dapp_pusch_profiles.back(); }
+        if(!dapp_pdsch_profiles.empty()) { NVLOGC_FMT(TAG, "dApp PDSCH profiles [{}]: yaml mps_sm_pdsch {} replaced by the largest", list_str(dapp_pdsch_profiles), mps_sm_pdsch); mps_sm_pdsch = dapp_pdsch_profiles.back(); }
+    }
     mps_sm_pdcch        = ctx_cfg.mps_sm_pdcch;
     mps_sm_pbch         = ctx_cfg.mps_sm_pdcch;
     mps_sm_dl_ctrl      = mps_sm_pdcch + mps_sm_pbch;
@@ -490,6 +516,26 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 		mpsCtxList.push_back(puschMpsCtx);
 		NVLOGC_FMT(TAG, "PUSCH green context with SM count of {}.", devResources[resource_index_pusch_split+1].sm.smCount);
 
+		// dApp profiles (2026-11-01): the smaller PUSCH partitions, each the remainder of its own split of the full device
+		// (same rounding as above), so every profile is a subset of the next larger one (verified: tools/gc_bench/gc_nest.cu).
+		puschProfileCtx.clear(); puschProfileSm.clear();
+		if(!dapp_pusch_profiles.empty())
+		{
+		    for(size_t j = 0; j + 1 < dapp_pusch_profiles.size(); j++)
+		    {
+		        int prof_cnt = gpuMaxSmCount - dapp_pusch_profiles[j];
+		        if((prof_cnt > SM_granularity) && (prof_cnt % SM_granularity != 0)) prof_cnt -= prof_cnt % SM_granularity;
+		        CUdevResource prof_res = {}, prof_rem = {}; unsigned int prof_groups = 1;
+		        CU_CHECK_PHYDRIVER(cuDevSmResourceSplitByCount(&prof_res, &prof_groups, &initial_device_GPU_resources, &prof_rem, use_flags, prof_cnt));
+		        MpsCtx* prof_ctx = new MpsCtx((phydriver_handle)this, gpu_device, &prof_rem);
+		        mpsCtxList.push_back(prof_ctx);
+		        puschProfileCtx.push_back(prof_ctx); puschProfileSm.push_back(prof_rem.sm.smCount);
+		        NVLOGC_FMT(TAG, "PUSCH profile {} green context with SM count of {} (requested {}).", j, prof_rem.sm.smCount, dapp_pusch_profiles[j]);
+		    }
+		    puschProfileCtx.push_back(puschMpsCtx); puschProfileSm.push_back(devResources[resource_index_pusch_split+1].sm.smCount);
+		    NVLOGC_FMT(TAG, "PUSCH profile {} = the yaml green context with SM count of {}.", puschProfileCtx.size() - 1, puschProfileSm.back());
+		}
+
                 // Do another split of the initial GPU resources; will then resplit the remaining split for PUCCH and PRACH
                 unsigned int resource_index_prep_for_ul_ctrl_split = 2;  //index into devResources
                 actual_split_groups[resource_index_prep_for_ul_ctrl_split] = 1;
@@ -520,6 +566,7 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 		prachMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_pucch_split + 1]);
 		mpsCtxList.push_back(prachMpsCtx);
 		NVLOGC_FMT(TAG, "PRACH green context with SM count of {}.", devResources[resource_index_pucch_split+1].sm.smCount);
+		ulCtrlPucchSm = devResources[resource_index_pucch_split].sm.smCount; ulCtrlPrachSm = devResources[resource_index_pucch_split+1].sm.smCount;   // dApp export (2026-11-02)
 
 		// PDSCH
 		unsigned int resource_index_pdsch_split = 6;  //index into devResources
@@ -541,6 +588,28 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 		mpsCtxList.push_back(pdschMpsCtx);
 		dlMpsCtx = pdschMpsCtx;
 		NVLOGC_FMT(TAG, "PDSCH green context with SM count of {}.", devResources[resource_index_pdsch_split].sm.smCount);
+
+		// dApp profiles (2026-11-01): the smaller PDSCH partitions = results of their own splits of the full device (nested
+		// prefixes, verified with tools/gc_bench/gc_nest.cu). The DL context (cell DL streams, compression, buffer memsets)
+		// becomes the smallest profile so that it never reaches outside the partition of the profile in use.
+		pdschProfileCtx.clear(); pdschProfileSm.clear();
+		if(!dapp_pdsch_profiles.empty())
+		{
+		    for(size_t j = 0; j + 1 < dapp_pdsch_profiles.size(); j++)
+		    {
+		        int prof_cnt = dapp_pdsch_profiles[j];
+		        if(prof_cnt % SM_granularity != 0) prof_cnt += SM_granularity - prof_cnt % SM_granularity;
+		        CUdevResource prof_res = {}, prof_rem = {}; unsigned int prof_groups = 1;
+		        CU_CHECK_PHYDRIVER(cuDevSmResourceSplitByCount(&prof_res, &prof_groups, &initial_device_GPU_resources, &prof_rem, use_flags, prof_cnt));
+		        MpsCtx* prof_ctx = new MpsCtx((phydriver_handle)this, gpu_device, &prof_res);
+		        mpsCtxList.push_back(prof_ctx);
+		        pdschProfileCtx.push_back(prof_ctx); pdschProfileSm.push_back(prof_res.sm.smCount);
+		        NVLOGC_FMT(TAG, "PDSCH profile {} green context with SM count of {} (requested {}).", j, prof_res.sm.smCount, dapp_pdsch_profiles[j]);
+		    }
+		    pdschProfileCtx.push_back(pdschMpsCtx); pdschProfileSm.push_back(devResources[resource_index_pdsch_split].sm.smCount);
+		    dlMpsCtx = pdschProfileCtx.front();
+		    NVLOGC_FMT(TAG, "PDSCH profile {} = the yaml green context with SM count of {}; DL context = profile 0 ({} SMs).", pdschProfileCtx.size() - 1, pdschProfileSm.back(), pdschProfileSm.front());
+		}
 
                 // Do another split of the initial GPU resources to get Dl Ctrl resource
 		// Do getMpsSmDlCtrl() instead of separate for PDCCH and SSB and CSI-RS?
@@ -590,6 +659,7 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 			ulMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_ul_order_split]);
 			mpsCtxList.push_back(ulMpsCtx);
 			NVLOGC_FMT(TAG, "UL order green context with SM count of {}.", devResources[resource_index_ul_order_split].sm.smCount);
+			ulOrderSm = devResources[resource_index_ul_order_split].sm.smCount; ulOrderMode = 1;   // dApp export (2026-11-02)
                 }
                 else
 		{
@@ -605,6 +675,7 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 			ulMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_ul_order_split+1]);
 			mpsCtxList.push_back(ulMpsCtx);
 			NVLOGC_FMT(TAG, "UL order green context with SM count of {}.", devResources[resource_index_ul_order_split+1].sm.smCount);
+			ulOrderSm = devResources[resource_index_ul_order_split+1].sm.smCount; ulOrderMode = 0;   // dApp export (2026-11-02): the tenant keeps this slice empty
                 }
 #endif
 
@@ -748,8 +819,47 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
         }
         aggr_last_pusch = 0;
 
-        for(int i = 0; i < getPuschAggrPerCtx(); i++)
-            aggr_pusch_items.push_back(std::unique_ptr<PhyPuschAggr>(new PhyPuschAggr((phydriver_handle)this, gpu_device, aggr_stream_pusch, puschMpsCtx)));
+        if(puschProfileCtx.size() > 1)
+        {
+            // dApp profiles: one stream set and one object pool per profile (the largest reuses aggr_stream_pusch above)
+            puschProfileStreams.assign(puschProfileCtx.size(), std::array<cudaStream_t, 4>{});
+            aggr_last_pusch_prof.assign(puschProfileCtx.size(), 0);
+            for(size_t p = 0; p < puschProfileCtx.size(); p++)
+            {
+                puschProfileCtx[p]->setCtx();
+                if(p + 1 == puschProfileCtx.size())
+                {
+                    for(int k = 0; k < 4; k++) puschProfileStreams[p][k] = aggr_stream_pusch[k];
+                }
+                else
+                {
+                    CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&puschProfileStreams[p][PHASE1_SPLIT_STREAM1], cudaStreamNonBlocking, -2));
+                    warmupStream(puschProfileStreams[p][PHASE1_SPLIT_STREAM1]);
+                    CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&puschProfileStreams[p][PHASE2_SPLIT_STREAM1], cudaStreamNonBlocking, -2));
+                    warmupStream(puschProfileStreams[p][PHASE2_SPLIT_STREAM1]);
+                    if(splitUlCudaStreamsEnabled())
+                    {
+                        CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&puschProfileStreams[p][PHASE1_SPLIT_STREAM2], cudaStreamNonBlocking, 0));
+                        warmupStream(puschProfileStreams[p][PHASE1_SPLIT_STREAM2]);
+                        CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&puschProfileStreams[p][PHASE2_SPLIT_STREAM2], cudaStreamNonBlocking, 0));
+                        warmupStream(puschProfileStreams[p][PHASE2_SPLIT_STREAM2]);
+                    }
+                    else
+                    {
+                        puschProfileStreams[p][PHASE1_SPLIT_STREAM2] = puschProfileStreams[p][PHASE1_SPLIT_STREAM1];
+                        puschProfileStreams[p][PHASE2_SPLIT_STREAM2] = puschProfileStreams[p][PHASE2_SPLIT_STREAM1];
+                    }
+                }
+                for(int i = 0; i < getPuschAggrPerCtx(); i++)
+                    aggr_pusch_items.push_back(std::unique_ptr<PhyPuschAggr>(new PhyPuschAggr((phydriver_handle)this, gpu_device, puschProfileStreams[p].data(), puschProfileCtx[p])));
+                NVLOGC_FMT(TAG, "PUSCH profile {} ({} SMs): {} pipeline objects", p, puschProfileSm[p], getPuschAggrPerCtx());
+            }
+        }
+        else
+        {
+            for(int i = 0; i < getPuschAggrPerCtx(); i++)
+                aggr_pusch_items.push_back(std::unique_ptr<PhyPuschAggr>(new PhyPuschAggr((phydriver_handle)this, gpu_device, aggr_stream_pusch, puschMpsCtx)));
+        }
 
 
         if(this->mMIMO_enable)
@@ -807,8 +917,27 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
         CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&aggr_stream_pdsch, cudaStreamNonBlocking, -4));
         CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&H2D_TB_CPY_stream, cudaStreamNonBlocking, -4));
         aggr_last_pdsch = 0;
-        for(int i = 0; i < PHY_PDSCH_AGGR_X_CTX; i++)
-            aggr_pdsch_items.push_back(std::unique_ptr<PhyPdschAggr>(new PhyPdschAggr((phydriver_handle)this, gpu_device, aggr_stream_pdsch, pdschMpsCtx)));
+        if(pdschProfileCtx.size() > 1)
+        {
+            // dApp profiles: one stream and one object pool per profile (the largest reuses aggr_stream_pdsch above)
+            pdschProfileStreams.assign(pdschProfileCtx.size(), nullptr);
+            aggr_last_pdsch_prof.assign(pdschProfileCtx.size(), 0);
+            for(size_t p = 0; p < pdschProfileCtx.size(); p++)
+            {
+                pdschProfileCtx[p]->setCtx();
+                if(p + 1 == pdschProfileCtx.size()) pdschProfileStreams[p] = aggr_stream_pdsch;
+                else CUDA_CHECK_PHYDRIVER(cudaStreamCreateWithPriority(&pdschProfileStreams[p], cudaStreamNonBlocking, -4));
+                for(int i = 0; i < PHY_PDSCH_AGGR_X_CTX; i++)
+                    aggr_pdsch_items.push_back(std::unique_ptr<PhyPdschAggr>(new PhyPdschAggr((phydriver_handle)this, gpu_device, pdschProfileStreams[p], pdschProfileCtx[p])));
+                NVLOGC_FMT(TAG, "PDSCH profile {} ({} SMs): {} pipeline objects", p, pdschProfileSm[p], PHY_PDSCH_AGGR_X_CTX);
+            }
+            pdschMpsCtx->setCtx();
+        }
+        else
+        {
+            for(int i = 0; i < PHY_PDSCH_AGGR_X_CTX; i++)
+                aggr_pdsch_items.push_back(std::unique_ptr<PhyPdschAggr>(new PhyPdschAggr((phydriver_handle)this, gpu_device, aggr_stream_pdsch, pdschMpsCtx)));
+        }
 
         // Allocate helper buffers used to memset DL cells' output buffers
         h_dl_buffers_addr = cuphy::make_unique_pinned<CleanupDlBufInfo>(PDSCH_MAX_CELLS_PER_CELL_GROUP * DL_HELPER_MEMSET_BUFFERS_PER_CTX);
@@ -1813,7 +1942,7 @@ int PhyDriverCtx::setCellPhyByMplane(struct cell_phy_info& cell_pinfo)
     }
     // Cannot add in the loops below wip_accum_mf.addMF(aggr_<channel>_items[i]->mf) because that will add number of aggr objects * number of cells rather than only aggr object times
 
-    for(int i = 0; i < getPuschAggrPerCtx(); i++)
+    for(size_t i = 0; i < aggr_pusch_items.size(); i++)   // dApp profiles: every profile's pool
     {
         aggr_pusch_items[i]->createPhyObj();
         aggr_pusch_items[i]->updateMemoryTracker(); // update total GPU
@@ -1867,7 +1996,7 @@ int PhyDriverCtx::setCellPhyByMplane(struct cell_phy_info& cell_pinfo)
         }
     }
 
-    for(int i = 0; i < PHY_PDSCH_AGGR_X_CTX; i++)
+    for(size_t i = 0; i < aggr_pdsch_items.size(); i++)   // dApp profiles: every profile's pool
     {
         aggr_pdsch_items[i]->createPhyObj();
         aggr_pdsch_items[i]->updateMemoryTracker();
@@ -2373,6 +2502,45 @@ PhyPuschAggr* PhyDriverCtx::getNextPuschAggr(slot_params_aggr* aggr_slot_params)
 
     aggr_lock_cell_phy_pusch.lock();
 
+    if(puschProfileCtx.size() > 1 && aggr_pusch_items.size() >= puschProfileCtx.size() * pusch_aggr_x_ctx)
+    {
+        // dApp profiles (2026-11-01): the pool of the profile requested for this slot, then the larger profiles, then the
+        // smaller ones (a slot is never dropped for lack of an object; a smaller partition risks the deadline, nothing else).
+        const int nprof = static_cast<int>(puschProfileCtx.size());
+        int want = nprof - 1;
+        if(aggr_slot_params != nullptr && aggr_slot_params->si != nullptr)
+        {
+            const int req = cuphydriver_dapp_get_profile(aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_, 0);
+            if(req >= 0 && req < nprof) want = req;
+        }
+        int used = -1;
+        for(int step = 0; step < nprof && tmp == nullptr; step++)
+        {
+            const int p = (want + step < nprof) ? want + step : want - (step - (nprof - want)) - 1;
+            if(p < 0 || p >= nprof) continue;
+            int& last = aggr_last_pusch_prof[p];
+            for(int k = 0; k < pusch_aggr_x_ctx; k++)
+            {
+                const int i = p * pusch_aggr_x_ctx + last;
+                last = (last + 1) % pusch_aggr_x_ctx;
+                if(aggr_pusch_items[i]->reserveCellGroup() == 0) { tmp = aggr_pusch_items[i].get(); used = p; break; }
+            }
+        }
+        if(tmp != nullptr && aggr_slot_params != nullptr && aggr_slot_params->si != nullptr)
+        {
+            cuphydriver_dapp_note_used(aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_, 0, used);
+            if(used != want) NVLOGW_FMT(TAG, "SFN {}.{} dApp PUSCH profile {} requested, {} used (pool busy)", aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_, want, used);
+        }
+        aggr_lock_cell_phy_pusch.unlock();
+        if(tmp)
+        {
+            tmp->setDynAggrParams(aggr_slot_params);
+            if(tmp->getDynParams() == nullptr)
+                tmp->release();
+        }
+        return tmp;
+    }
+
     while(
         aggr_pusch_items[aggr_last_pusch]->reserveCellGroup() != 0 &&
         cnt < pusch_aggr_x_ctx)
@@ -2634,6 +2802,44 @@ PhyPdschAggr* PhyDriverCtx::getNextPdschAggr(slot_params_aggr* aggr_slot_params)
         return nullptr;
 
     aggr_lock_cell_phy_pdsch.lock();
+
+    if(pdschProfileCtx.size() > 1 && aggr_pdsch_items.size() >= pdschProfileCtx.size() * PHY_PDSCH_AGGR_X_CTX)
+    {
+        // dApp profiles (2026-11-01): see getNextPuschAggr()
+        const int nprof = static_cast<int>(pdschProfileCtx.size());
+        int want = nprof - 1;
+        if(aggr_slot_params != nullptr && aggr_slot_params->si != nullptr)
+        {
+            const int req = cuphydriver_dapp_get_profile(aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_, 1);
+            if(req >= 0 && req < nprof) want = req;
+        }
+        int used = -1;
+        for(int step = 0; step < nprof && tmp == nullptr; step++)
+        {
+            const int p = (want + step < nprof) ? want + step : want - (step - (nprof - want)) - 1;
+            if(p < 0 || p >= nprof) continue;
+            int& last = aggr_last_pdsch_prof[p];
+            for(int k = 0; k < static_cast<int>(PHY_PDSCH_AGGR_X_CTX); k++)
+            {
+                const int i = p * static_cast<int>(PHY_PDSCH_AGGR_X_CTX) + last;
+                last = (last + 1) % static_cast<int>(PHY_PDSCH_AGGR_X_CTX);
+                if(aggr_pdsch_items[i]->reserveCellGroup() == 0) { tmp = aggr_pdsch_items[i].get(); used = p; break; }
+            }
+        }
+        if(tmp != nullptr && aggr_slot_params != nullptr && aggr_slot_params->si != nullptr)
+        {
+            cuphydriver_dapp_note_used(aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_, 1, used);
+            if(used != want) NVLOGW_FMT(TAG, "SFN {}.{} dApp PDSCH profile {} requested, {} used (pool busy)", aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_, want, used);
+        }
+        aggr_lock_cell_phy_pdsch.unlock();
+        if(tmp)
+        {
+            tmp->setDynAggrParams(aggr_slot_params);
+            if(tmp->getDynParams() == nullptr)
+                tmp->release();
+        }
+        return tmp;
+    }
 
     while(
         aggr_pdsch_items[aggr_last_pdsch]->reserveCellGroup() != 0 &&
@@ -3564,7 +3770,7 @@ uint8_t PhyDriverCtx:: getUlInputBufferPerCellSrs() const {
 
 bool PhyDriverCtx::getAggrObjFreeStatus() {
 
-    for(int i = 0; i < getPuschAggrPerCtx(); i++)
+    for(size_t i = 0; i < aggr_pusch_items.size(); i++)
     {
         if(aggr_pusch_items[i]->isActive()) {
             NVLOGI_FMT(TAG, "L1 Recovery : PUSCH[{}] not free", i);
@@ -3616,7 +3822,7 @@ bool PhyDriverCtx::getAggrObjFreeStatus() {
         }
     }
 
-    for(int i = 0; i < PHY_PDSCH_AGGR_X_CTX; i++)
+    for(size_t i = 0; i < aggr_pdsch_items.size(); i++)
     {
         if(aggr_pdsch_items[i]->isActive()){
             NVLOGI_FMT(TAG, "L1 Recovery : PDSCH[{}] not free", i);

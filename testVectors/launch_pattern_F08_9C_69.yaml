@@ -1,0 +1,1169 @@
+Cell_Configs: [TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_DLMIX_12232_gNB_FAPI_s0.h5,
+  TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_DLMIX_12232_gNB_FAPI_s0.h5,
+  TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_DLMIX_12232_gNB_FAPI_s0.h5]
+UL_Cell_Configs: [TVnr_ULMIX_6636_gNB_FAPI_s0.h5, TVnr_ULMIX_6637_gNB_FAPI_s0.h5,
+  TVnr_ULMIX_6638_gNB_FAPI_s0.h5, TVnr_ULMIX_6639_gNB_FAPI_s0.h5, TVnr_ULMIX_6640_gNB_FAPI_s0.h5,
+  TVnr_ULMIX_6641_gNB_FAPI_s0.h5, TVnr_ULMIX_6642_gNB_FAPI_s0.h5, TVnr_ULMIX_6643_gNB_FAPI_s0.h5,
+  TVnr_ULMIX_6644_gNB_FAPI_s0.h5]
+config_static_harq_proc_id: 1.0
+SCHED:
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12232_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12233_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12234_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12235_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12236_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12237_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12238_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12239_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12240_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 0.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12247_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12248_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12249_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12250_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12251_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12252_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12253_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12254_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12255_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 1.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12262_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12263_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12264_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12265_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12266_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12267_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12268_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12269_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12270_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PBCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 2.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12277_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12278_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12279_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12280_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12281_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12282_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12283_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12284_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12285_gNB_FAPI_s0.h5, TVnr_ULMIX_21523_gNB_FAPI_s3.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  slot: 3.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6621_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6622_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6623_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6624_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6625_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6626_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6627_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6628_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6629_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  slot: 4.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6636_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6637_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6638_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6639_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6640_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6641_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6642_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6643_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6644_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  slot: 5.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 6.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 7.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 8.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 9.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 10.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12307_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12308_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12309_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12310_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12311_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12312_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12313_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12314_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12315_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 11.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12307_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12308_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12309_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12310_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12311_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12312_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12313_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12314_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12315_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 12.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12277_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12278_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12279_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12280_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12281_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12282_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12283_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12284_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12285_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  slot: 13.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6651_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6652_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6653_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6654_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6655_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6656_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6657_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6658_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6659_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  slot: 14.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6666_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6667_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6668_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6669_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6670_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6671_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6672_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6673_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6674_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  slot: 15.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 16.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 17.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 18.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 19.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12322_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12323_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12324_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12325_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12326_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12327_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12328_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12329_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12330_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 20.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12337_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12338_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12339_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12340_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12341_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12342_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12343_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12344_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12345_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 21.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12307_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12308_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12309_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12310_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12311_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12312_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12313_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12314_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12315_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 22.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12277_gNB_FAPI_s0.h5, TVnr_ULMIX_6681_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12278_gNB_FAPI_s0.h5, TVnr_ULMIX_6682_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12279_gNB_FAPI_s0.h5, TVnr_ULMIX_6683_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12280_gNB_FAPI_s0.h5, TVnr_ULMIX_6684_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12281_gNB_FAPI_s0.h5, TVnr_ULMIX_6685_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12282_gNB_FAPI_s0.h5, TVnr_ULMIX_6686_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12283_gNB_FAPI_s0.h5, TVnr_ULMIX_6687_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12284_gNB_FAPI_s0.h5, TVnr_ULMIX_6688_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12285_gNB_FAPI_s0.h5, TVnr_ULMIX_6689_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, SRS, BFW_UL]
+  slot: 23.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6621_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6622_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6623_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6624_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6625_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6626_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6627_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6628_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6629_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  slot: 24.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6636_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6637_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6638_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6639_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6640_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6641_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6642_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6643_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6644_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  slot: 25.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 26.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 27.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 28.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12292_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12293_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12294_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12295_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12296_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12297_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12298_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12299_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12300_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 29.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12352_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12353_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12354_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12355_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12356_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12357_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12358_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12359_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12360_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 30.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12367_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12368_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12369_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12370_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12371_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12372_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12373_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12374_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12375_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 31.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12307_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12308_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12309_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12310_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12311_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12312_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12313_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12314_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12315_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 32.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12277_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12278_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12279_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12280_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12281_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12282_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12283_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12284_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12285_gNB_FAPI_s0.h5, TVnr_9357_gNB_FAPI_s0.h5]
+    type: [PDSCH, PDCCH_DL, PDCCH_UL, BFW_UL]
+  slot: 33.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6651_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6652_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6653_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6654_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6655_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6656_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6657_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6658_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6659_gNB_FAPI_s0.h5, TVnr_9355_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, BFW_UL]
+  slot: 34.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_ULMIX_6666_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_ULMIX_6667_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_ULMIX_6668_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_ULMIX_6669_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_ULMIX_6670_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_ULMIX_6671_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_ULMIX_6672_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_ULMIX_6673_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_ULMIX_6674_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PUSCH, PUCCH, PRACH, BFW_DL]
+  slot: 35.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12382_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12383_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12384_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12385_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12386_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12387_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12388_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12389_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12390_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 36.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12397_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12398_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12399_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12400_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12401_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12402_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12403_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12404_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12405_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 37.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12412_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12413_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12414_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12415_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12416_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12417_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12418_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12419_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12420_gNB_FAPI_s0.h5, TVnr_9356_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 38.0
+- config:
+  - cell_index: 0.0
+    channels: [TVnr_DLMIX_12427_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 1.0
+    channels: [TVnr_DLMIX_12428_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 2.0
+    channels: [TVnr_DLMIX_12429_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 3.0
+    channels: [TVnr_DLMIX_12430_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 4.0
+    channels: [TVnr_DLMIX_12431_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 5.0
+    channels: [TVnr_DLMIX_12432_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 6.0
+    channels: [TVnr_DLMIX_12433_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 7.0
+    channels: [TVnr_DLMIX_12434_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  - cell_index: 8.0
+    channels: [TVnr_DLMIX_12435_gNB_FAPI_s0.h5, TVnr_9364_gNB_FAPI_s0.h5]
+    type: [PDSCH, CSI_RS, PDCCH_DL, PDCCH_UL, BFW_DL]
+  slot: 39.0

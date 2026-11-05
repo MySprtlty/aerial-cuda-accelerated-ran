@@ -1,0 +1,16 @@
+all_low_priority_threads: 4
+dpdk_thread: 4
+fh_stats_dump_thread: -1
+h2d_copy_thread: 5
+ul_worker_threads: [6, 7]
+dl_worker_threads: [8, 9, 10]
+l2a_timer_thread: 11
+l2a_message_processing_thread: 12
+dl_debug_thread: 13
+l2a_pcap_capture_thread: 14
+tbonly_tm_all_low_priority_threads: 15
+tbonly_tm_schedule_thread: 16
+tbonly_tm_receive_thread: 17
+tbonly_tm_builder_thread: 18
+tbonly_worker_threads: []
+tbonly_re_offset: 19

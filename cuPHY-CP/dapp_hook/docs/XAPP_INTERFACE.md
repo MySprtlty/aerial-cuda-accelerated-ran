@@ -78,6 +78,8 @@ xApp → 에이전트
 ```
 - `sm_mean` = 창 안에서 끝난 요청들에 **할당된 SM 수의 평균**(요청별 평균의 평균). 요청이 없으면 `requests: 0`, `sm_mean: null`.
 - `yolo_sm_time_mean` = 시간 가중 평균(슬롯마다 YOLO 몫 SM의 평균, 요청 유무와 무관), `ran_sm_time_mean` = cuPHY 몫.
+- `last` (2026-11-05) = **가장 최근에 끝난 요청**: `{"model":"26x","status":"success","sm":80,"sm_mean":80.0,"infer_ms":32.6,"latency_ms":39.1,"t_ns":...,"age_ms":120.4}`
+  (어떤 YOLO 모델이 몇 SM으로 돌았는지; 창 안에 요청이 없어도 유지, 아직 없으면 `null`). Slicing xApp이 GPU 상태 입력으로 쓴다.
 
 ### 3-2. 단발 조회
 `{"type":"get","what":"sm_report"}` → `sm_report` 한 개(최근 창).

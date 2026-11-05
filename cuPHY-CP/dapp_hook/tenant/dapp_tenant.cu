@@ -23,6 +23,8 @@
 //   DAPP_TENANT_DL_PAUSE=0              1: nothing runs while a PDSCH slot is in flight
 //   DAPP_TENANT_DL_MAX_CLASS=0          >0: while a PDSCH slot is in flight use at most this class
 //   DAPP_TENANT_UNKNOWN=prev            busy set of a slot whose plan has not arrived: prev = same slot of the previous frame
+//   DAPP_TENANT_EMPTY_US=400            2026-11-05: a slot still unplanned this long (us) after its L2 message window opened (tick) is idle - a real L2 (OAI) sends
+//                                       DL_TTI/UL_TTI only for slots with content (SSB/SIB1, PRACH, scheduled UEs); testMAC sends them every slot. -1 = off (old behaviour)
 //                                       (fallback: worst case), max = worst case (largest profiles)
 //   DAPP_TENANT_FIXED=<c>               debug: always run the quiet set at class c on a plain partition split from the full device
 //   DAPP_TENANT_FIXED_GAP=P,N           with DAPP_TENANT_FIXED=<c>: the static context is the class-c context of gap (P, N) instead
@@ -194,7 +196,8 @@ struct Tenant {
     int cpu = 45, prio = 0, lookahead = 1, guard_us = 60, ul_back = 4, dl_fwd = 2, fixed = 0, pause_us = 20, log_s = 10, dl_pause = 0, dl_max_class = 0, ul_pause = 0, tiles_per_request = 8;
     bool unknown_prev = true;
     int horizon_max = 200;            // DAPP_TENANT_HORIZON_MAX: longest horizon considered (slots)
-    int pred_frames = 8;              // DAPP_TENANT_PRED_FRAMES: frames to look back for an unplanned slot's prediction
+    int pred_frames = 12;             // DAPP_TENANT_PRED_FRAMES: frames to look back for an unplanned slot's prediction (>= horizon_max / 20 + lead: 2026-11-05, a 26x estimate of 110 ms = 220 slots left the far horizon unknown with 8)
+    int empty_us = 400;               // DAPP_TENANT_EMPTY_US: unplanned slot = idle once its message window has been open this long (-1: never)
     int srv_port = 9810;
     // ---- xApp agent (2026-11-02, docs/XAPP_INTERFACE.md): requests from the Resource Allocator, per-slot estimates, SM reports
     bool agent_on = false, loop_on = true, freerun = false; int64_t freerun_t0 = 0;
@@ -203,6 +206,8 @@ struct Tenant {
     agent::Request cur; bool have_req = false; EngineSet* aset = nullptr; Pipe apipe; int arois[64] = {0}; int awh[2] = {0, 0};
     int64_t a_t_start = 0; double a_dec_ms = 0.0; std::vector<int> a_cls; int a_pidx = -1; int64_t a_est_end_ns = 0;
     std::mutex rep_m; struct DoneRec { int64_t t_end_ns; std::string model; double sm_mean; }; std::deque<DoneRec> done;
+    // the most recently finished request (sm_report "last": model + SMs it ran on), for the slicing xApp (2026-11-05)
+    struct LastRec { bool valid = false; int64_t t_end_ns = 0; std::string model, status; int sm = 0; double sm_mean = 0.0, infer_ms = 0.0, latency_ms = 0.0; } last;
     double yolo_sm_sum = 0.0, ran_sm_sum = 0.0; uint64_t slot_samples = 0; std::string last_estimate; uint64_t a_ok = 0, a_fail = 0;
     bool a_skip_decode = false, a_skip_infer = false, a_use_graph = true;
     unsigned char* h_jpeg = nullptr; size_t h_jpeg_cap = 0; void* h_out = nullptr; size_t h_out_cap = 0;   // pinned staging (GH200: a GPU copy engine touching pageable memory goes through ATS; keep cuPHY out of that)   // bisection knobs (DAPP_AGENT_SKIP_DECODE / _SKIP_INFER): request path without the decode / without the TRT enqueue
@@ -276,7 +281,7 @@ struct Tenant {
         n = cuphydriver_dapp_profile_sms(1, tmp, 16); pdsch_sm.assign(tmp, tmp + n);
         if (fixed > 0 && fixed_gap_P == 0) {
             Part p; p.cls = fixed; p.gap = fixed; CUdevResource r{}, rem{}; if (!split(all, fixed, &r, &rem, err)) return false; if (!make_ctx(p, r, err)) return false;
-            parts.push_back(p); part_of[{132, 0}] = {0}; return true;
+            parts.push_back(p); part_of[{nsm, 0}] = {0}; return true;
         }
         if (pusch_sm.empty() || pdsch_sm.empty()) { err = "cuphydriver reports no PUSCH/PDSCH profiles (DAPP_PUSCH_PROFILES / DAPP_PDSCH_PROFILES unset?)"; return false; }
         int ord[2] = {0, 0}; const int no = cuphydriver_dapp_profile_sms(2, ord, 2); const int order_sm = no > 0 ? ord[0] : 0, order_mode = no > 1 ? ord[1] : 0;
@@ -373,7 +378,7 @@ struct Tenant {
         n = cuphydriver_dapp_profile_sms(1, tmp, 16); pdsch_sm.assign(tmp, tmp + n);
         if (fixed > 0 && fixed_gap_P == 0) {
             Part p; p.cls = fixed; p.gap = fixed; CUdevResource r{}, rem{}; if (!split(all, fixed, &r, &rem, err)) return false; if (!make_ctx(p, r, err)) return false;
-            parts.push_back(p); part_of[{132, 0}] = {0}; return true;
+            parts.push_back(p); part_of[{nsm, 0}] = {0}; return true;
         }
         if (pusch_sm.empty() || pdsch_sm.empty()) { err = "cuphydriver reports no PUSCH/PDSCH profiles (DAPP_PUSCH_PROFILES / DAPP_PDSCH_PROFILES unset?)"; return false; }
         std::vector<int> Ps; for (int y : pusch_sm) { Ps.push_back(nsm - y); } Ps.push_back(nsm);
@@ -488,8 +493,27 @@ struct Tenant {
     const SlotPlanEntry* plan_of(int64_t n, bool& predicted) const {
         predicted = false;
         if (n >= 0) { const SlotPlanEntry& e = slot_plan_entry(n); if (e.key.load(std::memory_order_acquire) == key_of(n)) return &e; }
-        // 2026-11-02: look back up to DAPP_TENANT_PRED_FRAMES frames (a 26x request spans 60+ slots, far beyond the planned horizon)
-        if (unknown_prev) { for (int k = 1; k <= pred_frames; k++) { const int64_t m = n - k * kSzSlotsPerFrame; if (m < 0) break; const SlotPlanEntry& e = slot_plan_entry(m); if (e.key.load(std::memory_order_acquire) == key_of(m)) { predicted = true; return &e; } } }
+        // 2026-11-05: a slot still unplanned although its L2 message window has been open for empty_us is IDLE: a real L2 (OAI) sends DL_TTI/UL_TTI
+        // only for slots with content (SSB/SIB1, PRACH occasions, scheduled UEs), testMAC for every slot. Window open = t0(n) - plan lead (largest
+        // observed t0 - plan time, ~ slot_advance slots), t0(n) from the slot clock reference. idle_max = newest slot whose window has been open that long.
+        static const SlotPlanEntry kEmpty;   // ul_any 0, dl_any 0
+        const int64_t id = g_plan_ref_id.load(std::memory_order_acquire);   // newest planned slot: no plan can exist beyond it
+        int64_t idle_max = INT64_MIN;
+        if (empty_us >= 0 && id >= 0) {
+            const int64_t t0 = g_plan_ref_t0_ns.load(std::memory_order_relaxed); const int64_t lead = g_plan_lead_ns.load(std::memory_order_relaxed);
+            if (t0 != 0 && lead > 0) { const int64_t d = now_real_ns() - (t0 - lead) + static_cast<int64_t>(empty_us) * 1000; idle_max = id + (d >= 0 ? d / 500000 : -((-d + 499999) / 500000)); }
+        }
+        if (n >= 0 && n <= idle_max) { predicted = true; return &kEmpty; }
+        // 2026-11-02: look back up to DAPP_TENANT_PRED_FRAMES frames (a 26x request spans 60+ slots, far beyond the planned horizon); 2026-11-05: start at
+        // the first frame back whose slot can have a plan (<= id); a looked-back slot that was never planned although its window closed predicts idle
+        if (unknown_prev) {
+            int k = 1; if (id >= 0 && n > id) { k = static_cast<int>((n - id + kSzSlotsPerFrame - 1) / kSzSlotsPerFrame); if (k < 1) k = 1; }
+            for (; k <= pred_frames; k++) {
+                const int64_t m = n - k * kSzSlotsPerFrame; if (m < 0) break;
+                const SlotPlanEntry& e = slot_plan_entry(m); if (e.key.load(std::memory_order_acquire) == key_of(m)) { predicted = true; return &e; }
+                if (m <= idle_max) { predicted = true; return &kEmpty; }
+            }
+        }
         return nullptr;
     }
     // busy partitions of wall-clock slot w: PUSCH prefix P (132 = none) and DL prefix N; known = every plan was present
@@ -556,14 +580,31 @@ struct Tenant {
     }
 
     // partition for the next segment k of set s at wall slot w (busy sets of w, plus every slot the segment will span)
+    // 2026-11-05: horizon prefix aggregates of wall slot w, cached per (slot, newest plan) - tenant thread only. estimate_json evaluates every
+    // model's horizon each slot and the agent re-chooses per segment: H (up to 200) x models x 6 plan lookups per busy_of kept the tenant
+    // thread busy for most of each slot and starved the graph-piece pump (26n at 80 SM took 11 ms instead of 5.6 under the real gNB).
+    int64_t hc_w = -1, hc_ref = -1; std::vector<int> hcP, hcN; std::vector<uint8_t> hcK, hcDL, hcUL;
+    void horizon_cache(int64_t w) {
+        const int64_t ref = g_plan_ref_id.load(std::memory_order_acquire);
+        if (hc_w == w && hc_ref == ref && !hcP.empty()) return;
+        hc_w = w; hc_ref = ref; const int n = horizon_max + 1;
+        hcP.assign(n, nsm); hcN.assign(n, 0); hcK.assign(n, 1); hcDL.assign(n, 0); hcUL.assign(n, 0);
+        int P = nsm, N = 0; bool known = true, dla = false, ula = false;
+        for (int j = 0; j < n; j++) {
+            int P2, N2; bool kn2, dla2, ula2; busy_of(w + j, P2, N2, kn2, dla2, ula2);
+            known = known && kn2; P = std::min(P, P2); N = std::max(N, N2); dla = dla || dla2; ula = ula || ula2;
+            hcP[j] = P; hcN[j] = N; hcK[j] = known ? 1 : 0; hcDL[j] = dla ? 1 : 0; hcUL[j] = ula ? 1 : 0;
+        }
+    }
     int choose_part(EngineSet& s, int k, int64_t w, int64_t slot_end, bool& known, bool apply_ul_pause, int* gap_now = nullptr) {
-        int P, N; bool dla, ula; busy_of(w, P, N, known, dla, ula);
-        if (gap_now) *gap_now = P - N;
+        horizon_cache(w);
+        if (gap_now) *gap_now = hcP[0] - hcN[0];
         double est_us = 0.0; for (size_t ci = 0; ci < s.classes.size(); ci++) { est_us = std::max(est_us, s.seg_ema[ci][k] * 1000.0); }
         const int64_t span_ns = static_cast<int64_t>((guard_us + est_us) * 1000.0) - (slot_end - now_real_ns());
         const int H = span_ns > 0 ? static_cast<int>(span_ns / 500000) + 1 : 0;
-        for (int j = 1; j <= std::min(H, horizon_max); j++) { int P2, N2; bool kn2, dla2, ula2; busy_of(w + j, P2, N2, kn2, dla2, ula2); known = known && kn2; P = std::min(P, P2); N = std::max(N, N2); dla = dla || dla2; ula = ula || ula2; }
-        return part_for(P, N, dla, ula, s, apply_ul_pause);
+        const int J = std::min(H, horizon_max);
+        known = hcK[J] != 0;
+        return part_for(hcP[J], hcN[J], hcDL[J] != 0, hcUL[J] != 0, s, apply_ul_pause);
     }
     // ---- agent: estimates --------------------------------------------------------------------------------------------
     double set_time_ms(const EngineSet& s, int ci) const { double t = 0.0; for (int k = 0; k < s.nseg; k++) t += s.seg_ema[ci][k]; return t; }
@@ -604,6 +645,8 @@ struct Tenant {
         o.raw("sm_mean_per_request", per);
         std::string bm = "{"; bool first = true; for (auto& kv : by) { if (!first) bm += ','; first = false; bm += json::quote(kv.first) + ":{\"n\":" + std::to_string(kv.second.first) + ",\"sm_mean\":" + json::num(kv.second.second / kv.second.first) + "}"; } bm += '}';
         o.raw("sm_by_model", bm);
+        if (last.valid) { json::Obj l; l.kv("model", last.model).kv("status", last.status).kv("sm", last.sm).kv("sm_mean", last.sm_mean).kv("infer_ms", last.infer_ms).kv("latency_ms", last.latency_ms)
+                           .kv("t_ns", static_cast<long long>(last.t_end_ns)).kv("age_ms", (now - last.t_end_ns) / 1e6); o.raw("last", l.str()); } else { o.null("last"); }
         if (slot_samples > 0) { o.kv("yolo_sm_time_mean", yolo_sm_sum / slot_samples).kv("ran_sm_time_mean", ran_sm_sum / slot_samples).kv("slots", static_cast<long long>(slot_samples)); } else { o.null("yolo_sm_time_mean"); o.null("ran_sm_time_mean"); }
         yolo_sm_sum = 0.0; ran_sm_sum = 0.0; slot_samples = 0;
         return o.str();
@@ -737,7 +780,8 @@ struct Tenant {
             r.detections = nd; if (cur.want_dets) r.dets_json = dj + "]"; r.status = "success";
         } else { r.status = "fail"; r.reason = "internal"; }
         srv.push_result(r);
-        { std::lock_guard<std::mutex> g(rep_m); done.push_back(DoneRec{t_end, cur.model, r.sm_mean}); while (done.size() > 10000) done.pop_front(); }
+        { std::lock_guard<std::mutex> g(rep_m); done.push_back(DoneRec{t_end, cur.model, r.sm_mean}); while (done.size() > 10000) done.pop_front();
+          last.valid = true; last.t_end_ns = t_end; last.model = cur.model; last.status = r.status; last.sm = r.sm; last.sm_mean = r.sm_mean; last.infer_ms = r.infer_ms; last.latency_ms = r.latency_ms; }
         if (r.status == "success") a_ok++; else a_fail++;
         have_req = false; aset = nullptr; a_pidx = -1;
     }
@@ -903,7 +947,7 @@ struct Tenant {
         cpu = envi("DAPP_TENANT_CPU", 45); prio = envi("DAPP_TENANT_PRIO", 0); lookahead = envi("DAPP_TENANT_LOOKAHEAD", 1); guard_us = envi("DAPP_TENANT_GUARD_US", 60);
         ul_back = envi("DAPP_TENANT_UL_BACK", 4); dl_fwd = envi("DAPP_TENANT_DL_FWD", 2); fixed = envi("DAPP_TENANT_FIXED", 0); pause_us = envi("DAPP_TENANT_PAUSE_US", 20); log_s = envi("DAPP_TENANT_LOG_S", 10);
         dl_pause = envi("DAPP_TENANT_DL_PAUSE", 0); dl_max_class = envi("DAPP_TENANT_DL_MAX_CLASS", 0); ul_pause = envi("DAPP_TENANT_UL_PAUSE", 0); tiles_per_request = envi("DAPP_TENANT_TILES", 8);
-        unknown_prev = std::string(envs("DAPP_TENANT_UNKNOWN", "prev")) != "max"; horizon_max = envi("DAPP_TENANT_HORIZON_MAX", 200); pred_frames = envi("DAPP_TENANT_PRED_FRAMES", 8);
+        unknown_prev = std::string(envs("DAPP_TENANT_UNKNOWN", "prev")) != "max"; horizon_max = envi("DAPP_TENANT_HORIZON_MAX", 200); pred_frames = envi("DAPP_TENANT_PRED_FRAMES", 12); empty_us = envi("DAPP_TENANT_EMPTY_US", 400);
         one_per_gap = envi("DAPP_TENANT_ONE_PER_GAP", -1);   // -1: union layout keeps only the largest class per (P, N) (the horizon rule never uses a smaller one); gap layout keeps all
         fb_guard = envi("DAPP_TENANT_FB_GUARD", 0); layout = envs("DAPP_TENANT_LAYOUT", "union"); if (one_per_gap < 0) one_per_gap = (layout == "union") ? 1 : 0;
         qos_on = envi("DAPP_AGENT_QOS", 1) != 0; prof_s = envi("DAPP_AGENT_PROFILE_S", 0);
@@ -964,7 +1008,7 @@ struct Tenant {
             std::fprintf(lf, "==== dapp_tenant quiet %s (b%d, %d segments, classes", quiet.dir.c_str(), quiet.batch, quiet.nseg); for (int c : quiet.classes) std::fprintf(lf, " %d", c);
             if (busy.loaded) { std::fprintf(lf, ") busy %s (b%d, %d segments, classes", busy.dir.c_str(), busy.batch, busy.nseg); for (int c : busy.classes) std::fprintf(lf, " %d", c); }
             std::fprintf(lf, ") | PUSCH partitions"); for (int y : pusch_sm) std::fprintf(lf, " %d", y); std::fprintf(lf, " | PDSCH partitions"); for (int n : pdsch_sm) std::fprintf(lf, " %d", n);
-            std::fprintf(lf, " | cpu %d prio %d lookahead %d guard %d us ul_back %d dl_fwd %d fixed %d (gap %d,%d) one_per_gap %d dl_pause %d dl_max_class %d ul_pause %d unknown %s tiles/request %d\n", cpu, prio, lookahead, guard_us, ul_back, dl_fwd, fixed, fixed_gap_P, fixed_gap_N, one_per_gap, dl_pause, dl_max_class, ul_pause, unknown_prev ? "prev" : "max", tiles_per_request);
+            std::fprintf(lf, " | cpu %d prio %d lookahead %d guard %d us ul_back %d dl_fwd %d fixed %d (gap %d,%d) one_per_gap %d dl_pause %d dl_max_class %d ul_pause %d unknown %s empty_us %d tiles/request %d\n", cpu, prio, lookahead, guard_us, ul_back, dl_fwd, fixed, fixed_gap_P, fixed_gap_N, one_per_gap, dl_pause, dl_max_class, ul_pause, unknown_prev ? "prev" : "max", empty_us, tiles_per_request);
             for (auto& kv : part_of) { std::string d; for (int i : kv.second) d += " part " + std::to_string(i) + " class " + std::to_string(parts[i].cls); std::fprintf(lf, "  (P %d, N %d) ->%s%s\n", kv.first.first, kv.first.second, kv.second.empty() ? " no class fits (pause)" : d.c_str(), kv.second.empty() ? "" : (" of gap " + std::to_string(parts[kv.second.front()].gap)).c_str()); }
         }
         if (lf && !layout_report.empty()) { std::fputs(layout_report.c_str(), lf); std::fflush(lf); }

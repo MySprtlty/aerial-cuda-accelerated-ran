@@ -1,0 +1,55 @@
+---
+aerial_sdk_version: 25-3-cubb
+msg_type: scf_5g_fapi
+phy_class: scf_5g_fapi
+slot_advance: 3
+tick_generator_mode: 1
+allowed_fapi_latency: 0
+allowed_tick_error: 10
+timer_thread_config: {name: timer_thread, cpu_affinity: 11, sched_priority: 99}
+message_thread_config: {name: msg_processing, cpu_affinity: 12, sched_priority: 95}
+mu_highest: 1
+dapp_hook: {enable: 1, shm_name: /aerial_dapp_ring, ring_len: 65536, mlock: 1, export_ul: 1, export_dl: 1, export_pdus: 1}
+instances:
+- {name: scf_gnb_configure_module_0_instance_0}
+- {name: scf_gnb_configure_module_0_instance_1}
+- {name: scf_gnb_configure_module_0_instance_2}
+- {name: scf_gnb_configure_module_0_instance_3}
+nvipc_config_file: null
+transport:
+  type: shm
+  shm_config:
+    primary: 1
+    prefix: nvipc
+    cuda_device_id: 0
+    ring_len: 8192
+    mempool_size:
+      cpu_msg: {buf_size: 15000, pool_len: 4096}
+      cpu_data: {buf_size: 576000, pool_len: 1024}
+      cpu_large: {buf_size: 4096000, pool_len: 64}
+      cuda_data: {buf_size: 307200, pool_len: 0}
+      gpu_data: {buf_size: 576000, pool_len: 0}
+  app_config:
+    grpc_forward: 0
+    debug_timing: 0
+    pcap_enable: 0
+    pcap_sync_save: 0
+    pcap_shm_caching_cpu_core: 14
+    pcap_file_saving_cpu_core: 14
+    pcap_cache_size_bits: 29
+    pcap_file_size_bits: 31
+    pcap_max_data_size: 8000
+    msg_filter: []
+    cell_filter: []
+dl_tb_loc: 1
+enable_precoding: 0
+enable_beam_forming: 1
+enableTickDynamicSfnSlot: 0
+cell_group: 1
+prepone_h2d_copy: 0
+pucch_dtx_thresholds: [-100.0, -100.0, 1.0, 1.0, -100.0]
+pusch_dtx_thresholds: 1.0
+staticPdschSlotNum: 0
+fapi_config_check_mask: 0
+staticPuschSlotNum: 0
+...

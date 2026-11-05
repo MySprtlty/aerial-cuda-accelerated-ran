@@ -1,0 +1,1 @@
+sudo systemctl start open5gs-amfd open5gs-ausfd open5gs-bsfd open5gs-hssd open5gs-mmed open5gs-nrfd open5gs-nssfd open5gs-pcfd open5gs-pcrfd open5gs-scpd open5gs-seppd open5gs-sgwcd open5gs-sgwud open5gs-smfd open5gs-udmd open5gs-udrd open5gs-upfd open5gs-webui.service

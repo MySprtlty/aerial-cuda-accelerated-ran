@@ -1,0 +1,211 @@
+testAlloc: {dl: 1.0, ul: 0.0, ssb: 0.0, pdcch: 0.0, pdsch: 4.0, csirs: 0.0, prach: 0.0,
+  pucch: 0.0, pusch: 0.0, srs: 0.0}
+carrier: {N_grid_size_mu: 273.0, mu: 1.0, Nant_gNB: 16.0, Nant_UE: 4.0}
+pdsch:
+- pduBitmap: 0.0
+  BWPSize: 273.0
+  BWPStart: 0.0
+  RNTI: 46.0
+  NrOfCodewords: 1.0
+  targetCodeRate: 0.0
+  qamModOrder: 0.0
+  TBSize: 0.0
+  mcsIndex: 24.0
+  mcsTable: 1.0
+  rvIndex: 0.0
+  dataScramblingId: 40.0
+  nrOfLayers: 4.0
+  portIdx: [0.0, 1.0, 2.0, 3.0]
+  transmissionScheme: 0.0
+  refPoint: 0.0
+  DmrsSymbPos: [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  DmrsMappingType: 0.0
+  dmrsConfigType: 0.0
+  DmrsScramblingId: 40.0
+  SCID: 0.0
+  numDmrsCdmGrpsNoData: 2.0
+  resourceAlloc: 1.0
+  rbBitmap: [255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    1.0, 0.0]
+  rbStart: 0.0
+  rbSize: 64.0
+  VRBtoPRBMapping: 0.0
+  StartSymbolIndex: 2.0
+  NrOfSymbols: 12.0
+  prcdBf: 0.0
+  digBFInterfaces: 4.0
+  beamIdx: [1.0, 2.0, 3.0, 4.0]
+  powerControlOffset: 8.0
+  powerControlOffsetSS: 1.0
+  IsLastCbPresent: 0.0
+  isInlineTbCrc: 0.0
+  dlTbCrc: 0.0
+  testModel: 0.0
+  I_LBRM: 1.0
+  maxLayers: 4.0
+  maxQm: 8.0
+  n_PRB_LBRM: 273.0
+  Xtf_remap: []
+  seed: 0.0
+  payload: []
+  idxUE: 0.0
+  idxUeg: 0.0
+  nlAbove16: 0.0
+- pduBitmap: 0.0
+  BWPSize: 273.0
+  BWPStart: 0.0
+  RNTI: 46.0
+  NrOfCodewords: 1.0
+  targetCodeRate: 0.0
+  qamModOrder: 0.0
+  TBSize: 0.0
+  mcsIndex: 24.0
+  mcsTable: 1.0
+  rvIndex: 0.0
+  dataScramblingId: 40.0
+  nrOfLayers: 4.0
+  portIdx: [4.0, 5.0, 6.0, 7.0]
+  transmissionScheme: 0.0
+  refPoint: 0.0
+  DmrsSymbPos: [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  DmrsMappingType: 0.0
+  dmrsConfigType: 0.0
+  DmrsScramblingId: 40.0
+  SCID: 0.0
+  numDmrsCdmGrpsNoData: 2.0
+  resourceAlloc: 1.0
+  rbBitmap: [255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    1.0, 0.0]
+  rbStart: 0.0
+  rbSize: 64.0
+  VRBtoPRBMapping: 0.0
+  StartSymbolIndex: 2.0
+  NrOfSymbols: 12.0
+  prcdBf: 0.0
+  digBFInterfaces: 4.0
+  beamIdx: [1.0, 2.0, 3.0, 4.0]
+  powerControlOffset: 8.0
+  powerControlOffsetSS: 1.0
+  IsLastCbPresent: 0.0
+  isInlineTbCrc: 0.0
+  dlTbCrc: 0.0
+  testModel: 0.0
+  I_LBRM: 1.0
+  maxLayers: 4.0
+  maxQm: 8.0
+  n_PRB_LBRM: 273.0
+  Xtf_remap: []
+  seed: 1.0
+  payload: []
+  idxUE: 1.0
+  idxUeg: 0.0
+  nlAbove16: 0.0
+- pduBitmap: 0.0
+  BWPSize: 273.0
+  BWPStart: 0.0
+  RNTI: 46.0
+  NrOfCodewords: 1.0
+  targetCodeRate: 0.0
+  qamModOrder: 0.0
+  TBSize: 0.0
+  mcsIndex: 24.0
+  mcsTable: 1.0
+  rvIndex: 0.0
+  dataScramblingId: 40.0
+  nrOfLayers: 4.0
+  portIdx: [0.0, 1.0, 2.0, 3.0]
+  transmissionScheme: 0.0
+  refPoint: 0.0
+  DmrsSymbPos: [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  DmrsMappingType: 0.0
+  dmrsConfigType: 0.0
+  DmrsScramblingId: 40.0
+  SCID: 1.0
+  numDmrsCdmGrpsNoData: 2.0
+  resourceAlloc: 1.0
+  rbBitmap: [255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    1.0, 0.0]
+  rbStart: 0.0
+  rbSize: 64.0
+  VRBtoPRBMapping: 0.0
+  StartSymbolIndex: 2.0
+  NrOfSymbols: 12.0
+  prcdBf: 0.0
+  digBFInterfaces: 4.0
+  beamIdx: [1.0, 2.0, 3.0, 4.0]
+  powerControlOffset: 8.0
+  powerControlOffsetSS: 1.0
+  IsLastCbPresent: 0.0
+  isInlineTbCrc: 0.0
+  dlTbCrc: 0.0
+  testModel: 0.0
+  I_LBRM: 1.0
+  maxLayers: 4.0
+  maxQm: 8.0
+  n_PRB_LBRM: 273.0
+  Xtf_remap: []
+  seed: 2.0
+  payload: []
+  idxUE: 2.0
+  idxUeg: 0.0
+  nlAbove16: 0.0
+- pduBitmap: 0.0
+  BWPSize: 273.0
+  BWPStart: 0.0
+  RNTI: 46.0
+  NrOfCodewords: 1.0
+  targetCodeRate: 0.0
+  qamModOrder: 0.0
+  TBSize: 0.0
+  mcsIndex: 24.0
+  mcsTable: 1.0
+  rvIndex: 0.0
+  dataScramblingId: 40.0
+  nrOfLayers: 4.0
+  portIdx: [4.0, 5.0, 6.0, 7.0]
+  transmissionScheme: 0.0
+  refPoint: 0.0
+  DmrsSymbPos: [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  DmrsMappingType: 0.0
+  dmrsConfigType: 0.0
+  DmrsScramblingId: 40.0
+  SCID: 1.0
+  numDmrsCdmGrpsNoData: 2.0
+  resourceAlloc: 1.0
+  rbBitmap: [255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0, 255.0,
+    1.0, 0.0]
+  rbStart: 0.0
+  rbSize: 64.0
+  VRBtoPRBMapping: 0.0
+  StartSymbolIndex: 2.0
+  NrOfSymbols: 12.0
+  prcdBf: 0.0
+  digBFInterfaces: 4.0
+  beamIdx: [1.0, 2.0, 3.0, 4.0]
+  powerControlOffset: 8.0
+  powerControlOffsetSS: 1.0
+  IsLastCbPresent: 0.0
+  isInlineTbCrc: 0.0
+  dlTbCrc: 0.0
+  testModel: 0.0
+  I_LBRM: 1.0
+  maxLayers: 4.0
+  maxQm: 8.0
+  n_PRB_LBRM: 273.0
+  Xtf_remap: []
+  seed: 3.0
+  payload: []
+  idxUE: 3.0
+  idxUeg: 0.0
+  nlAbove16: 0.0
+SimCtrl:
+  N_UE: 4.0
+  genTV: {forceSlotIdxFlag: 1.0, slotIdx: 5.0}

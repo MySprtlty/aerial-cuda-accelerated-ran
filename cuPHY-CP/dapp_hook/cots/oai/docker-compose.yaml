@@ -1,0 +1,27 @@
+# OAI gNB only (the L1 is our cuphycontroller inside the Aerial container, host IPC namespace; nvIPC prefix 'nvipc' = the researchers' baseline).
+# Same as the researchers' sa_gnb_aerial compose minus the nv-cubb service: ipc host instead of 'container:nv-cubb', no GPU reservation,
+# cpuset off the L1/dApp cores. gnb.conf = their gnb_original.txt with tr_s_poll_core 62 (the only edit). Started/stopped by ../cots_run.sh.
+services:
+  oai-gnb:
+    container_name: ${OAI_CONTAINER:-oai-gnb-dgist}
+    image: ${OAI_IMAGE:-oai-gnb-aerial_hsw:hybrid-uci}
+    cpuset: "${OAI_CPUSET:-56-62}"
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+    ipc: host
+    network_mode: host
+    stdin_open: true
+    tty: true
+    environment:
+      USE_ADDITIONAL_OPTIONS: --log_config.global_log_options level,nocolor,utc_time
+    volumes:
+      - ./gnb.conf:/opt/oai-gnb/etc/gnb.conf
+      - /usr/local/lib/flexric:/usr/local/lib/flexric:ro
+    healthcheck:
+      test: /bin/bash -c "ps aux | grep -v grep | grep -c softmodem"
+      interval: 10s
+      timeout: 5s
+      retries: 5

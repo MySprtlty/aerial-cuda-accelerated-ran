@@ -1,0 +1,142 @@
+---
+aerial_sdk_version: 25-3-cubb
+name: fapi_gnb_configure_mac
+class: test_mac
+log_name: testmac.log
+test_cumac_config_file: null
+oam_server_addr: 0.0.0.0:50052
+low_priority_core: 15
+sched_thread_config:
+  name: mac_sched
+  cpu_affinity: 16
+  sched_priority: 96
+recv_thread_config:
+  name: mac_recv
+  cpu_affinity: 21
+  sched_priority: 95
+builder_thread_config:
+  name: fapi_builder
+  cpu_affinity: 18
+  sched_priority: 95
+enableTickDynamicSfnSlot: 0
+builder_thread_enable: 0
+estimate_send_time: -1
+schedule_total_time: 0
+fapi_delay_bit_mask: 0
+duplicate_fapi_bit_mask: 0
+duplicate_fapi_num_max: 1
+worker_cores: []
+restart_option: 0
+test_slots: 60000
+restart_interval: 0
+cell_run_slots: 0
+cell_stop_slots: 0
+cell_config_wait: 20
+cell_config_timeout: 2000
+cell_config_retry: 5
+oam_cell_ctrl_cmd: 0
+early_harq_deadline_ns: 2000000
+ul_ind_deadline_ns: 4500000
+prach_ind_deadline_ns: 4500000
+uci_ind_deadline_ns: 4500000
+srs_late_deadline_ns: 5500000
+srs_early_deadline_ns: 1759000
+test_cell_update:
+  test_cells: []
+  test_sequence:
+  - slot_point: 0
+    configs:
+    - cell_id: 0
+      dst_mac: 26:04:9D:9E:29:B3
+      vlan: 2
+      pcp: 7
+  - slot_point: 20000
+    configs:
+    - cell_id: 0
+      dst_mac: 20:04:9B:9E:27:A3
+      vlan: 2
+      pcp: 7
+  - slot_point: 40000
+    configs:
+    - cell_id: 0
+      dst_mac: 26:04:9D:9E:29:B3
+      vlan: 2
+      pcp: 7
+ipc_sync_mode: 0
+validate_enable: 2
+validate_log_opt: 2
+tv_data_map_enable: 1
+enable_dummy_tti: 0
+fapi_tb_loc: 1
+pdsch_align_bytes: 1
+enable_csip2_v3: 0
+srs_vald_sample_num: 100
+transport:
+  type: shm
+  shm_config:
+    prefix: nvipc
+message: cell_config_request
+data:
+  nCarrierIdx: 0
+  nDMRSTypeAPos: 2
+  nNrOfTxAnt: 8
+  nNrOfRxAnt: 4
+  nSubcCommon: 1
+  numTDDPattern: 1
+  TDDPeriod:
+  - 3
+  - 0
+  nSSBAbsFre: 3313920
+  nDLAbsFrePointA: 3301680
+  nULAbsFrePointA: 3301680
+  nDLK0: 1
+  nULK0: 1
+  nDLFftSize: 4096
+  nULFftSize: 4096
+  nCarrierAggregationLevel: 0
+  nFrameDuplexType: 1
+  nPhyCellId: 41
+  nSSBPwr: 1
+  nSSBSubcSpacing: 2
+  nSSBPeriod: 2
+  nSSBSubcOffset: 0
+  nSSBMask:
+  - 0
+  - 0
+  nMIB:
+  - 1
+  - 13
+  - 4
+  nPrachConfIdx: 158
+  nPrachSubcSpacing: 1
+  nPrachRootSeqIdx: 137
+  nPrachZeroCorrConf: 5
+  nPrachRestrictSet: 0
+  nPrachFdm: 1
+  nPrachFreqStart: 3
+  nPrachSsbRach: 3
+  rsrpMeasurement: 1
+  pnMeasurement: 1
+  pf_234_interference: 1
+  prach_interference: 1
+  pusch_aggr_factor: 1
+  channel_segment_timelines: 0
+indicationPerSlot:
+  rxDataIndPerSlot: 0
+  crcIndPerSlot: 0
+  uciIndPerSlot: 2
+  rachIndPerSlot: 0
+  srsIndPerSlot: 0
+  dlTTIrspPerSlot: 0
+conf_test:
+  conf_test_enable: 0
+  conf_test_slots: 75000
+  conformance_test_start_time: 480000
+  prach:
+    expect_prmbindexes: 0
+    delay_error_tolerance: 0.5
+  pusch: null
+  pucch:
+    ack_nack_pattern: 1
+  stats_file: conformance_test_stats_file.txt
+...

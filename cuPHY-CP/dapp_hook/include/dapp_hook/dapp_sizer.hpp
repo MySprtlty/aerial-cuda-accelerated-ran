@@ -229,6 +229,7 @@ static constexpr unsigned kSlotPlanEntries = 128;
 inline SlotPlanEntry          g_slot_plan[kSlotPlanEntries];
 inline std::atomic<int64_t>   g_plan_ref_t0_ns{0};      // t0 of the newest planned slot
 inline std::atomic<int64_t>   g_plan_ref_id{-1};        // its absolute slot id (sfn * 20 + slot)
+inline std::atomic<int64_t>   g_plan_lead_ns{0};        // 2026-11-05: largest observed (t0 - plan time): a slot's TTI requests land right after its tick, slot_advance slots before t0; a slot still unplanned that long before t0 has no L2 request
 inline int64_t g_plan_wrap_base = 0;                 // L2A thread only: + 1024 frames at every SFN wrap, so plan ids are monotonic
 inline int64_t g_plan_last_raw = -1;
 inline int64_t slot_abs_id(uint16_t sfn, uint16_t slot) noexcept { return static_cast<int64_t>(sfn) * kSzSlotsPerFrame + slot; }
@@ -296,6 +297,8 @@ inline void sizer_plan(uint16_t sfn, uint16_t slot, int64_t t0_ns) noexcept
     if (!g_sizer_enabled) { return; }
     if (!g_sizer_profiles.ready) { sizer_refresh_profiles(); }
     const int64_t t_start = sizer_now_ns();
+    if (t0_ns != 0) { struct timespec rs; clock_gettime(CLOCK_REALTIME, &rs); const int64_t lead = t0_ns - (static_cast<int64_t>(rs.tv_sec) * 1000000000LL + rs.tv_nsec);
+                      if (lead > g_plan_lead_ns.load(std::memory_order_relaxed)) { g_plan_lead_ns.store(lead, std::memory_order_relaxed); } }
     SizerSlot& e = sizer_entry(sfn, slot);
     const bool have = (e.key.load(std::memory_order_acquire) == sizer_key(sfn, slot));
     int64_t waited = 0;

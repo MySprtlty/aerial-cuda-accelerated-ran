@@ -7,7 +7,7 @@
 #   off  : destroys CIs/GIs, -mig 0 (gpu-reset if pending), restarts our MPS daemon
 C=c_aerial_troy; GPU=0
 status() { echo "-- $(date +%T) mig mode: $(nvidia-smi -i $GPU --query-gpu=mig.mode.current,mig.mode.pending --format=csv,noheader) | apps: $(nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader | tr '\n' ';')"; nvidia-smi -L | grep -i mig | sed 's/^/   /'; }
-stop_mps() { docker exec -u root $C bash -c 'export CUDA_MPS_PIPE_DIRECTORY=/var CUDA_MPS_LOG_DIRECTORY=/var; echo quit | nvidia-cuda-mps-control 2>/dev/null; sleep 1; pgrep -x nvidia-cuda-mps-control > /dev/null && pkill -x nvidia-cuda-mps-control; pgrep -x nvidia-cuda-mps-server > /dev/null && pkill -x nvidia-cuda-mps-server; true'; sleep 2; echo "-- MPS stopped: $(pgrep -c -f 'nvidia-cuda-mps-control -d') control daemon(s) left"; }
+stop_mps() { docker exec -u root $C bash -c 'export CUDA_MPS_PIPE_DIRECTORY=/var CUDA_MPS_LOG_DIRECTORY=/var; echo quit | nvidia-cuda-mps-control 2>/dev/null; sleep 1; pkill -f "nvidia-cuda-mps-contro[l]"; pkill -f "nvidia-cuda-mps-serve[r]"; true'; sleep 2; echo "-- MPS stopped: $(pgrep -c -f 'nvidia-cuda-mps-control -d') control daemon(s) left"; }
 start_mps() { docker exec -u root $C bash -c 'export CUDA_MPS_PIPE_DIRECTORY=/var CUDA_MPS_LOG_DIRECTORY=/var; nvidia-cuda-mps-control -d && echo start_server -uid 0 | nvidia-cuda-mps-control'; sleep 2; echo "-- MPS started: $(pgrep -c -f 'nvidia-cuda-mps-control -d') control daemon(s), apps: $(nvidia-smi --query-compute-apps=process_name --format=csv,noheader | tr '\n' ';')"; }
 wait_free() {  # no compute app other than our MPS server
   local a; a=$(nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader | grep -v nvidia-cuda-mps-server | grep -c .)

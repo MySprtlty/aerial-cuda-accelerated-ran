@@ -50,3 +50,20 @@ testVectors/TVnr_6[0-8][0-9][0-9][0-9]_gNB_FAPI_s*.h5
 # dapp_hook e2e / tools binaries built inside the container
 cuPHY-CP/dapp_hook/e2e/*.so
 cuPHY-CP/dapp_hook/tools/nvjpeg_probe
+
+# --- 2026-11-06: local artefacts of the DGIST work (never committed) ---
+Beaver.pdf
+cuPHY-CP/dapp_hook/cots/runs/
+cuPHY-CP/dapp_hook/xapp_flexric/build/
+cuPHY-CP/dapp_hook/tools/hbm_flood/hbm_flood
+cuPHY-CP/dapp_hook/tools/njd_bench
+cuPHY-CP/dapp_hook/tools/seg_yolo/seg_runner
+# model tooling and the small test frames ARE tracked (weights/ONNX/engines stay ignored)
+!cuPHY-CP/dapp_hook/models/*.py
+!cuPHY-CP/dapp_hook/models/*.json
+!cuPHY-CP/dapp_hook/models/img4k/
+cuPHY-CP/dapp_hook/models/img4k/*
+!cuPHY-CP/dapp_hook/models/img4k/img4k_0.jpg
+!cuPHY-CP/dapp_hook/models/img4k/img4k_1.jpg
+!cuPHY-CP/dapp_hook/models/img4k/uhd_0_q85.jpg
+!cuPHY-CP/dapp_hook/models/imgfhd/

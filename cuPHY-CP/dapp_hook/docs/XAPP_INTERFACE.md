@@ -27,8 +27,9 @@ xApp → 에이전트
 
 에이전트 → xApp
 ```json
-{"type":"welcome","version":1,"models":["26n","26s","26m","26l","26x"],"slot_us":500,"cells":1,"tdd":"DDDDDDSUUU","gpu_sm":132}
+{"type":"welcome","version":1,"models":["26n","26s","26m","26l","26x"],"slot_us":500,"cells":1,"tdd":"DDDDDDSUUU","gpu_sm":132,"input":"4k"}
 ```
+- `input` (2026-11-09) = 엔진 세트가 만들어진 입력 프로파일(`DAPP_INPUT`). `"4k"` = 3840×2160, batch 8 (1280 네이티브 크롭 6 + 전체 보기 2), `"fhd"` = 1920×1080, batch 3 (1280×1080 크롭 2 + 전체 보기 1). 크롭 격자는 JPEG 크기에서 계산하므로 다른 크기도 처리되지만, 격자가 배치에 안 맞으면(예: 4K를 fhd 세트에) 전체 보기만으로 돈다. `result.tiles` = 그 세트의 배치 수.
 
 ## 2. Resource Allocator 쪽
 

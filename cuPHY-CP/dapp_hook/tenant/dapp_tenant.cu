@@ -29,6 +29,11 @@
 //   DAPP_TENANT_FIXED=<c>               debug: always run the quiet set at class c on a plain partition split from the full device
 //   DAPP_TENANT_FIXED_GAP=P,N           with DAPP_TENANT_FIXED=<c>: the static context is the class-c context of gap (P, N) instead
 //                                       (e.g. 88,40 = the Average busy-window gap: disjoint from PUSCH 44 / PDSCH 40 / order, overlaps PUSCH >= 60)
+//   DAPP_TENANT_ENGINE_CTX=prim|part   CUDA context the TensorRT engines are deserialized in. prim (default since 2026-11-10): the primary
+//                                       context for every engine. part (2026-11-02..11-10 behaviour): the class's own green context - broken with
+//                                       TensorRT 10.3: Myelin sizes its segment-K / cluster GEMM grids from cuOccupancyMaxActiveClusters in the
+//                                       context current at deserialization and caches that per kernel for the whole process, so the first class
+//                                       loaded dictates the grids of every later class (see the note in load_set). Diagnostic use only.
 //   DAPP_TENANT_LAYOUT=union|gap        union (default, 2026-11-02): class contexts = union of 8-SM groups disjoint from the PUSCH profile
 //                                       (+ DAPP_TENANT_FB_GUARD larger fallback profiles, default 0), PUCCH/PRACH, the PDSCH profile and the UL order
 //                                       context, all measured by %smid at start-up (log: '==== union layout'); gap = the 2026-11-01 construction
@@ -41,6 +46,8 @@
 //   DAPP_AGENT=1                        xApp agent (docs/XAPP_INTERFACE.md): DAPP_AGENT_PORT=9810, DAPP_AGENT_UDP=host:port, DAPP_AGENT_CPU,
 //                                       DAPP_AGENT_MAX_QUEUE=8, DAPP_AGENT_CELLS, DAPP_AGENT_CONF=0.25, DAPP_AGENT_IOU=0.7;
 //                                       DAPP_TENANT_MODELS=26n=/dir,...,26x=/dir (default models/full26<m>); DAPP_TENANT_LOOP=1 keeps the
+//   DAPP_INPUT=4k|fhd                   input profile reported in the agent's welcome (2026-11-09): 4k = models/full26<m> batch-8 (1280 crops 6 + 2 whole
+//                                       views), fhd = models/fhd26<m> batch-3 (1280x1080 crops 2 + 1 whole view); the crop grid itself follows the JPEG size
 //                                       closed-loop benchmark pipelines running as well; DAPP_TENANT_FREERUN=1 = wall-clock slots without an L1
 //   DAPP_TENANT_STRESS=spin|l2|hbm|l2w|hbmw|tc  diagnosis (l2w/hbmw = writes, tc = tensor-core mma in registers): run a synthetic kernel instead of TensorRT with the same slot logic / contexts:
 //                                       spin = compute only (no memory), l2 = reads of an L2-resident buffer (DAPP_TENANT_STRESS_MB, 24),
@@ -204,6 +211,7 @@ struct Tenant {
     agent::Server srv; std::map<std::string, EngineSet> models; std::vector<std::string> model_names;
     void* njd = nullptr; float* d_dec = nullptr; size_t d_dec_n = 0; double dec_ema = 6.0; cudaStream_t dec_s = nullptr; float conf_thr = 0.25f, iou_thr = 0.7f;   // dec_s: decode on a primary-context stream (nvjpeg + green-context streams hung the thread, k1_26x_av4)
     agent::Request cur; bool have_req = false; EngineSet* aset = nullptr; Pipe apipe; int arois[64] = {0}; int awh[2] = {0, 0};
+    std::string input_profile = "4k"; std::set<std::string> grid_warned;   // DAPP_INPUT (welcome "input"); models already warned about an image that got whole-image views only
     int64_t a_t_start = 0; double a_dec_ms = 0.0; std::vector<int> a_cls; int a_pidx = -1; int64_t a_est_end_ns = 0;
     std::mutex rep_m; struct DoneRec { int64_t t_end_ns; std::string model; double sm_mean; }; std::deque<DoneRec> done;
     // the most recently finished request (sm_report "last": model + SMs it ran on), for the slicing xApp (2026-11-05)
@@ -214,7 +222,7 @@ struct Tenant {
     int fixed_gap_P = 0, fixed_gap_N = 0, fixed_gap_part = -1, one_per_gap = 0;
     // union layout (2026-11-02, DAPP_TENANT_LAYOUT=union|gap): class contexts avoid the UL order / UL control contexts and the next
     // DAPP_TENANT_FB_GUARD larger PUSCH profiles (pool-busy fallbacks); DAPP_AGENT_QOS=1: refuse a request whose estimate misses its deadline
-    int fb_guard = 1; std::string layout = "union"; bool qos_on = true; std::string layout_report;
+    int fb_guard = 1; std::string layout = "union"; bool qos_on = true; std::string layout_report; bool engine_ctx_per_class = false;
     int chunk_n = 6, chunk_ahead = 2; bool a_chunking = false; int a_chunk_next = 0, a_chunk_k = 0; const std::vector<cudaGraphExec_t>* a_chunks = nullptr; const Part* a_chunk_part = nullptr;
     int prof_s = 0; int64_t prof_t0 = 0; bool prof_on = false, prof_done = false;   // DAPP_AGENT_PROFILE_S: cudaProfilerStart at the first request, Stop after that many seconds (nsys --capture-range=cudaProfilerApi)
     // stress mode (diagnosis)
@@ -431,7 +439,17 @@ struct Tenant {
             for (size_t ci = 0; ci < s.classes.size(); ci++) {
                 char p[512]; std::snprintf(p, sizeof p, "%s/seg%02d_sm%d.engine", s.dir.c_str(), k, s.classes[ci]);
                 auto blob = slurp(p); if (blob.empty()) { err = std::string("missing ") + p; return false; }
-                CUcontext c0 = prim; for (const Part& q : parts) { if (q.cls == s.classes[ci]) { c0 = q.ctx; break; } }
+                // 2026-11-10: every engine is deserialized with the PRIMARY context current (DAPP_TENANT_ENGINE_CTX=prim, default). TensorRT 10.3 (Myelin)
+                // chooses the grid of its segment-K / thread-block-cluster GEMMs from cuOccupancyMaxActiveClusters evaluated in the CUDA context current
+                // at deserialization (a green context answers with its own SM count) and caches the result per kernel hash for the whole process: the
+                // engines of one network share those hashes across SM classes, so the FIRST class deserialized fixed the grids of every later class. With
+                // per-class green contexts (the old 'part' mode) the FHD 72+80 pair made the sm80 engine run 72-sized grids and its workspace memset
+                // failed ("Myelin ... cask.cpp:exec ... Cuda Runtime (invalid argument)"), and every 24..72/80 ladder silently ran the shared GEMMs with
+                // grids sized for 24 SMs. Deserialized in the primary context all engines get 132-SM grids, valid on every partition (26x sm80 on 80 SMs:
+                // 31.3 vs 30.9 ms stand-alone, -1 %). Reproduced and measured with models/trt_green.py, trt_seq.py, trt_perf.py (prof/tenant/fhd).
+                // Separate issue (still present, plain TensorRT): the fhd26s/fhd26l seg00_sm80 engines built with the sm80 tactics fail "Cask Gemm
+                // execution" next to another class of the same network; they are built with the sm72 timing cache instead (build_yolo_engines.sh).
+                CUcontext c0 = prim; if (engine_ctx_per_class) for (const Part& q : parts) { if (q.cls == s.classes[ci]) { c0 = q.ctx; break; } }
                 CKD(cuCtxSetCurrent(c0));
                 nvinfer1::ICudaEngine* e = rt->deserializeCudaEngine(blob.data(), blob.size()); if (!e) { err = std::string("deserialize failed ") + p; return false; }
                 nvinfer1::IExecutionContext* x = e->createExecutionContext(); if (!x) { err = std::string("execution context failed ") + p; return false; }
@@ -679,6 +697,8 @@ struct Tenant {
         const int st = a_skip_decode ? 0 : njd_decode_tiles(njd, jsrc, cur.jpeg.size(), target, s.net, s.batch, s.batch > 1 ? 1 : 0, ds, t_ms, awh, arois);
         if (a_skip_decode) { awh[0] = 3840; awh[1] = 2160; for (int i = 0; i < 4 * s.batch; i++) arois[i] = (i % 4 < 2) ? 0 : (i % 4 == 2 ? 3840 : 2160); }
         if (st != 0) { fail_request("decode_error"); if (lf) { std::fprintf(lf, "agent: decode failed (%d) req %llu %zu bytes\n", st, static_cast<unsigned long long>(cur.id), cur.jpeg.size()); std::fflush(lf); } return false; }
+        if (!a_skip_decode && s.batch > 1 && arois[2] == awh[0] && arois[3] == awh[1] && lf && grid_warned.insert(s.model).second) {   // slot 0 = whole image: the crop grid did not fit this batch
+            std::fprintf(lf, "agent: %s: a %dx%d image does not fit the crop grid of this b%d engine set (DAPP_INPUT %s) - whole-image views only\n", s.model.c_str(), awh[0], awh[1], s.batch, input_profile.c_str()); std::fflush(lf); }
         if (s.in_half && !a_skip_decode) { const size_t n = s.bytes["images"] / 2; k_f2h<<<static_cast<unsigned>((n + 255) / 256), 256, 0, ds>>>(d_dec, static_cast<__half*>(s.buf["images"]), n); }
         if (!a_skip_decode) cudaStreamSynchronize(ds);
         a_dec_ms = (now_real_ns() - a_t_start) / 1e6; dec_ema = 0.9 * dec_ema + 0.1 * a_dec_ms;
@@ -817,7 +837,7 @@ struct Tenant {
             size_t need = 0; for (auto& kv : models) { if (kv.second.loaded && kv.second.in_half) need = std::max(need, kv.second.bytes["images"] / 2); }
             if (need) { if (cudaMalloc(&d_dec, need * sizeof(float)) != cudaSuccess) d_dec = nullptr; d_dec_n = need; }
             unsigned eng = 0, cores = 0; if (njd) njd_info(njd, &eng, &cores);
-            if (lf) { std::fprintf(lf, "==== agent: port %d, models", srv_port); for (const std::string& m : model_names) std::fprintf(lf, " %s", m.c_str()); std::fprintf(lf, ", nvjpeg %s (%u engines), freerun %d\n", njd ? "ok" : "MISSING", eng, freerun ? 1 : 0); std::fflush(lf); }
+            if (lf) { std::fprintf(lf, "==== agent: port %d, models", srv_port); for (const std::string& m : model_names) std::fprintf(lf, " %s", m.c_str()); std::fprintf(lf, ", input %s (b%d), nvjpeg %s (%u engines), freerun %d\n", input_profile.c_str(), model_names.empty() ? 0 : models[model_names.front()].batch, njd ? "ok" : "MISSING", eng, freerun ? 1 : 0); std::fflush(lf); }
         }
         if (lf) { std::fprintf(lf, "==== tenant ready (engines loaded and validated, decoder warm) %lld\n", static_cast<long long>(now_real_ns() / 1000000000LL)); std::fflush(lf); }
         std::FILE* cf = csv_file.empty() ? nullptr : std::fopen(csv_file.c_str(), "w");
@@ -949,7 +969,7 @@ struct Tenant {
         dl_pause = envi("DAPP_TENANT_DL_PAUSE", 0); dl_max_class = envi("DAPP_TENANT_DL_MAX_CLASS", 0); ul_pause = envi("DAPP_TENANT_UL_PAUSE", 0); tiles_per_request = envi("DAPP_TENANT_TILES", 8);
         unknown_prev = std::string(envs("DAPP_TENANT_UNKNOWN", "prev")) != "max"; horizon_max = envi("DAPP_TENANT_HORIZON_MAX", 200); pred_frames = envi("DAPP_TENANT_PRED_FRAMES", 12); empty_us = envi("DAPP_TENANT_EMPTY_US", 400);
         one_per_gap = envi("DAPP_TENANT_ONE_PER_GAP", -1);   // -1: union layout keeps only the largest class per (P, N) (the horizon rule never uses a smaller one); gap layout keeps all
-        fb_guard = envi("DAPP_TENANT_FB_GUARD", 0); layout = envs("DAPP_TENANT_LAYOUT", "union"); if (one_per_gap < 0) one_per_gap = (layout == "union") ? 1 : 0;
+        fb_guard = envi("DAPP_TENANT_FB_GUARD", 0); layout = envs("DAPP_TENANT_LAYOUT", "union"); engine_ctx_per_class = std::string(envs("DAPP_TENANT_ENGINE_CTX", "prim")) == "part";   // 2026-11-10: was a const char* pointer comparison (prim never took effect) if (one_per_gap < 0) one_per_gap = (layout == "union") ? 1 : 0;
         qos_on = envi("DAPP_AGENT_QOS", 1) != 0; prof_s = envi("DAPP_AGENT_PROFILE_S", 0);
         chunk_n = envi("DAPP_AGENT_GRAPH_CHUNK", 3); chunk_ahead = std::max(1, envi("DAPP_AGENT_CHUNK_AHEAD", 2));
         // guard 0 (14:30): 80 SM at 1 cell, the PUSCH fallback profile ran 0-2 of 48000 UL slots without a recovery. Pieces 3 nodes / 2 ahead (15:15): 3/1 was clean
@@ -1053,7 +1073,7 @@ struct Tenant {
     }
     bool launch(std::string& err) {
         if (agent_on) {
-            agent::Config c; c.port = srv_port; c.udp = envs("DAPP_AGENT_UDP", ""); c.cpu = envi("DAPP_AGENT_CPU", 46);   // an isolated core nobody else uses (tenant 45, export 43); unpinned it inherited the L1 main thread's core -> L1 recovery exit c.max_queue = envi("DAPP_AGENT_MAX_QUEUE", 8); c.cells = envi("DAPP_AGENT_CELLS", 1); c.gpu_sm = nsm;
+            agent::Config c; c.port = srv_port; c.input = input_profile = envs("DAPP_INPUT", "4k"); c.udp = envs("DAPP_AGENT_UDP", ""); c.cpu = envi("DAPP_AGENT_CPU", 46);   // an isolated core nobody else uses (tenant 45, export 43); unpinned it inherited the L1 main thread's core -> L1 recovery exit c.max_queue = envi("DAPP_AGENT_MAX_QUEUE", 8); c.cells = envi("DAPP_AGENT_CELLS", 1); c.gpu_sm = nsm;
             std::string mj = "["; for (size_t i = 0; i < model_names.size(); i++) { if (i) mj += ','; mj += json::quote(model_names[i]); } mj += ']'; c.models_json = mj;
             srv.set_report_fn([this](int window_ms) { return report_json(window_ms); });
             srv.set_estimate_fn([this]() { std::lock_guard<std::mutex> g(rep_m); return last_estimate; });

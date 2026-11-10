@@ -42,6 +42,7 @@ struct Config {
     int port = 9810; std::string udp; int cpu = -1; int max_queue = 8;
     std::string models_json = "[]";    // welcome: ["26n",...]
     int cells = 0; std::string tdd = "DDDDDDSUUU"; int gpu_sm = 132;
+    std::string input = "4k";          // welcome "input" (DAPP_INPUT): 4k = batch-8 1280 crops 6 + 2 whole-image views, fhd = batch-3 (2 + 1)
 };
 
 class Server {

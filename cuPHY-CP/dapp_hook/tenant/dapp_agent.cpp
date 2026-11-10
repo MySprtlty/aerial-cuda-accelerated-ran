@@ -106,7 +106,7 @@ void Server::handle_line(Client& c, int idx, const std::string& line) {
         c.next_report_ns = now_real_ns() + static_cast<int64_t>(c.period_ms) * 1000000LL;
         // a returning role replaces the older connection of the same role
         for (size_t j = 0; j < clients_.size(); j++) { if (static_cast<int>(j) != idx && clients_[j].fd >= 0 && clients_[j].role == c.role && clients_[j].role != "unknown") clients_[j].want_close = true; }
-        json::Obj o; o.kv("type", "welcome").kv("version", 1).raw("models", cfg_.models_json).kv("slot_us", 500).kv("cells", cfg_.cells).kv("tdd", cfg_.tdd).kv("gpu_sm", cfg_.gpu_sm);
+        json::Obj o; o.kv("type", "welcome").kv("version", 1).raw("models", cfg_.models_json).kv("slot_us", 500).kv("cells", cfg_.cells).kv("tdd", cfg_.tdd).kv("gpu_sm", cfg_.gpu_sm).kv("input", cfg_.input);
         send(c, o.str()); return;
     }
     if (type == "run") {
@@ -121,7 +121,7 @@ void Server::handle_line(Client& c, int idx, const std::string& line) {
         const std::string what = v.s("what");
         if (what == "estimate") { std::string e; { std::lock_guard<std::mutex> g(em_); e = latest_estimate_; } if (e.empty() && estimate_fn_) e = estimate_fn_(); send(c, e.empty() ? json::Obj().kv("type", "estimate").kv("status", "none").str() : e); return; }
         if (what == "sm_report") { send(c, report_fn_ ? report_fn_(c.period_ms) : json::Obj().kv("type", "sm_report").kv("status", "none").str()); return; }
-        if (what == "models") { json::Obj o; o.kv("type", "welcome").kv("version", 1).raw("models", cfg_.models_json).kv("slot_us", 500).kv("cells", cfg_.cells).kv("tdd", cfg_.tdd).kv("gpu_sm", cfg_.gpu_sm); send(c, o.str()); return; }
+        if (what == "models") { json::Obj o; o.kv("type", "welcome").kv("version", 1).raw("models", cfg_.models_json).kv("slot_us", 500).kv("cells", cfg_.cells).kv("tdd", cfg_.tdd).kv("gpu_sm", cfg_.gpu_sm).kv("input", cfg_.input); send(c, o.str()); return; }
         send(c, json::Obj().kv("type", "error").kv("error", "unknown get: " + what).str()); return;
     }
     if (type == "ping") { send(c, json::Obj().kv("type", "pong").kv("t_ns", static_cast<long long>(now_real_ns())).str()); return; }

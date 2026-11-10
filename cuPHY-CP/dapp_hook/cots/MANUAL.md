@@ -24,7 +24,7 @@ L1 설정 `config/cuphycontroller_dgist.yaml`, `config/l2_adapter_dgist.yaml` = 
 | L2A `dapp_hook` 줄 | 없음 | enable 1, export_cpu 43 | FAPI UL_TTI/DL_TTI를 사이저·테넌트로 내보내는 훅 |
 
 환경변수(`cots.env`): `CUPHY_PRACH_FORCE_THR0=20.0`(연구실 바이너리에 하드코딩된 PRACH 임계값; 우리 빌드는 env로 읽음), dApp 클래스 `24,40,48,56,64,72,80`
-(= 1셀 배치가 YOLO에 남길 수 있는 자유 SM 값 P−N−8; 32는 나오지 않음. 모델별 엔진 `models/full26<m>/seg00_sm<c>.engine`, 엔진당 GPU 메모리 약 1 GB → 35개 로드 시
+(= 1셀 배치가 YOLO에 남길 수 있는 자유 SM 값 P−N−8; 32는 나오지 않음. 모델별 엔진 `models/full26<m>/seg00_sm<c>.engine` (4K 프로파일, batch 8; `DAPP_INPUT=fhd`면 `models/fhd26<m>/`, batch 3: 1280×1080 크롭 2 + 전체 1, 2026-11-09; fhd의 클래스는 `DAPP_TENANT_CLASSES_FHD`(기본 24,…,80, 4K와 같음; 2026-11-10: 모든 엔진을 primary context에서 역직렬화하고 fhd26s/fhd26l의 sm80 엔진은 sm72 timing cache로 빌드함 — tenant/dapp_tenant.cu load_set 주석), 엔진당 GPU 메모리 약 1 GB → 35개 로드 시
 L1 포함 약 78 GB / 97 GB 사용), 테넌트/에이전트 코어 45/46, xApp 포트 9810.
 
 **실 L2(OAI)와 testMAC의 차이 (2026-11-05 발견·수정):** OAI는 내용이 있는 슬롯(SSB/SIB1, PRACH 기회, 스케줄된 UE)에만 DL_TTI/UL_TTI를 보내고 빈 슬롯은 아무

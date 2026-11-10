@@ -12,7 +12,8 @@
 //   int   njd_decode(void* ctx, const unsigned char* jpeg, size_t n, float* d_tensor, int S,
 //                    void* cuda_stream, float t_ms[3], int wh[2]);   // t_ms: parse+host, decode (device), letterbox
 //   int   njd_decode_tiles(ctx, jpeg, n, d_tensor, S, batch, tiled, cuda_stream, t_ms, wh, int rois_out[4*batch]);
-//         // tiled = 1: S x S native crops on a grid (4K at S = 1280 -> 6 tiles) + whole-image views in the remaining slots
+//         // tiled = 1: native crops on a grid (4K at S = 1280 -> 6 tiles of 1280 x 1280; FHD -> 2 of 1280 x 1080) + whole-image
+//         //            views in the remaining slots; a grid that does not leave a slot for the whole image -> whole-image views only
 //   void  njd_destroy(void* ctx);
 #include <cuda_runtime.h>
 #include <nvjpeg.h>
@@ -165,14 +166,19 @@ int njd_decode_tiles(void* vc, const unsigned char* jpeg, size_t n, float* d_ten
     cudaEventRecord(c->e1, cs);
     int W = (int)w, H = (int)h, slot = 0;
     size_t tile_elems = (size_t)3 * S * S;
-    if (tiled && W >= S && H >= S) {
-        int nx = (W + S - 1) / S, ny = (H + S - 1) / S;
-        for (int j = 0; j < ny && slot < batch - 1; j++) {
-            for (int i = 0; i < nx && slot < batch - 1; i++) {
-                int rx = nx > 1 ? (int)((long)i * (W - S) / (nx - 1)) : 0;
-                int ry = ny > 1 ? (int)((long)j * (H - S) / (ny - 1)) : 0;
-                launch_tile(c->d_rgb, W, rx, ry, S, S, d_tensor + slot * tile_elems, S, cs);
-                if (rois_out) { rois_out[4 * slot] = rx; rois_out[4 * slot + 1] = ry; rois_out[4 * slot + 2] = S; rois_out[4 * slot + 3] = S; }
+    // native-resolution crop grid (2026-11-09: one dimension may be shorter than S - FHD 1920x1080 at S 1280 gives 2 x 1 crops of
+    // 1280 x 1080, padded top/bottom like a letterbox): cw x ch crops, ceil(W / S) x ceil(H / S) of them, evenly spaced (they overlap
+    // when the image is not a multiple of S: 4K rows 880..1279, FHD columns 640..1279). The grid is used only when it leaves at least
+    // one slot for the global view; an image the engine's batch was not made for (4K on a batch-3 FHD set) gets global views only.
+    const int cw = W < S ? W : S, ch = H < S ? H : S;
+    const int nx = W > S ? (W + S - 1) / S : 1, ny = H > S ? (H + S - 1) / S : 1;
+    if (tiled && (W > S || H > S) && nx * ny <= batch - 1) {
+        for (int j = 0; j < ny; j++) {
+            for (int i = 0; i < nx; i++) {
+                int rx = nx > 1 ? (int)((long)i * (W - cw) / (nx - 1)) : 0;
+                int ry = ny > 1 ? (int)((long)j * (H - ch) / (ny - 1)) : 0;
+                launch_tile(c->d_rgb, W, rx, ry, cw, ch, d_tensor + slot * tile_elems, S, cs);
+                if (rois_out) { rois_out[4 * slot] = rx; rois_out[4 * slot + 1] = ry; rois_out[4 * slot + 2] = cw; rois_out[4 * slot + 3] = ch; }
                 slot++;
             }
         }

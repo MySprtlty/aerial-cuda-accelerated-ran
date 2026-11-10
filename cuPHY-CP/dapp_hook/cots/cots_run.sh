@@ -22,6 +22,15 @@ mps_off() { in_r 'export CUDA_MPS_PIPE_DIRECTORY=/var CUDA_MPS_LOG_DIRECTORY=/va
 ran_procs() { ps -eo stat,comm --no-headers | awk '$1 !~ /^Z/ && $2 ~ /^(phy_main|cuphycontroller|ru_emulator|test_mac|nr-softmodem)/ {print $2}' | sort | uniq -c | tr '\n' ' '; }
 core_up() { pgrep -x open5gs-amfd > /dev/null && ip -br addr show ogstun 2>/dev/null | grep -q '10.45.0.1'; }
 port_open() { (echo > /dev/tcp/127.0.0.1/$DAPP_AGENT_PORT) 2>/dev/null; }
+# engine set of the input profile (.env DAPP_INPUT, 2026-11-09): 4k = models/full26<m> batch-8 tiles, fhd = models/fhd26<m> batch-3 (+ FHD warm-up frames)
+ESET=full26; FHD_ENV=""
+if [ "${DAPP_INPUT:-4k}" = fhd ]; then ESET=fhd26; M=$SDK/cuPHY-CP/dapp_hook/models
+  FHD_ENV="DAPP_TENANT_MODELS=$(c=""; for m in n s m l x; do printf "%s26%s=%s" "$c" $m $M/fhd26$m; c=,; done) DAPP_AGENT_WARMUP=$M/imgfhd/fhd_0_q85.jpg,$M/imgfhd/fhd_1_q85.jpg DAPP_TENANT_CLASSES=${DAPP_TENANT_CLASSES_FHD:-24,40,48,56,64,72,80}"; fi
+# dApp SM classes of the profile (.env DAPP_TENANT_CLASSES / DAPP_TENANT_CLASSES_FHD). Both ladders end at 80 since 2026-11-10 11:00: the tenant now
+# deserializes every engine in the primary context (TensorRT 10.3 Myelin caches per-kernel GEMM grids process-wide from the context of the first
+# deserialization) and the fhd26s/fhd26l sm80 engines are built with the sm72 timing cache (their native sm80 tactics fail "Cask Gemm execution"
+# next to another class of the same model) - see tenant/dapp_tenant.cu load_set and _dgist scripts/build_yolo_engines.sh.
+CL=$DAPP_TENANT_CLASSES; [ "${DAPP_INPUT:-4k}" = fhd ] && CL=${DAPP_TENANT_CLASSES_FHD:-24,40,48,56,64,72,80}
 oai_up() { docker ps --format '{{.Names}}' | grep -qx $OAI_CONTAINER; }
 compose() { (cd $D/oai && OAI_IMAGE=$OAI_IMAGE OAI_CPUSET=$OAI_CPUSET OAI_CONTAINER=$OAI_CONTAINER docker compose "$@"); }
 
@@ -42,7 +51,7 @@ stop_all() {   # reverse order; idempotent; logs into $1 (default $RUN)
 case "$cmd" in
 start)
   mkdir -p $RUN; rm -f $RUN/STOP
-  echo "== $NAME: 1-cell COTS demo on our L1 ($BUILD_DIR, config $L1_CONFIG, green contexts, dApp classes $DAPP_TENANT_CLASSES) $(date +%T)"
+  echo "== $NAME: 1-cell COTS demo on our L1 ($BUILD_DIR, config $L1_CONFIG, green contexts, dApp classes $CL, input ${DAPP_INPUT:-4k}) $(date +%T)"
   ok=1
   c_up || { echo "!! container $CONTAINER is not running (in the SDK tree: cuPHY-CP/container/run_aerial.sh -d)"; ok=0; }
   [ -f $CUR ] && { echo "!! a run is registered as current ($(cat $CUR)); '$0 stop --now' first"; ok=0; }
@@ -51,7 +60,7 @@ start)
   if c_up; then
     in_c "test -x $SDK/$BUILD_DIR/cuPHY-CP/cuphycontroller/examples/cuphycontroller_scf" || { echo "!! $BUILD_DIR/cuPHY-CP/cuphycontroller/examples/cuphycontroller_scf missing in $CONTAINER"; ok=0; }
     for kv in SCF_FAPI_10_04:BOOL=OFF ENABLE_CONFORMANCE_TM_PDSCH_PDCCH:BOOL=OFF SCF_FAPI_10_04_SRS:BOOL=ON ENABLE_DAPP_HOOK:BOOL=ON; do in_c "grep -q '^$kv\$' $SDK/$BUILD_DIR/CMakeCache.txt" || { echo "!! $BUILD_DIR/CMakeCache.txt: expected $kv (baseline FAPI wire layout + dApp hook)"; ok=0; }; done
-    for m in n s m l x; do in_c "test -e $SDK/cuPHY-CP/dapp_hook/models/full26$m/seg00_sm80.engine" || { echo "!! YOLO engine models/full26$m/seg00_sm80.engine missing (models/build_engines.sh)"; ok=0; }; done
+    for m in n s m l x; do in_c "test -e $SDK/cuPHY-CP/dapp_hook/models/${ESET}$m/seg00_sm${CL##*,}.engine" || { echo "!! YOLO engine models/${ESET}$m/seg00_sm${CL##*,}.engine missing (models/build_engines.sh)"; ok=0; }; done
     [ -n "${PRACH_FORCE_THR0:-}" ] && { in_c "grep -q CUPHY_PRACH_FORCE_THR0 $SDK/$BUILD_DIR/cuPHY-CP/cuphydriver/src/libcuphydriver.so" || echo "!! PRACH_FORCE_THR0 set but libcuphydriver.so lacks the CUPHY_PRACH_FORCE_THR0 change"; }
   fi
   [ "$(nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader 2>/dev/null)" = Disabled ] || { echo "!! GPU MIG mode is not Disabled"; ok=0; }
@@ -73,7 +82,7 @@ start)
   docker exec -i -u root $CONTAINER bash -c "cat > $CFG/l2_adapter_$L1_CONFIG.yaml" < $D/config/l2_adapter_$L1_CONFIG.yaml
   in_r "rm -f $PHYLOG /tmp/dapp_tenant.log /tmp/dapp_tenant_slots.csv"
   # ---- L1 = cuphycontroller_scf with the dApp tenant + xApp agent
-  ENVS="export cuBB_SDK=$SDK DAPP_TENANT=1 DAPP_AGENT=1 DAPP_AGENT_CELLS=1 DAPP_PUSCH_PROFILES=$DAPP_PUSCH_PROFILES DAPP_PDSCH_PROFILES=$DAPP_PDSCH_PROFILES DAPP_SIZER_MODEL=$SDK/cuPHY-CP/dapp_hook/estimator/sm_model.txt DAPP_TENANT_CLASSES=$DAPP_TENANT_CLASSES DAPP_TENANT_FB_GUARD=0 DAPP_TENANT_LAYOUT=union DAPP_TENANT_CPU=$DAPP_TENANT_CPU DAPP_AGENT_CPU=$DAPP_AGENT_CPU DAPP_AGENT_PORT=$DAPP_AGENT_PORT DAPP_AGENT_GRAPH_CHUNK=$DAPP_AGENT_GRAPH_CHUNK DAPP_AGENT_CHUNK_AHEAD=$DAPP_AGENT_CHUNK_AHEAD DAPP_AGENT_QOS=$DAPP_AGENT_QOS DAPP_TENANT_LOG=/tmp/dapp_tenant.log DAPP_TENANT_CSV=/tmp/dapp_tenant_slots.csv ${PRACH_FORCE_THR0:+CUPHY_PRACH_FORCE_THR0=$PRACH_FORCE_THR0} ${L1_EXTRA_ENV:-}"
+  ENVS="export cuBB_SDK=$SDK DAPP_TENANT=1 DAPP_AGENT=1 DAPP_AGENT_CELLS=1 DAPP_PUSCH_PROFILES=$DAPP_PUSCH_PROFILES DAPP_PDSCH_PROFILES=$DAPP_PDSCH_PROFILES DAPP_SIZER_MODEL=$SDK/cuPHY-CP/dapp_hook/estimator/sm_model.txt DAPP_TENANT_CLASSES=$DAPP_TENANT_CLASSES DAPP_TENANT_FB_GUARD=0 DAPP_TENANT_LAYOUT=union DAPP_TENANT_CPU=$DAPP_TENANT_CPU DAPP_AGENT_CPU=$DAPP_AGENT_CPU DAPP_AGENT_PORT=$DAPP_AGENT_PORT DAPP_AGENT_GRAPH_CHUNK=$DAPP_AGENT_GRAPH_CHUNK DAPP_AGENT_CHUNK_AHEAD=$DAPP_AGENT_CHUNK_AHEAD DAPP_AGENT_QOS=$DAPP_AGENT_QOS DAPP_TENANT_LOG=/tmp/dapp_tenant.log DAPP_TENANT_CSV=/tmp/dapp_tenant_slots.csv ${PRACH_FORCE_THR0:+CUPHY_PRACH_FORCE_THR0=$PRACH_FORCE_THR0} DAPP_INPUT=${DAPP_INPUT:-4k} ${FHD_ENV:-} ${L1_EXTRA_ENV:-}"
   echo "$ENVS" > $RUN/l1_env.txt
   docker exec -u root $CONTAINER bash -c "$ENVS; cd $SDK && exec $SDK/$BUILD_DIR/cuPHY-CP/cuphycontroller/examples/cuphycontroller_scf $L1_CONFIG" > $RUN/l1_console.log 2>&1 & L1=$!
   echo "   L1 starting: cuphycontroller_scf $L1_CONFIG${PRACH_FORCE_THR0:+ (CUPHY_PRACH_FORCE_THR0=$PRACH_FORCE_THR0)} $(date +%T)"

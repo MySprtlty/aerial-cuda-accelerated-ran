@@ -1,6 +1,7 @@
 #!/bin/bash
 # fhd_b3_test.sh - validate the FHD batch-3 profile on the stand-alone tenant (dapp_tenant_main of the _dgist tree, no L1, fixed partition)
 #   cstart | cstop | tenant-start <sm> [4k|fhd] | tenant-stop | run <tag> <imgdir> [model] [rate] [sec] | welcome | log | summary <csv>
+#   env MODELS="n s m l x" (tenant-start): which models the stand-alone tenant loads
 set -u
 A=/home/nvidia/_dgist/aerial-cuda-accelerated-ran; H=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook
 IMG=nvcr.io/nvidia/aerial/aerial-cuda-accelerated-ran:25-3-cubb; C=dgist-fhd-test
@@ -12,7 +13,7 @@ cstart) docker rm -f $C >/dev/null 2>&1
     -v $A:/opt/nvidia/cuBB -w /opt/nvidia/cuBB --entrypoint bash $IMG -c 'sleep infinity' >/dev/null && echo "container $C up" ;;
 cstop) docker rm -f $C >/dev/null 2>&1; echo "container $C removed" ;;
 tenant-start) sm=$2; prof=${3:-fhd}; set=fhd26; [ $prof = 4k ] && set=full26
-  spec=""; for m in n s m l x; do spec="$spec${spec:+,}26$m=$H/models/$set$m"; done
+  spec=""; for m in ${MODELS:-n s m l x}; do spec="$spec${spec:+,}26$m=$H/models/$set$m"; done   # MODELS="n s" limits the loaded models (2026-11-11)
   warm=$H/models/imgfhd/fhd_0_q85.jpg,$H/models/imgfhd/fhd_1_q85.jpg; [ $prof = 4k ] && warm=$H/models/img4k/img4k_0.jpg
   inc "rm -f /tmp/t_tenant.log /tmp/t_tenant.csv /tmp/t_console.log"
   docker exec -d -u root -e DAPP_TENANT=1 -e DAPP_AGENT=1 -e DAPP_TENANT_FREERUN=1 -e DAPP_TENANT_FIXED=$sm -e DAPP_TENANT_CLASSES=$sm \

@@ -25,12 +25,12 @@ port_open() { (echo > /dev/tcp/127.0.0.1/$DAPP_AGENT_PORT) 2>/dev/null; }
 # engine set of the input profile (.env DAPP_INPUT, 2026-11-09): 4k = models/full26<m> batch-8 tiles, fhd = models/fhd26<m> batch-3 (+ FHD warm-up frames)
 ESET=full26; FHD_ENV=""
 if [ "${DAPP_INPUT:-4k}" = fhd ]; then ESET=fhd26; M=$SDK/cuPHY-CP/dapp_hook/models
-  FHD_ENV="DAPP_TENANT_MODELS=$(c=""; for m in n s m l x; do printf "%s26%s=%s" "$c" $m $M/fhd26$m; c=,; done) DAPP_AGENT_WARMUP=$M/imgfhd/fhd_0_q85.jpg,$M/imgfhd/fhd_1_q85.jpg DAPP_TENANT_CLASSES=${DAPP_TENANT_CLASSES_FHD:-24,40,48,56,64,72,80}"; fi
+  FHD_ENV="DAPP_TENANT_MODELS=$(c=""; for m in n s m l x; do printf "%s26%s=%s" "$c" $m $M/fhd26$m; c=,; done) DAPP_AGENT_WARMUP=$M/imgfhd/fhd_0_q85.jpg,$M/imgfhd/fhd_1_q85.jpg DAPP_TENANT_CLASSES=${DAPP_TENANT_CLASSES_FHD:-24,40,48,56,64,72,80,88}"; fi
 # dApp SM classes of the profile (.env DAPP_TENANT_CLASSES / DAPP_TENANT_CLASSES_FHD). Both ladders end at 80 since 2026-11-10 11:00: the tenant now
 # deserializes every engine in the primary context (TensorRT 10.3 Myelin caches per-kernel GEMM grids process-wide from the context of the first
 # deserialization) and the fhd26s/fhd26l sm80 engines are built with the sm72 timing cache (their native sm80 tactics fail "Cask Gemm execution"
 # next to another class of the same model) - see tenant/dapp_tenant.cu load_set and _dgist scripts/build_yolo_engines.sh.
-CL=$DAPP_TENANT_CLASSES; [ "${DAPP_INPUT:-4k}" = fhd ] && CL=${DAPP_TENANT_CLASSES_FHD:-24,40,48,56,64,72,80}
+CL=$DAPP_TENANT_CLASSES; [ "${DAPP_INPUT:-4k}" = fhd ] && CL=${DAPP_TENANT_CLASSES_FHD:-24,40,48,56,64,72,80,88}
 oai_up() { docker ps --format '{{.Names}}' | grep -qx $OAI_CONTAINER; }
 compose() { (cd $D/oai && OAI_IMAGE=$OAI_IMAGE OAI_CPUSET=$OAI_CPUSET OAI_CONTAINER=$OAI_CONTAINER docker compose "$@"); }
 

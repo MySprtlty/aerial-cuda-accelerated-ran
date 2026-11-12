@@ -841,16 +841,22 @@ struct Tenant {
         }
         if (lf) { std::fprintf(lf, "==== tenant ready (engines loaded and validated, decoder warm) %lld\n", static_cast<long long>(now_real_ns() / 1000000000LL)); std::fflush(lf); }
         std::FILE* cf = csv_file.empty() ? nullptr : std::fopen(csv_file.c_str(), "w");
-        if (cf) { std::fprintf(cf, "abs_slot,sfn,slot,pos,P,N,part,class,set,segments,paused_us,known,plan_ul_sm,plan_dl_sm\n"); }
+        if (cf) { std::fprintf(cf, "abs_slot,sfn,slot,pos,P,N,part,class,set,segments,paused_us,known,plan_ul_sm,plan_dl_sm,t_ns,gap_P,gap_N,run_cls,queue,model\n"); }
         int64_t last_log = now_mono_ns(); int64_t last_w = -1; int segs_in_slot = 0, segs_q = 0, segs_b = 0; int64_t paused_in_slot = 0; int cur_part_slot = -1; bool known_slot = true;
         uint64_t q_inf_at_log = 0, b_inf_at_log = 0, q_req_at_log = 0, b_req_at_log = 0;
         auto flush_slot = [&](int64_t w) {
             if (cf && last_w >= 0) {
                 bool pred; const SlotPlanEntry* e = plan_of(last_w, pred);
-                std::fprintf(cf, "%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%lld,%d,%d,%d\n", static_cast<long long>(last_w), static_cast<int>((last_w / kSzSlotsPerFrame) & 1023), static_cast<int>(last_w % kSzSlotsPerFrame), static_cast<int>(last_w % 10),
+                // 2026-11-11 (slot-map video, tools/slotmap_render.py): t_ns = wall clock at the slot change; gap_P/gap_N = the (P, N) gap the sizer
+                // offered YOLO in this slot (free SMs = P - N - 8, RAN reserved = 132 - free), request or not; run_cls = SMs the in-flight inference
+                // occupies (chunked graphs included; the older `class` column only marks slots with a segment enqueue); queue = waiting requests
+                int gP = -1, gN = -1; { bool gk, gd, gu; busy_of(last_w, gP, gN, gk, gd, gu); }
+                const int run_cls = (have_req && a_pidx >= 0) ? parts[a_pidx].cls : 0;
+                std::fprintf(cf, "%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%lld,%d,%d,%d,%lld,%d,%d,%d,%zu,%s\n", static_cast<long long>(last_w), static_cast<int>((last_w / kSzSlotsPerFrame) & 1023), static_cast<int>(last_w % kSzSlotsPerFrame), static_cast<int>(last_w % 10),
                              cur_part_slot >= 0 ? parts[cur_part_slot].P : -1, cur_part_slot >= 0 ? parts[cur_part_slot].N : -1, cur_part_slot, cur_part_slot >= 0 ? parts[cur_part_slot].cls : 0,
                              segs_b > segs_q ? busy.batch : (segs_q > 0 ? quiet.batch : 0), segs_in_slot, static_cast<long long>(paused_in_slot / 1000), known_slot ? 1 : 0,
-                             (e && !pred) ? (e->ul_any ? static_cast<int>(e->ul_sm) : 0) : -1, (e && !pred) ? (e->dl_any ? static_cast<int>(e->dl_sm) : 0) : -1);
+                             (e && !pred) ? (e->ul_any ? static_cast<int>(e->ul_sm) : 0) : -1, (e && !pred) ? (e->dl_any ? static_cast<int>(e->dl_sm) : 0) : -1,
+                             static_cast<long long>(now_real_ns()), gP, gN, run_cls, agent_on ? srv.queue_depth() : static_cast<size_t>(0), have_req ? cur.model.c_str() : "");
             }
             last_w = w; segs_in_slot = 0; segs_q = 0; segs_b = 0; paused_in_slot = 0; cur_part_slot = -1; known_slot = true;
         };
@@ -963,6 +969,7 @@ struct Tenant {
         quiet.input = envs("DAPP_TENANT_INPUT", "/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/seg26n/input_uhd_b8_fp16.bin"); quiet.batch = envi("DAPP_TENANT_BATCH", 8);
         busy.name = "busy"; busy.dir = envs("DAPP_TENANT_BUSY_DIR", ""); busy.input = envs("DAPP_TENANT_BUSY_INPUT", "/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/models/seg26n_b1/input_uhd_b1_fp16.bin"); busy.batch = envi("DAPP_TENANT_BUSY_BATCH", 1);
         log_file = envs("DAPP_TENANT_LOG", "/tmp/dapp_tenant.log"); csv_file = envs("DAPP_TENANT_CSV", "/tmp/dapp_tenant_slots.csv");
+        { const char* ev = std::getenv("DAPP_TENANT_CSV"); if (ev && !*ev) csv_file.clear(); }   // 2026-11-11: DAPP_TENANT_CSV= (empty) switches the per-slot CSV off (.env DAPP_SLOT_CSV=0)
         classes = env_list("DAPP_TENANT_CLASSES", {40, 48, 64, 88}); std::sort(classes.begin(), classes.end());
         cpu = envi("DAPP_TENANT_CPU", 45); prio = envi("DAPP_TENANT_PRIO", 0); lookahead = envi("DAPP_TENANT_LOOKAHEAD", 1); guard_us = envi("DAPP_TENANT_GUARD_US", 60);
         ul_back = envi("DAPP_TENANT_UL_BACK", 4); dl_fwd = envi("DAPP_TENANT_DL_FWD", 2); fixed = envi("DAPP_TENANT_FIXED", 0); pause_us = envi("DAPP_TENANT_PAUSE_US", 20); log_s = envi("DAPP_TENANT_LOG_S", 10);

@@ -108,6 +108,10 @@ int SlotMapUl::release(int num_cells, bool enable_task_run_times)
     if((num_active_cells > 0) && (prev_cells + num_cells < num_active_cells))
         return 0;
 
+    // PUSCH in-order gate: whatever happened to this slot, later slots must not wait for it any more
+    pdctx->ulInorderMarkDone(ul_pusch_seq);
+    ul_pusch_seq = 0;
+
     bool isSrs = false;
     bool isNonSrsUl = false;
     bool ulBfwPrinted = false;

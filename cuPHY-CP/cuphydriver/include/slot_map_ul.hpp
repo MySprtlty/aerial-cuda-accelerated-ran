@@ -444,6 +444,7 @@ public:
     MemFoot          mf;                                        ///< Memory footprint tracking for this slot map
 
     PhyPuschAggr * aggr_pusch;                                  ///< PUSCH aggregator pointer (nullptr if not scheduled)
+    uint64_t       ul_pusch_seq = 0;                            ///< PUSCH in-order gate: sequence number of this slot (0 = no PUSCH)
     PhyPucchAggr * aggr_pucch;                                  ///< PUCCH aggregator pointer (nullptr if not scheduled)
     PhyPrachAggr * aggr_prach;                                  ///< PRACH aggregator pointer (nullptr if not scheduled)
     PhyUlBfwAggr * aggr_ulbfw;                                  ///< UL beamforming weight aggregator pointer (nullptr if not scheduled)

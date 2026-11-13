@@ -1314,6 +1314,8 @@ int l1_enqueue_phy_work(phydriver_handle pdh, struct slot_command_api::slot_comm
                 NVLOGE_FMT(TAG, AERIAL_CUPHYDRV_API_EVENT, "SlotMapUL aggrSetPhy");
                 goto cleanup_err;
             }
+            // PUSCH in-order gate: slot commands arrive in slot order, so this numbers the UL slots that carry PUSCH
+            slot_map_ul->ul_pusch_seq = (aggr_pusch_ptr != nullptr) ? pdctx->ulInorderNextSeq() : 0;
             //Check for Exit handler in flight and skip enqueing of UL tasks accordingly
             if(pExitHandler.test_exit_in_flight())
             {

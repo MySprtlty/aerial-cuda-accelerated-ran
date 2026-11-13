@@ -21,6 +21,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <vector>
 #include <unordered_map>
 
@@ -187,6 +191,30 @@ public:
     // TESTMAC_LP_BLOCK_FRAMES frames, block k is replayed for N consecutive real blocks, then block k+1 (wrapping). The real
     // frame counter is extended beyond SFN 1023 with CLOCK_REALTIME (frame 0 of SFN 0 at t = 3.64 s mod 10.24 s), nearest-match
     // adjusted to the slot's SFN. The RU emulator implements the same mapping (RU_LP_BLOCK_REPEAT), so both pick the same vectors.
+    // run-time load selection (2026-11-13), default OFF = the alternation below. TESTMAC_LP_BLOCK_CTL=<file> names an 8-byte word that
+    // testMAC and the RU emulator (RU_LP_BLOCK_CTL, the same file) map read-only: bits 63..56 = selection from extended frame F on,
+    // bits 55..48 = selection before F, bits 47..0 = F. Selection 0 = the alternation, k >= 1 = block k - 1 held. Both tools compare the
+    // same extended frame with F, so they change blocks at the same frame as long as F is written a few frames ahead. The file must
+    // hold 8 bytes before the first slot is looked up; a missing file or an all-zero word keeps the alternation.
+    static int64_t lp_block_select(int64_t ext, int n_blocks, int64_t seg)
+    {
+        static const uint64_t* word = []() -> const uint64_t* {
+            const char* e  = getenv("TESTMAC_LP_BLOCK_CTL");
+            const int   fd = (e && *e) ? open(e, O_RDONLY) : -1;
+            if (fd < 0)
+                return nullptr;
+            struct stat st;
+            void* p = (fstat(fd, &st) == 0 && st.st_size >= (off_t)sizeof(uint64_t)) ? mmap(nullptr, sizeof(uint64_t), PROT_READ, MAP_SHARED, fd, 0) : MAP_FAILED;
+            close(fd);
+            return p == MAP_FAILED ? nullptr : static_cast<const uint64_t*>(p);
+        }();
+        if (word == nullptr)
+            return seg;
+        const uint64_t w   = __atomic_load_n(word, __ATOMIC_RELAXED);
+        const int      sel = (int)((ext >= (int64_t)(w & 0xFFFFFFFFFFFFULL) ? w >> 56 : w >> 48) & 0xFF);
+        return sel > 0 ? (sel - 1) % n_blocks : seg;
+    }
+
     uint32_t lp_pattern_index(uint16_t sfn, uint16_t slot, size_t pattern_slots)
     {
         static const int rep = [] { const char* e = getenv("TESTMAC_LP_BLOCK_REPEAT"); return e ? atoi(e) : 0; }();
@@ -203,7 +231,7 @@ public:
         const int64_t ext      = f_wall + d;
         const int     n_frames = (int)(pattern_slots / slots_per_frame);
         const int     n_blocks = (n_frames / blk) > 0 ? (n_frames / blk) : 1;
-        const int64_t seg      = (ext / ((int64_t)blk * rep)) % n_blocks;
+        const int64_t seg      = lp_block_select(ext, n_blocks, (ext / ((int64_t)blk * rep)) % n_blocks);
         const int     fib      = (int)(ext % blk);
         return (uint32_t)(((seg * blk + fib) * slots_per_frame + slot) % pattern_slots);
     }

@@ -25,6 +25,9 @@
 #include <sstream>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -1335,6 +1338,30 @@ inline int64_t lp_extended_frame(int frame_id, int modulus)
     return f_wall + d;
 }
 
+// run-time load selection (2026-11-13), default OFF = the alternation. RU_LP_BLOCK_CTL=<file> names an 8-byte word that the RU emulator and
+// testMAC (TESTMAC_LP_BLOCK_CTL, the same file) map read-only: bits 63..56 = selection from extended frame F on, bits 55..48 = selection
+// before F, bits 47..0 = F. Selection 0 = the alternation, k >= 1 = block k - 1 held. Both tools compare the same extended frame with F, so
+// they change blocks at the same frame as long as F is written a few frames ahead. The file must hold 8 bytes before the first packet is
+// handled; a missing file or an all-zero word keeps the alternation.
+inline int64_t lp_block_select(int64_t ext, int n_blocks, int64_t seg)
+{
+    static const uint64_t* word = []() -> const uint64_t* {
+        const char* e  = getenv("RU_LP_BLOCK_CTL");
+        const int   fd = (e && *e) ? open(e, O_RDONLY) : -1;
+        if(fd < 0)
+            return nullptr;
+        struct stat st;
+        void* p = (fstat(fd, &st) == 0 && st.st_size >= (off_t)sizeof(uint64_t)) ? mmap(nullptr, sizeof(uint64_t), PROT_READ, MAP_SHARED, fd, 0) : MAP_FAILED;
+        close(fd);
+        return p == MAP_FAILED ? nullptr : static_cast<const uint64_t*>(p);
+    }();
+    if(word == nullptr)
+        return seg;
+    const uint64_t w   = __atomic_load_n(word, __ATOMIC_RELAXED);
+    const int      sel = (int)((ext >= (int64_t)(w & 0xFFFFFFFFFFFFULL) ? w >> 56 : w >> 48) & 0xFF);
+    return sel > 0 ? (sel - 1) % n_blocks : seg;
+}
+
 inline int fss_to_launch_pattern_slot(const struct fssId& fss, int launch_pattern_slot_size)
 {
     const int rep = lp_block_repeat();
@@ -1344,7 +1371,7 @@ inline int fss_to_launch_pattern_slot(const struct fssId& fss, int launch_patter
     const int     n_frames = launch_pattern_slot_size / (ORAN_MAX_SLOT_X_SUBFRAME_ID);
     const int     n_blocks = (n_frames / blk) > 0 ? (n_frames / blk) : 1;
     const int64_t ext      = lp_extended_frame(fss.frameId, 256);
-    const int64_t seg      = (ext / ((int64_t)blk * rep)) % n_blocks;
+    const int64_t seg      = lp_block_select(ext, n_blocks, (ext / ((int64_t)blk * rep)) % n_blocks);
     const int     fib      = (int)(ext % blk);
     return (int)(seg * blk + fib) * (ORAN_MAX_SLOT_X_SUBFRAME_ID) + fss.subframeId * (ORAN_MAX_SLOT_ID) + fss.slotId;
 }

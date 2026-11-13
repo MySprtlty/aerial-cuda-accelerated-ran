@@ -479,6 +479,70 @@ public:
     uint8_t                 getPuschAggrFactor() const;
     void                    setPuschAggrFactor(uint8_t pusch_aggr_factor_);
 
+    // PUSCH in-order gate (2026-11-14). Every UL slot with PUSCH gets a sequence number in l1_enqueue_phy_work (slot order).
+    // task_work_function_ul_aggr_3 hands the PUSCH results (CRC / RX_DATA) of sequence s to L2 only after s-1 was handed over or
+    // given up, so two consecutive UL slots can no longer report in the wrong order when their GPU work finishes out of order.
+    // Env: DAPP_PUSCH_INORDER=0/1 (default 1 with dApp PUSCH profiles, else 0), DAPP_PUSCH_INORDER_US (longest wait, default 3000).
+    static constexpr uint64_t UL_INORDER_RING = 64;
+    int                   ul_inorder_gate = 0;               ///< 1 = hold a PUSCH callback until the previous PUSCH slot reported
+    int64_t               ul_inorder_gate_ns = 3000000;      ///< longest hold; after it the slot reports anyway (counted as timeout)
+    std::atomic<uint64_t> ul_inorder_next{0};                ///< last sequence number handed out (0 = none)
+    std::atomic<uint64_t> ul_inorder_wm{0};                  ///< every sequence <= wm has reported or was given up
+    std::atomic<uint64_t> ul_inorder_done[UL_INORDER_RING];  ///< entry s % RING holds s once s is done
+    std::atomic<uint64_t> ul_inorder_last_cb{0};             ///< highest sequence whose callback started (out-of-order detection)
+    std::atomic<uint64_t> ul_inorder_n_cb{0}, ul_inorder_n_wait{0}, ul_inorder_n_timeout{0}, ul_inorder_n_ooo{0}, ul_inorder_n_setup_failed{0};
+    std::atomic<int64_t>  ul_inorder_wait_ns_sum{0}, ul_inorder_wait_ns_max{0}, ul_inorder_log_ns{0};
+    std::atomic<uint64_t> ul_inorder_logged_hard{0}, ul_inorder_logged_soft{0};
+    uint64_t ulInorderNextSeq() { return ul_inorder_next.fetch_add(1) + 1; }
+    bool     ulInorderPredDone(uint64_t seq) const { return seq <= ul_inorder_wm.load() + 1; }
+    void     ulInorderAdvance() {
+        uint64_t w = ul_inorder_wm.load();
+        for(;;) {
+            const uint64_t nx = w + 1;
+            if(ul_inorder_done[nx % UL_INORDER_RING].load() != nx) break;
+            if(ul_inorder_wm.compare_exchange_weak(w, nx)) w = nx;
+        }
+    }
+    void     ulInorderMarkDone(uint64_t seq) {               ///< idempotent; seq 0 = slot without PUSCH
+        if(seq == 0) return;
+        ul_inorder_done[seq % UL_INORDER_RING].store(seq);
+        ulInorderAdvance();
+    }
+    void     ulInorderGiveUpPred(uint64_t seq) {             ///< stop waiting for everything before seq
+        uint64_t w = ul_inorder_wm.load();
+        while(w + 1 < seq && !ul_inorder_wm.compare_exchange_weak(w, seq - 1)) {}
+        ulInorderAdvance();
+    }
+    /// Bookkeeping right before the PUSCH callback of sequence seq.
+    void     ulInorderOnCallback(uint64_t seq, bool waited, int64_t wait_ns, bool expired, bool setup_failed) {
+        if(seq == 0) return;
+        if(expired) ul_inorder_n_timeout.fetch_add(1);
+        if(!ulInorderPredDone(seq)) ulInorderGiveUpPred(seq);
+        uint64_t prev = ul_inorder_last_cb.load();
+        for(;;) {
+            if(seq < prev) { ul_inorder_n_ooo.fetch_add(1); break; }
+            if(ul_inorder_last_cb.compare_exchange_weak(prev, seq)) break;
+        }
+        ul_inorder_n_cb.fetch_add(1);
+        if(waited) {
+            ul_inorder_n_wait.fetch_add(1); ul_inorder_wait_ns_sum.fetch_add(wait_ns);
+            int64_t m = ul_inorder_wait_ns_max.load();
+            while(wait_ns > m && !ul_inorder_wait_ns_max.compare_exchange_weak(m, wait_ns)) {}
+        }
+        if(setup_failed) ul_inorder_n_setup_failed.fetch_add(1);
+    }
+    /// true when a summary line is due: 1 s after a timeout / out-of-order report / failed setup, 10 s after a plain wait.
+    bool     ulInorderLogDue(int64_t now_ns) {
+        const uint64_t hard = ul_inorder_n_timeout.load() + ul_inorder_n_ooo.load() + ul_inorder_n_setup_failed.load();
+        const uint64_t soft = ul_inorder_n_wait.load();
+        int64_t last = ul_inorder_log_ns.load();
+        const bool due = (hard != ul_inorder_logged_hard.load() && now_ns - last >= 1000000000LL) ||
+                         (soft != ul_inorder_logged_soft.load() && now_ns - last >= 10000000000LL);
+        if(!due || !ul_inorder_log_ns.compare_exchange_strong(last, now_ns)) return false;
+        ul_inorder_logged_hard.store(hard); ul_inorder_logged_soft.store(soft);
+        return true;
+    }
+
 private:
     std::array<cudaEvent_t,MAX_PDSCH_TB_CPY_CUDA_EVENTS> pdsch_tb_cpy_complete;
     std::array<cudaEvent_t,SLOTS_PER_FRAME> dlbfw_run_completion_event;

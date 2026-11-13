@@ -1065,10 +1065,23 @@ int PhyPuschAggr::validate(std::array<uint8_t,UL_MAX_CELLS_PER_SLOT>& cell_timeo
 
     uint32_t hb_slot_index=0;
     totNumTbCrc = dyn_params.pCellGrpDynPrm->nUes;
+    // Failed setup (2026-11-14; e.g. bucketAllocateBuffer refused a HARQ buffer that is still in flight): cuphyRunPuschRx did not
+    // run for this slot, so the output buffers hold values of earlier slots. Report every TB as CRC failure, with the TB CRC offsets
+    // rebuilt here (running TB count, the layout cuPHY setup phase 1 writes) because they may be stale as well. okTimeout makes the
+    // callback free the NDI=1 HARQ buffers that were allocated before the failure (their contents were not reset).
+    const bool setup_failed = (getSetupStatus() != CH_SETUP_DONE_NO_ERROR);
+    uint32_t tb_run = 0;
     for(uint32_t i = 0; i < totNumTbCrc; ++i)
     {
         if(dyn_params.pCellGrpDynPrm->pUePrms[i].pduBitmap & 0x01)
         {
+            if(setup_failed)
+            {
+                pStartOffsetsTbCrc[i] = tb_run;
+                pTbCrcs[tb_run] = 1;
+                okTimeout = true;
+            }
+            tb_run++;
             uint32_t offsetsTbCrc = pStartOffsetsTbCrc[i];
             if(hb_slot_index < hq_buffer_counter && hb_slot[hb_slot_index]->getCellDynIdx()==-1){
                 NVLOGE_FMT(TAG,AERIAL_INPUT_OUTPUT_EVENT,"{} : SFN {}.{} Cell dynamic index not being set for harq buffer slot index {}",__func__,aggr_slot_params->si->sfn_, aggr_slot_params->si->slot_,i);

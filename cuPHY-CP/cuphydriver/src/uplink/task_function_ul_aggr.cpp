@@ -2266,6 +2266,10 @@ int task_work_function_ul_aggr_3(Worker* worker, void* param, int first_cell, in
     bool log_once = false;
     bool pusch_reorder_kernel_timeout_state = false;
     bool pusch_terminating_state = false;
+    // PUSCH in-order gate (2026-11-14, see context.hpp)
+    const uint64_t ul_seq = (pusch != nullptr) ? slot_map->ul_pusch_seq : 0;
+    bool pusch_cb_pending = false, pusch_cb_waited = false;
+    t_ns pusch_cb_pending_t(0);
 #ifdef CUPTI_ENABLE_TRACING
     CuphyCuptiScopedExternalId cuphy_cupti_scoped_external_id(slot_map->getSlot3GPP().t0_);
 #endif
@@ -2487,17 +2491,46 @@ int task_work_function_ul_aggr_3(Worker* worker, void* param, int first_cell, in
                         break;
                     case WAIT_ACTION_COMPLETED:
                         slot_map->timings.end_t_ul_pusch_compl[0] = Time::nowNs();
-
-                        TI_ADD("Validate PUSCH");
-                        pusch->validate(cell_timeout_list,gpu_early_harq_timeout,slot_map->aggr_ulbuf_pcap_capture, slot_map->aggr_ulbuf_pcap_capture_ts);
-
-                        TI_ADD("Callback PUSCH");
-                        slot_map->timings.start_t_ul_pusch_cb[0] = Time::nowNs();
-                        pusch->callback(cell_timeout_list,gpu_early_harq_timeout);
-                        slot_map->timings.end_t_ul_pusch_cb[0] = Time::nowNs();
-
-                        TI_ADD("Done PUSCH");
+                        // validate + callback run below, once the previous PUSCH slot has reported (PUSCH in-order gate)
+                        pusch_cb_pending = true;
+                        pusch_cb_pending_t = slot_map->timings.end_t_ul_pusch_compl[0];
                         break;
+                }
+            }
+
+            // PUSCH in-order gate (2026-11-14): the PUSCH results of consecutive UL slots go to L2 in slot order. A slot whose GPU
+            // work finished before the previous PUSCH slot reported is held here (PUCCH / PRACH / SRS below are not held), at most
+            // ul_inorder_gate_ns. With the gate off the callback runs at once, as before; the counters still record the order.
+            if(pusch_cb_pending)
+            {
+                const int64_t held_ns = (Time::nowNs() - pusch_cb_pending_t).count();
+                const bool pred_done = (ul_seq == 0) || pdctx->ulInorderPredDone(ul_seq);
+                const bool expired = (!pred_done) && pdctx->ul_inorder_gate && (held_ns > pdctx->ul_inorder_gate_ns);
+                if(pred_done || !pdctx->ul_inorder_gate || expired)
+                {
+                    TI_ADD("Validate PUSCH");
+                    pusch->validate(cell_timeout_list,gpu_early_harq_timeout,slot_map->aggr_ulbuf_pcap_capture, slot_map->aggr_ulbuf_pcap_capture_ts);
+
+                    TI_ADD("Callback PUSCH");
+                    pdctx->ulInorderOnCallback(ul_seq, pusch_cb_waited, held_ns, expired, pusch->getSetupStatus() != CH_SETUP_DONE_NO_ERROR);
+                    slot_map->timings.start_t_ul_pusch_cb[0] = Time::nowNs();
+                    pusch->callback(cell_timeout_list,gpu_early_harq_timeout);
+                    slot_map->timings.end_t_ul_pusch_cb[0] = Time::nowNs();
+
+                    TI_ADD("Done PUSCH");
+                    pdctx->ulInorderMarkDone(ul_seq);
+                    pusch_cb_pending = false;
+                    if(ul_seq != 0 && pdctx->ulInorderLogDue(slot_map->timings.end_t_ul_pusch_cb[0].count()))
+                    {
+                        NVLOGC_FMT(TAG, "PUSCH in-order gate: slots {} held {} (sum {} us, max {} us) timeout {} out-of-order {} setup-failed {}",
+                                   pdctx->ul_inorder_n_cb.load(), pdctx->ul_inorder_n_wait.load(), pdctx->ul_inorder_wait_ns_sum.load() / 1000,
+                                   pdctx->ul_inorder_wait_ns_max.load() / 1000, pdctx->ul_inorder_n_timeout.load(), pdctx->ul_inorder_n_ooo.load(),
+                                   pdctx->ul_inorder_n_setup_failed.load());
+                    }
+                }
+                else
+                {
+                    pusch_cb_waited = true;
                 }
             }
 
@@ -2704,10 +2737,11 @@ Example output log (last entry for 100K slots):
             ENTER_L1_RECOVERY();
         }
         //std::this_thread::sleep_for(std::chrono::microseconds(20); //FIXME could consider adding a delay here to avoid doing back to back event queries for large durations (e.g., even 1ms)
-    } while(still_waiting);
+    } while(still_waiting || pusch_cb_pending);   // pusch_cb_pending: PUSCH finished on the GPU, its callback is held by the in-order gate
 
     cleanup:
 
+    pdctx->ulInorderMarkDone(ul_seq);   // also covers the early exits above (no callback for this slot): later slots must not wait for it
     slot_map->addSlotEndTask();
     if(cell_error_count>0)
     {

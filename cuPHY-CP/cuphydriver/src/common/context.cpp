@@ -168,6 +168,13 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
         auto list_str = [](const std::vector<int>& v) { std::string o; for(int x : v) { if(!o.empty()) o += ","; o += std::to_string(x); } return o; };
         if(!dapp_pusch_profiles.empty()) { NVLOGC_FMT(TAG, "dApp PUSCH profiles [{}]: yaml mps_sm_pusch {} replaced by the largest", list_str(dapp_pusch_profiles), mps_sm_pusch); mps_sm_pusch = dapp_pusch_profiles.back(); }
         if(!dapp_pdsch_profiles.empty()) { NVLOGC_FMT(TAG, "dApp PDSCH profiles [{}]: yaml mps_sm_pdsch {} replaced by the largest", list_str(dapp_pdsch_profiles), mps_sm_pdsch); mps_sm_pdsch = dapp_pdsch_profiles.back(); }
+        // PUSCH in-order gate (2026-11-14, see context.hpp): on by default only when dApp PUSCH profiles are in use.
+        const char* g_env = std::getenv("DAPP_PUSCH_INORDER");
+        ul_inorder_gate = (g_env != nullptr) ? (std::atoi(g_env) != 0 ? 1 : 0) : (dapp_pusch_profiles.empty() ? 0 : 1);
+        const char* g_us = std::getenv("DAPP_PUSCH_INORDER_US");
+        if(g_us != nullptr && std::atoi(g_us) > 0) ul_inorder_gate_ns = static_cast<int64_t>(std::atoi(g_us)) * 1000;
+        for(auto& d : ul_inorder_done) d.store(0);
+        NVLOGC_FMT(TAG, "PUSCH in-order gate {} (wait limit {} us)", ul_inorder_gate ? "ON" : "OFF", ul_inorder_gate_ns / 1000);
     }
     mps_sm_pdcch        = ctx_cfg.mps_sm_pdcch;
     mps_sm_pbch         = ctx_cfg.mps_sm_pdcch;

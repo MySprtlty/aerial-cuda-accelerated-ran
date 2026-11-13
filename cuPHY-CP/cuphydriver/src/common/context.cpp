@@ -441,6 +441,13 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 
 		unsigned int use_flags = 0;
 		//unsigned int use_flags = CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING;
+		// dApp experiment knob (2026-11-13; unset or 0 = unchanged): DAPP_GC_SPLIT_FLAGS=1 makes every green-context split below ignore SM
+		// co-scheduling, so SM counts go in steps of 2 instead of 8 and a dApp PUSCH profile r gets exactly r SMs (not r + 4 on 132 SMs)
+		if(const char* gc_flags_env = std::getenv("DAPP_GC_SPLIT_FLAGS"))
+		{
+			if(std::atoi(gc_flags_env) == 1) use_flags = CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING;
+			NVLOGC_FMT(TAG, "dApp: green-context split flags {} (DAPP_GC_SPLIT_FLAGS)", use_flags);
+		}
 
 		// Hard code SM granularity for green context splits
 		int major_cc = 0;
@@ -617,8 +624,19 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 		actual_split_groups[resource_index_dl_ctrl_split] = 1;
 		min_sm_counts[resource_index_dl_ctrl_split] = getMpsSmDlCtrl();
 		CU_CHECK_PHYDRIVER(cuDevSmResourceSplitByCount(&devResources[resource_index_dl_ctrl_split], &actual_split_groups[resource_index_dl_ctrl_split], &initial_device_GPU_resources, &devResources[resource_index_dl_ctrl_split+1], use_flags, min_sm_counts[resource_index_dl_ctrl_split]));
-		dlCtrlMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_dl_ctrl_split]);
-		mpsCtxList.push_back(dlCtrlMpsCtx);
+		// dApp experiment knob (2026-11-13; unset = unchanged): DAPP_GC_ALIAS with "ctrl" -> PBCH / PDCCH / CSI-RS run in the DL context instead of
+		// their own DL-ctrl green context, with "comms" -> the GPU-comms streams too (test: cross-context stream waits of the cell DL stream)
+		const char* gc_alias_env = std::getenv("DAPP_GC_ALIAS");
+		if(gc_alias_env && std::string(gc_alias_env).find("ctrl") != std::string::npos)
+		{
+			dlCtrlMpsCtx = dlMpsCtx;
+			NVLOGC_FMT(TAG, "dApp: DL Ctrl channels use the DL context (DAPP_GC_ALIAS={})", gc_alias_env);
+		}
+		else
+		{
+			dlCtrlMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_dl_ctrl_split]);
+			mpsCtxList.push_back(dlCtrlMpsCtx);
+		}
 		csiRsMpsCtx = dlCtrlMpsCtx;
 		pbchMpsCtx  = dlCtrlMpsCtx;
 		pdcchMpsCtx = dlCtrlMpsCtx;
@@ -686,8 +704,16 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
 #if 1
 			min_sm_counts[resource_index_gpu_comm_split] = getMpsSmGpuComms();
 			CU_CHECK_PHYDRIVER(cuDevSmResourceSplitByCount(&devResources[resource_index_gpu_comm_split], &actual_split_groups[resource_index_gpu_comm_split], &initial_device_GPU_resources, &devResources[resource_index_gpu_comm_split+1], use_flags, min_sm_counts[resource_index_gpu_comm_split]));
-			gpuCommsMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_gpu_comm_split]);
-			mpsCtxList.push_back(gpuCommsMpsCtx);
+			if(gc_alias_env && std::string(gc_alias_env).find("comms") != std::string::npos)   // dApp experiment knob, see DAPP_GC_ALIAS above
+			{
+				gpuCommsMpsCtx = dlMpsCtx;
+				NVLOGC_FMT(TAG, "dApp: GPU comms use the DL context (DAPP_GC_ALIAS={})", gc_alias_env);
+			}
+			else
+			{
+				gpuCommsMpsCtx = new MpsCtx((phydriver_handle)this, gpu_device, &devResources[resource_index_gpu_comm_split]);
+				mpsCtxList.push_back(gpuCommsMpsCtx);
+			}
 
 		        NVLOGC_FMT(TAG, "GPU comm green context with SM count of {}.", devResources[resource_index_gpu_comm_split].sm.smCount);
 #else
@@ -789,8 +815,10 @@ PhyDriverCtx::PhyDriverCtx(const context_config& ctx_cfg) :
         }
 
         ulMpsCtx->setCtx();
-        CUDA_CHECK(cudaStreamCreateWithPriority(&stream_order_srs_pd, cudaStreamNonBlocking, -5));
-        CUDA_CHECK(cudaStreamCreateWithPriority(&stream_order_pd, cudaStreamNonBlocking, -5));
+        int dapp_order_prio = -5;   // dApp experiment knob (2026-11-13; unset = -5 = unchanged): DAPP_ORDER_PRIO = CUDA priority of the order-kernel streams
+        if(const char* order_prio_env = std::getenv("DAPP_ORDER_PRIO")) { dapp_order_prio = std::atoi(order_prio_env); NVLOGC_FMT(TAG, "dApp: order-kernel stream priority {} (DAPP_ORDER_PRIO)", dapp_order_prio); }
+        CUDA_CHECK(cudaStreamCreateWithPriority(&stream_order_srs_pd, cudaStreamNonBlocking, dapp_order_prio));
+        CUDA_CHECK(cudaStreamCreateWithPriority(&stream_order_pd, cudaStreamNonBlocking, dapp_order_prio));
 
         if(enable_ok_tb)
         {
@@ -1615,10 +1643,10 @@ PhyDriverCtx::~PhyDriverCtx()
             //delete pbchMpsCtx;
             delete ulMpsCtx;
             //delete dlMpsCtx;
-            delete dlCtrlMpsCtx;
+            if(dlCtrlMpsCtx != dlMpsCtx) delete dlCtrlMpsCtx;     // dApp: DAPP_GC_ALIAS may make these two aliases of the DL context
             if(gpuCommDlEnabled())
             {
-                delete gpuCommsMpsCtx;
+                if(gpuCommsMpsCtx != dlMpsCtx) delete gpuCommsMpsCtx;
             }
         } catch(const std::exception& e) {
             printf("EXCEPTION deleting DL MPS contexts: %s\n", e.what());

@@ -218,7 +218,9 @@ int main(int argc,char* argv[]) {
     // Note that if we set this to 32, we will not be able to switch to MPS later, e.g., in cuphydriver context.cpp
     if (parser_cfg.get_cuphydriver_use_green_contexts() != 0)
     {
-        int env_ret_val = setenv("CUDA_DEVICE_MAX_CONNECTIONS", "32", 1);
+        // dApp experiment knob (2026-11-13; unset = 32 = unchanged): DAPP_GC_MAX_CONN = the connection count written here (DL late-slot diagnosis)
+        const char* dapp_gc_max_conn = getenv("DAPP_GC_MAX_CONN");
+        int env_ret_val = setenv("CUDA_DEVICE_MAX_CONNECTIONS", dapp_gc_max_conn ? dapp_gc_max_conn : "32", 1);
         if (env_ret_val != 0) {
             NVLOGC_FMT(TAG, "Failed to properly set CUDA_DEVICE_MAX_CONNECTIONS env. variable for green contexts.");
         }

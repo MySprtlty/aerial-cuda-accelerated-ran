@@ -69,6 +69,7 @@
 #include <mma.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -86,9 +87,11 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <fcntl.h>
 #include <pthread.h>
 #include <sched.h>
 #include <time.h>
+#include <unistd.h>
 
 uint64_t cuphydriver_dapp_profile_count(int channel, int profile);
 uint64_t cuphydriver_dapp_fallback_count(int channel);
@@ -133,6 +136,56 @@ __global__ void k_tc(const __half* __restrict__ a, const __half* __restrict__ b,
 
 inline int64_t now_real_ns() { struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); return static_cast<int64_t>(ts.tv_sec) * 1000000000LL + ts.tv_nsec; }
 inline int64_t now_mono_ns() { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return static_cast<int64_t>(ts.tv_sec) * 1000000000LL + ts.tv_nsec; }
+
+// ---- off-thread file writes (2026-11-13) ------------------------------------------------------------------------------------------
+// The tenant thread runs on an isolated core and must not sleep in write(2): its per-slot CSV showed stalls of 18-103 ms about once per
+// minute (old and new binaries; an idle L1 next to it kept its timing). Log, per-slot CSV and piece trace are therefore FILE* streams
+// from fopencookie whose write callback only appends to a memory buffer; one writer thread on the housekeeping cores
+// (DAPP_TENANT_IO_CPUS, default 0-3) drains the buffers every 20 ms. DAPP_TENANT_IO_ASYNC=0 = plain fopen (the behaviour before).
+struct AsyncSink { int fd = -1; std::mutex m; std::string buf, spare; };
+class AsyncIo {
+public:
+    static AsyncIo& get() { static AsyncIo* io = new AsyncIo; return *io; }   // never destroyed: streams may be closed from static destructors
+    static bool async_on() { const char* e = std::getenv("DAPP_TENANT_IO_ASYNC"); return !(e && *e == '0'); }
+    std::FILE* open(const char* path, const char* mode) {
+        if (!async_on()) return std::fopen(path, mode);
+        const int fd = ::open(path, O_WRONLY | O_CREAT | O_CLOEXEC | (mode[0] == 'a' ? O_APPEND : O_TRUNC), 0644);
+        if (fd < 0) return nullptr;
+        AsyncSink* k = new AsyncSink; k->fd = fd; k->buf.reserve(1 << 20); k->spare.reserve(1 << 20);
+        cookie_io_functions_t f = {nullptr, &AsyncIo::wr, nullptr, &AsyncIo::cl};
+        std::FILE* fp = fopencookie(k, "w", f);
+        if (!fp) { ::close(fd); delete k; return std::fopen(path, mode); }
+        std::setvbuf(fp, nullptr, _IOLBF, 1 << 16);
+        std::lock_guard<std::mutex> g(lm_); sinks_.push_back(k);
+        if (!started_) { started_ = true; std::thread([this] { run(); }).detach(); }
+        return fp;
+    }
+private:
+    static ssize_t wr(void* c, const char* b, size_t n) { AsyncSink* k = static_cast<AsyncSink*>(c); std::lock_guard<std::mutex> g(k->m); k->buf.append(b, n); return static_cast<ssize_t>(n); }
+    static int cl(void* c) {   // fclose: drain on the caller's thread (stop paths only), then forget the sink
+        AsyncSink* k = static_cast<AsyncSink*>(c); AsyncIo& io = get(); std::lock_guard<std::mutex> g(io.lm_);
+        drain(k); ::close(k->fd); io.sinks_.erase(std::remove(io.sinks_.begin(), io.sinks_.end(), k), io.sinks_.end()); delete k; return 0;
+    }
+    static void drain(AsyncSink* k) {
+        { std::lock_guard<std::mutex> g(k->m); k->spare.swap(k->buf); }
+        const char* b = k->spare.data(); size_t left = k->spare.size();
+        while (left > 0) { const ssize_t w = ::write(k->fd, b, left); if (w <= 0) { if (w < 0 && errno == EINTR) continue; break; } b += w; left -= static_cast<size_t>(w); }
+        k->spare.clear();
+    }
+    static bool pin(const char* spec) {   // "a-b" or "a"
+        int a = -1, b = -1; if (std::sscanf(spec, "%d-%d", &a, &b) < 1 || a < 0) return false; if (b < a) b = a;
+        cpu_set_t set; CPU_ZERO(&set); for (int c = a; c <= b && c < CPU_SETSIZE; c++) CPU_SET(c, &set);
+        return pthread_setaffinity_np(pthread_self(), sizeof(set), &set) == 0;
+    }
+    void run() {
+        pthread_setname_np(pthread_self(), "dapp_tenant_io");
+        struct sched_param sp{}; pthread_setschedparam(pthread_self(), SCHED_OTHER, &sp);
+        const char* e = std::getenv("DAPP_TENANT_IO_CPUS");
+        if (!pin((e && *e) ? e : "0-3") && !pin("0-3")) std::fprintf(stderr, "dapp_tenant_io: cannot leave the creating thread's cores (DAPP_TENANT_IO_CPUS)\n");
+        for (;;) { std::this_thread::sleep_for(std::chrono::milliseconds(20)); std::lock_guard<std::mutex> g(lm_); for (AsyncSink* k : sinks_) drain(k); }
+    }
+    std::mutex lm_; std::vector<AsyncSink*> sinks_; bool started_ = false;
+};
 inline const char* envs(const char* n, const char* d) { const char* v = std::getenv(n); return (v && *v) ? v : d; }
 inline int envi(const char* n, int d) { const char* v = std::getenv(n); return (v && *v) ? std::atoi(v) : d; }
 inline std::vector<int> env_list(const char* n, const std::vector<int>& d) {
@@ -177,6 +230,11 @@ struct EngineSet {
                                                    // serves a channel's queued work without yielding to other channels (nsys: cuPHY streams waited exactly until the YOLO graph ended),
                                                    // so at most DAPP_AGENT_CHUNK_AHEAD pieces (~0.5 ms) are ever queued on the tenant stream
     std::vector<cudaEvent_t> chunk_ev; int chunk_log_n = 0;
+    // 2026-11-12 (feature/slot_level): one_engine = <dir>/seg<k>_sm<DAPP_TENANT_ENGINE_SM>.engine alone serves every class (one engine + one
+    // execution context, graphs captured per partition stream); piece_us = table time (us) of every graph piece per (segment, partition),
+    // measured at init; piece_ok = every partition has the same pieces, so the class can change between two pieces (DAPP_AGENT_PIECE=1)
+    bool one_engine = false, piece_ok = false; std::map<std::pair<int, int>, std::vector<float>> piece_us;
+    std::map<int, std::vector<int>> bounds;       // 2026-11-13 DAPP_AGENT_PIECE_US: segment -> first node (position in the topological order) of every piece, shared by all partitions
     std::vector<int> classes;                     // classes with engine files, ascending
     std::vector<Seg> segs;                        // segs[k].exec[i] for classes[i]
     std::map<std::string, void*> buf; std::map<std::string, size_t> bytes;
@@ -220,6 +278,7 @@ struct Tenant {
     bool a_skip_decode = false, a_skip_infer = false, a_use_graph = true;
     unsigned char* h_jpeg = nullptr; size_t h_jpeg_cap = 0; void* h_out = nullptr; size_t h_out_cap = 0;   // pinned staging (GH200: a GPU copy engine touching pageable memory goes through ATS; keep cuPHY out of that)   // bisection knobs (DAPP_AGENT_SKIP_DECODE / _SKIP_INFER): request path without the decode / without the TRT enqueue
     int fixed_gap_P = 0, fixed_gap_N = 0, fixed_gap_part = -1, one_per_gap = 0;
+    unsigned split_flags = 0;   // 2026-11-13: cuDevSmResourceSplitByCount flags of split(); 0 = 8-SM steps (default), the range layout sets IGNORE_SM_COSCHEDULING (2-SM steps)
     // union layout (2026-11-02, DAPP_TENANT_LAYOUT=union|gap): class contexts avoid the UL order / UL control contexts and the next
     // DAPP_TENANT_FB_GUARD larger PUSCH profiles (pool-busy fallbacks); DAPP_AGENT_QOS=1: refuse a request whose estimate misses its deadline
     int fb_guard = 1; std::string layout = "union"; bool qos_on = true; std::string layout_report; bool engine_ctx_per_class = false;
@@ -242,6 +301,23 @@ struct Tenant {
     nvinfer1::IRuntime* rt = nullptr;
     EngineSet quiet, busy;
     Pipe qpipe, bpipe;
+    // ---- piece mode (2026-11-12, DAPP_AGENT_PIECE=1): the partition (= SM class) is chosen per graph piece when the piece is launched, from the
+    // slot plans of the slots that piece will touch, instead of once per request from the minimum over the whole request. A piece that moves
+    // to another partition waits on the previous piece's event (cudaStreamWaitEvent); measured cost of a change: a few us (prof/tenant/slot_level).
+    bool piece_on = false, a_piece = false, piece_window = true; int piece_guard_us = 30, engine_sm = 0, a_chunk_pidx = -1, a_free_for = -1; double piece_scale = 1.0;
+    std::vector<int> a_ppart; std::vector<float> a_pt; std::vector<uint8_t> a_pclean; int64_t a_gpu_free_ns = 0, a_wait_t0 = 0, pc_wait_ns = 0;
+    // 2026-11-13: DAPP_AGENT_PIECE_US > 0: pieces of about that many us on the smallest class instead of chunk_n nodes (boundaries from per-node times
+    // measured at init; a node longer than the target is a piece of its own - a kernel cannot be cut). DAPP_AGENT_AHEAD_US > 0: a piece is queued when the
+    // work in flight ends within that many us (at most DAPP_AGENT_AHEAD_MAX pieces in flight) instead of always chunk_ahead pieces: the short pieces of the
+    // large classes no longer leave the GPU idle between two pump passes (~70 us), and nothing is committed early behind a long piece of a small class.
+    int piece_us_target = 0, ahead_us = 0, ahead_max = 8; std::vector<int64_t> a_pend;   // a_pend: estimated end of every launched piece
+    // DAPP_AGENT_PIECE_DEFER = n > 0: waiting rule. The greedy rule starts a piece at once on whatever class the current window allows; a kernel that cannot be cut
+    // (26x: up to 1.8 ms on 16 SMs, 0.34 ms on 96) then runs through the next, larger windows on the small class. With the rule, a piece longer than
+    // DAPP_AGENT_PIECE_DEFER_MIN_US is held back when starting it right after one of the next n slot boundaries ends it at least DAPP_AGENT_PIECE_DEFER_GAIN_US earlier.
+    int defer_slots = 0, defer_min_us = 150, defer_gain_us = 50; uint64_t pc_defer = 0;
+    uint64_t pc_pieces = 0, pc_switch = 0, pc_wait = 0; double pc_obs_us = 0.0, pc_tab_us = 0.0;
+    // DAPP_AGENT_PIECE_TRACE=<file>: one csv row per piece (request, piece, host launch time, class, observed and table time) for offline checks
+    std::FILE* piece_trace = nullptr; std::vector<int64_t> a_plaunch; std::vector<float> a_plead; int64_t a_p0_ns = 0;
     // thread
     std::thread th; std::atomic<bool> stop{false};
     uint64_t pauses = 0; int64_t pause_ns = 0;
@@ -254,7 +330,7 @@ struct Tenant {
         CKD(cuCtxSetCurrent(prim));
         return true;
     }
-    bool split(const CUdevResource& in, unsigned count, CUdevResource* res, CUdevResource* rem, std::string& err) { unsigned ng = 1; CKD(cuDevSmResourceSplitByCount(res, &ng, const_cast<CUdevResource*>(&in), rem, 0, count)); return true; }
+    bool split(const CUdevResource& in, unsigned count, CUdevResource* res, CUdevResource* rem, std::string& err) { unsigned ng = 1; CKD(cuDevSmResourceSplitByCount(res, &ng, const_cast<CUdevResource*>(&in), rem, split_flags, count)); return true; }
     bool via_ctx(const CUdevResource& r, CUdevResource& out, std::string& err) {   // a remainder cannot be re-split directly (915): go through a temporary green context
         CUdevResourceDesc d; CKD(cuDevResourceGenerateDesc(&d, const_cast<CUdevResource*>(&r), 1)); CUgreenCtx g = nullptr; CKD(cuGreenCtxCreate(&g, d, dev, CU_GREEN_CTX_DEFAULT_STREAM));
         CKD(cuGreenCtxGetDevResource(g, &out, CU_DEV_RESOURCE_TYPE_SM)); cuGreenCtxDestroy(g); return true;
@@ -378,7 +454,120 @@ struct Tenant {
         if (fixed_gap_P > 0 && fixed_gap_part < 0) { err = "DAPP_TENANT_FIXED_GAP: class " + std::to_string(fixed) + " does not fit gap (" + std::to_string(fixed_gap_P) + ", " + std::to_string(fixed_gap_N) + ")"; return false; }
         return true;
     }
-    bool build_partitions(std::string& err) { return layout == "gap" ? build_partitions_gap(err) : build_partitions_union(err); }
+    bool build_partitions(std::string& err) { return layout == "gap" ? build_partitions_gap(err) : layout == "range" ? build_partitions_range(err) : build_partitions_union(err); }
+
+    // ---- range layout (2026-11-13, DAPP_TENANT_LAYOUT=range; the L1 must run with DAPP_GC_SPLIT_FLAGS=1) ----------------------
+    // 2-SM-step green contexts. With CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING every cuphydriver context is a prefix or a suffix
+    // of ONE linear split order in 2-SM steps (measured stand-alone with %smid, no MPS: positions 0-15 = smid 0-15, 16-23 = smid
+    // 124-131, 24-131 = smid 16-123), so the SMs cuPHY leaves free in a slot are one contiguous position range [a, b): a = the PDSCH
+    // prefix N (moved past the UL order slice when that touches the range), b = 132 - PUSCH profile (132 in slots without PUSCH).
+    // The class context of (P, N) is that WHOLE range - one class per (P, N); `classes` becomes the list of the distinct range sizes
+    // (needs the one-engine sets, DAPP_TENANT_ENGINE_SM). It is built as the REMAINDER of a nested split (result [0, b) -> green
+    // context -> remainder after a): unions of 2-SM groups and result-side cuts only support thread-block clusters of 2..6, and
+    // TensorRT's kernels of 26s..x need clusters of 8 (26n: 4). A range under DAPP_TENANT_RANGE_MIN SMs (56) or whose context reports
+    // a smaller maximum cluster than DAPP_TENANT_RANGE_CLUSTER (8) gets no class (pause). Self-check as in the union layout: %smid of
+    // every shadow set and class context when MPS is off; the position -> smid map comes from the nested prefixes [0, 2 i).
+    bool build_partitions_range(std::string& err) {
+        if (envi("DAPP_GC_SPLIT_FLAGS", 0) != 1) { err = "DAPP_TENANT_LAYOUT=range needs the L1 on 2-SM-step green contexts (DAPP_GC_SPLIT_FLAGS=1)"; return false; }
+        if (fixed > 0) { err = "DAPP_TENANT_LAYOUT=range does not support DAPP_TENANT_FIXED"; return false; }
+        if (engine_sm <= 0) { err = "DAPP_TENANT_LAYOUT=range needs the one-engine sets (DAPP_TENANT_ENGINE_SM)"; return false; }
+        split_flags = CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING;
+        const int range_min = std::max(2, envi("DAPP_TENANT_RANGE_MIN", 56)), range_cluster = envi("DAPP_TENANT_RANGE_CLUSTER", 8);
+        int tmp[16]; int n = cuphydriver_dapp_profile_sms(0, tmp, 16); pusch_sm.assign(tmp, tmp + n);
+        n = cuphydriver_dapp_profile_sms(1, tmp, 16); pdsch_sm.assign(tmp, tmp + n);
+        if (pusch_sm.empty() || pdsch_sm.empty()) { err = "cuphydriver reports no PUSCH/PDSCH profiles (DAPP_PUSCH_PROFILES / DAPP_PDSCH_PROFILES unset?)"; return false; }
+        int ord[2] = {0, 0}; const int no = cuphydriver_dapp_profile_sms(2, ord, 2); const int order_sm = no > 0 ? ord[0] : 0, order_mode = no > 1 ? ord[1] : 0;
+        int ulc[2] = {0, 0}; const int nu = cuphydriver_dapp_profile_sms(3, ulc, 2); const int ulctrl_sm = nu > 1 ? ulc[0] + ulc[1] : 0;
+        if (order_sm <= 0 || ulctrl_sm <= 0) { err = "cuphydriver does not report the UL order / UL control contexts (profile_sms channels 2, 3): old cuphydriver build?"; return false; }
+        int mps = 0; cuDeviceGetAttribute(&mps, CU_DEVICE_ATTRIBUTE_MPS_ENABLED, dev); const bool verify = (mps == 0) && envi("DAPP_TENANT_PROBE", 1) != 0;
+        unsigned* hist = nullptr; if (verify) CKR(cudaMalloc(&hist, nsm * sizeof(unsigned)));
+        auto interval = [](int a, int b) { std::set<int> o; for (int i = a; i < b; i++) o.insert(i); return o; };
+        // position -> physical SM map in 2-SM steps: pair i = positions [2 i, 2 i + 2) = smid of prefix [0, 2 i + 2) minus prefix [0, 2 i)
+        const int np = nsm / 2; std::vector<std::set<int>> gphys(np);
+        if (verify) {
+            std::set<int> prev;
+            for (int i = 1; i <= np; i++) {
+                std::set<int> cur;
+                if (2 * i < nsm) { CUdevResource r{}, rem{}; if (!split(all, static_cast<unsigned>(2 * i), &r, &rem, err)) return false; if (!probe_res(r, cur, hist, err)) return false; }
+                else { if (!probe_res(all, cur, hist, err)) return false; }
+                if (static_cast<int>(cur.size()) != 2 * i || sm_inter(prev, cur) != static_cast<int>(prev.size())) { err = "layout self-check: prefix of " + std::to_string(2 * i) + " SMs measured smid [" + sm_ranges(cur) + "], not nested in 2-SM steps"; return false; }
+                for (int x : cur) { if (!prev.count(x)) gphys[i - 1].insert(x); }
+                prev = cur;
+            }
+        }
+        auto phys_of = [&](const std::set<int>& pos, std::set<int>& out) -> bool {   // the position set must consist of whole pairs
+            out.clear();
+            for (int i = 0; i < np; i++) { const bool lo = pos.count(2 * i) != 0, hi = pos.count(2 * i + 1) != 0; if (lo != hi) return false; if (lo) out.insert(gphys[i].begin(), gphys[i].end()); }
+            return true; };
+        std::vector<SmSet> sets;
+        auto add_set = [&](const std::string& name, int a, int b, const CUdevResource* r) -> bool {   // positions [a, b); r = the same resource for the optional %smid check
+            SmSet x; x.name = name; x.ids = interval(a, b); x.sm = b - a;
+            if (r && static_cast<int>(r->sm.smCount) != b - a) { err = "range layout: shadow split of " + name + " gives " + std::to_string(r->sm.smCount) + " SMs, cuphydriver reports " + std::to_string(b - a); return false; }
+            if (verify && r) { std::set<int> m, e; if (!probe_res(*r, m, hist, err)) return false; if (!phys_of(x.ids, e) || m != e) { err = "layout self-check: " + name + " positions [" + sm_ranges(x.ids) + "] measured smid [" + sm_ranges(m) + "] expected [" + sm_ranges(e) + "]"; return false; } }
+            sets.push_back(x); return true; };
+        const int C = nsm - pusch_sm.back(); CUdevResource yaml_result{};
+        for (int y : pusch_sm) { CUdevResource r{}, rem{}; if (!split(all, static_cast<unsigned>(nsm - y), &r, &rem, err)) return false; if (!add_set("PUSCH" + std::to_string(y), nsm - y, nsm, &rem)) return false; if (y == pusch_sm.back()) yaml_result = r; }
+        for (int N : pdsch_sm) { CUdevResource r{}, rem{}; if (!split(all, static_cast<unsigned>(N), &r, &rem, err)) return false; if (!add_set("PDSCH" + std::to_string(N), 0, N, &r)) return false; }
+        { CUdevResource r{}, rem{}; if (!split(all, static_cast<unsigned>(nsm - ulctrl_sm), &r, &rem, err)) return false; if (!add_set("ULCTRL", nsm - ulctrl_sm, nsm, &rem)) return false; }   // PUCCH + PRACH = remainder of cuphydriver's prep split
+        if (order_mode == 1) { CUdevResource r{}, rem{}; if (!split(all, static_cast<unsigned>(order_sm), &r, &rem, err)) return false; if (!add_set("ORDER", 0, order_sm, &r)) return false; }
+        else { CUdevResource comp{}, r{}, rem{}; if (!via_ctx(yaml_result, comp, err)) return false; if (!split(comp, static_cast<unsigned>(C - order_sm), &r, &rem, err)) return false; if (!add_set("ORDER", C - order_sm, C, &rem)) return false; }
+        auto find = [&](const std::string& nm) -> const SmSet& { for (const SmSet& s : sets) { if (s.name == nm) return s; } return sets.front(); };
+        char line[2048];
+        layout_report += verify ? "==== range layout (2-SM steps; positions, %smid-verified):" : "==== range layout (2-SM steps; split-order positions; MPS client, %smid virtual):";
+        for (const SmSet& s : sets) { std::snprintf(line, sizeof line, " %s %d [%s]", s.name.c_str(), s.sm, sm_ranges(s.ids).c_str()); layout_report += line; }
+        std::snprintf(line, sizeof line, " | fb_guard %d, min range %d SMs, min cluster %d\n", fb_guard, range_min, range_cluster); layout_report += line;
+        const SmSet& so = find("ORDER"); const int oa = *so.ids.begin(), ob = *so.ids.rbegin() + 1;
+        std::set<int> sizes;
+        std::vector<int> Ps; for (int y : pusch_sm) { Ps.push_back(nsm - y); } Ps.push_back(nsm);
+        for (size_t pi = 0; pi < Ps.size(); pi++) {
+            const int P = Ps[pi];
+            for (int N : pdsch_sm) {
+                std::set<int> busy = so.ids; { const SmSet& d = find("PDSCH" + std::to_string(N)); busy.insert(d.ids.begin(), d.ids.end()); }
+                std::string guarded; int a = N, b = nsm;
+                if (P < nsm) {
+                    const size_t jg = std::min(pi + static_cast<size_t>(std::max(fb_guard, 0)), pusch_sm.size() - 1);
+                    for (size_t j = pi; j <= jg; j++) { const SmSet& u = find("PUSCH" + std::to_string(pusch_sm[j])); busy.insert(u.ids.begin(), u.ids.end()); if (j > pi) guarded += " PUSCH" + std::to_string(pusch_sm[j]); }
+                    const SmSet& u = find("ULCTRL"); busy.insert(u.ids.begin(), u.ids.end());
+                    b = std::min(nsm - pusch_sm[jg], nsm - ulctrl_sm);
+                }
+                // the UL order slice [oa, ob): cut off the edge of the range it touches; when it lies inside, keep the larger side
+                if (ob > a && oa < b) { if (oa <= a) a = ob; else if (ob >= b) b = oa; else if (oa - a >= b - ob) b = oa; else a = ob; }
+                const int gsz = std::max(0, b - a);
+                std::vector<int> idx; std::string why;
+                if (gsz < range_min) why = "under the minimum";
+                else {
+                    Part p; p.P = P; p.N = N; p.cls = gsz; p.gap = gsz;
+                    CUdevResource cur = all, range = all;   // positions [a, b): the remainder side of the last split
+                    if (b < nsm) { CUdevResource pre{}, rem{}; if (!split(all, static_cast<unsigned>(b), &pre, &rem, err)) return false; if (a == 0) range = pre; else if (!via_ctx(pre, cur, err)) return false; }
+                    if (a > 0) { CUdevResource lo{}; if (!split(cur, static_cast<unsigned>(a), &lo, &range, err)) return false; }
+                    if (static_cast<int>(range.sm.smCount) != gsz) { err = "range layout: (P " + std::to_string(P) + ", N " + std::to_string(N) + ") split gives " + std::to_string(range.sm.smCount) + " SMs for positions [" + std::to_string(a) + ", " + std::to_string(b) + ")"; return false; }
+                    if (!make_ctx(p, range, err)) return false;
+                    int maxcl = 0;
+                    { CKD(cuCtxSetCurrent(p.ctx)); cudaLaunchConfig_t cfg = {}; cfg.gridDim = dim3(64, 1, 1); cfg.blockDim = dim3(64, 1, 1); cfg.stream = p.s;
+                      if (cudaOccupancyMaxPotentialClusterSize(&maxcl, k_smid, &cfg) != cudaSuccess) { maxcl = 0; cudaGetLastError(); } CKD(cuCtxSetCurrent(prim)); }
+                    const std::set<int> ids = interval(a, b);
+                    std::string phys;
+                    if (verify) { std::set<int> m, e; CKD(cuCtxSetCurrent(p.ctx)); const bool okp = probe_stream(p.s, m, hist, err); cuCtxSetCurrent(prim); if (!okp) return false; if (!phys_of(ids, e) || m != e) { err = "layout self-check: range [" + sm_ranges(ids) + "] context measured smid [" + sm_ranges(m) + "] expected [" + sm_ranges(e) + "]"; return false; } phys = " smid [" + sm_ranges(e) + "]"; }
+                    std::string ov; for (const SmSet& s : sets) { const int k = sm_inter(ids, s.ids); if (k && busy.count(*s.ids.begin())) ov += " " + s.name + "(" + std::to_string(k) + ")"; }
+                    if (sm_inter(ids, busy) != 0) { err = "range layout violated at (P " + std::to_string(P) + ", N " + std::to_string(N) + "):" + ov; return false; }
+                    if (maxcl < range_cluster) {   // usable for plain kernels only: TensorRT's cluster kernels would fail on it
+                        cuCtxSetCurrent(p.ctx); for (cudaStream_t x : p.aux) cudaStreamDestroy(x); cudaStreamDestroy(p.s); cuCtxSetCurrent(prim); cuGreenCtxDestroy(p.g);
+                        why = "max cluster " + std::to_string(maxcl);
+                    } else {
+                        p.ids.assign(ids.begin(), ids.end());
+                        std::snprintf(line, sizeof line, "  (P %d, N %d) free range [%d, %d) = %d SMs%s%s -> class %d, max cluster %d%s\n", P, N, a, b, gsz, guarded.empty() ? "" : " guarding", guarded.c_str(), gsz, maxcl, phys.c_str()); layout_report += line;
+                        idx.push_back(static_cast<int>(parts.size())); parts.push_back(p); sizes.insert(gsz);
+                    }
+                }
+                if (idx.empty()) { std::snprintf(line, sizeof line, "  (P %d, N %d) free range [%d, %d) = %d SMs%s%s -> no class (%s): pause\n", P, N, a, b, gsz, guarded.empty() ? "" : " guarding", guarded.c_str(), why.c_str()); layout_report += line; }
+                part_of[{P, N}] = idx;
+            }
+        }
+        if (hist) cudaFree(hist);
+        if (sizes.empty()) { err = "range layout: no (P, N) range is usable"; return false; }
+        classes.assign(sizes.begin(), sizes.end());   // ascending; the one-engine sets take every class from this list (load_set)
+        return true;
+    }
 
     // ---- gap layout (2026-11-01, DAPP_TENANT_LAYOUT=gap): for every (PUSCH complement P, PDSCH prefix N) one context per class that fits the gap
     bool build_partitions_gap(std::string& err) {
@@ -421,11 +610,15 @@ struct Tenant {
     // ---- network sets ------------------------------------------------------------------------------------------------
     bool load_set(EngineSet& s, std::string& err) {
         if (!rt) { rt = nvinfer1::createInferRuntime(g_trt_logger); if (!rt) { err = "createInferRuntime failed"; return false; } }
-        for (int c : classes) { char p[512]; std::snprintf(p, sizeof p, "%s/seg00_sm%d.engine", s.dir.c_str(), c); if (file_exists(p)) s.classes.push_back(c); }
+        // 2026-11-12: DAPP_TENANT_ENGINE_SM=<sm> (e.g. 132) and <dir>/seg00_sm<sm>.engine present -> one-engine set: that engine, deserialized in the
+        // primary context, runs bit-identically on the streams of every class (8..132 SMs measured, +2..7 % vs the native class engines)
+        { char p1[512]; std::snprintf(p1, sizeof p1, "%s/seg00_sm%d.engine", s.dir.c_str(), engine_sm); s.one_engine = engine_sm > 0 && file_exists(p1); }
+        if (s.one_engine) s.classes = classes;
+        else for (int c : classes) { char p[512]; std::snprintf(p, sizeof p, "%s/seg00_sm%d.engine", s.dir.c_str(), c); if (file_exists(p)) s.classes.push_back(c); }
         if (s.classes.empty()) { err = "no seg00_sm<c>.engine in " + s.dir; return false; }
         // engines of one set must share the I/O tensor layout (one buffer per tensor name): keep the classes whose seg00 engine has the same
         // tensor signature as the largest class (an older export left e.g. a 32-SM 26n engine with another input size) (2026-11-02 14:20)
-        { std::map<int, std::string> sig;
+        if (!s.one_engine) { std::map<int, std::string> sig;
           for (int c : s.classes) { char p[512]; std::snprintf(p, sizeof p, "%s/seg00_sm%d.engine", s.dir.c_str(), c); auto blob = slurp(p); if (blob.empty()) continue;
               CKD(cuCtxSetCurrent(prim)); nvinfer1::ICudaEngine* e = rt->deserializeCudaEngine(blob.data(), blob.size()); if (!e) continue;
               std::string g; for (int i = 0; i < e->getNbIOTensors(); i++) { const char* n = e->getIOTensorName(i); const nvinfer1::Dims d = e->getTensorShape(n); g += n; g += ':'; for (int j = 0; j < d.nbDims; j++) { g += std::to_string(d.d[j]); g += 'x'; } g += std::to_string(static_cast<int>(e->getTensorDataType(n))); g += ';'; }
@@ -433,11 +626,12 @@ struct Tenant {
           const std::string ref = sig.count(s.classes.back()) ? sig[s.classes.back()] : std::string();
           std::vector<int> keep; for (int c : s.classes) { if (sig.count(c) && sig[c] == ref) keep.push_back(c); else std::fprintf(stderr, "dapp_tenant: %s: class %d engine skipped (tensor layout differs from class %d)\n", s.dir.c_str(), c, s.classes.back()); }
           s.classes = keep; if (s.classes.empty()) { err = "no usable seg00_sm<c>.engine in " + s.dir; return false; } }
-        for (s.nseg = 0;; s.nseg++) { char p[512]; std::snprintf(p, sizeof p, "%s/seg%02d_sm%d.engine", s.dir.c_str(), s.nseg, s.classes[0]); if (!file_exists(p)) break; }
+        for (s.nseg = 0;; s.nseg++) { char p[512]; std::snprintf(p, sizeof p, "%s/seg%02d_sm%d.engine", s.dir.c_str(), s.nseg, s.one_engine ? engine_sm : s.classes[0]); if (!file_exists(p)) break; }
         s.segs.resize(s.nseg);
         for (int k = 0; k < s.nseg; k++) {
             for (size_t ci = 0; ci < s.classes.size(); ci++) {
-                char p[512]; std::snprintf(p, sizeof p, "%s/seg%02d_sm%d.engine", s.dir.c_str(), k, s.classes[ci]);
+                if (s.one_engine && ci > 0) { s.segs[k].eng.push_back(s.segs[k].eng[0]); s.segs[k].exec.push_back(s.segs[k].exec[0]); continue; }   // every class shares the one engine + execution context
+                char p[512]; std::snprintf(p, sizeof p, "%s/seg%02d_sm%d.engine", s.dir.c_str(), k, s.one_engine ? engine_sm : s.classes[ci]);
                 auto blob = slurp(p); if (blob.empty()) { err = std::string("missing ") + p; return false; }
                 // 2026-11-10: every engine is deserialized with the PRIMARY context current (DAPP_TENANT_ENGINE_CTX=prim, default). TensorRT 10.3 (Myelin)
                 // chooses the grid of its segment-K / thread-block-cluster GEMMs from cuOccupancyMaxActiveClusters evaluated in the CUDA context current
@@ -624,6 +818,41 @@ struct Tenant {
         known = hcK[J] != 0;
         return part_for(hcP[J], hcN[J], hcDL[J] != 0, hcUL[J] != 0, s, apply_ul_pause);
     }
+    // piece mode (2026-11-12): partition for piece i of segment k. The piece starts when the pieces queued before it end (lead_us from now) and
+    // must end, with the guard, inside slots whose free SMs cover its class: the aggregate of the slots from its start (the current slot with
+    // DAPP_AGENT_PIECE_WINDOW=0) to its end. A smaller class makes the piece longer, so the choice is iterated to its fixed point.
+    // -1 = no class fits now (the caller retries).
+    int piece_fit(EngineSet& s, int k, int i, int64_t w, int64_t left_ns, double lead_us, double* t_us) {
+        // slot (relative to w) that holds the instant span_us from now
+        auto slot_at = [&](double span_us) { const int64_t d = static_cast<int64_t>(span_us * 1000.0) - left_ns; return d > 0 ? std::min(static_cast<int>(d / 500000) + 1, horizon_max) : 0; };
+        const int J0 = piece_window ? slot_at(lead_us - piece_guard_us) : 0;
+        int J = std::max(J0, slot_at(lead_us + piece_guard_us)), jdone = J0 - 1, P = nsm, N = 0; bool dl = false, ul = false;
+        for (int it = 0; it < 8; it++) {
+            for (int j = jdone + 1; j <= J; j++) { int p = nsm, n = 0; bool kn, d, u; busy_of(w + j, p, n, kn, d, u); P = std::min(P, p); N = std::max(N, n); dl = dl || d; ul = ul || u; }
+            jdone = J;
+            const int pidx = part_for(P, N, dl, ul, s, false); if (pidx < 0) return -1;
+            auto pt = s.piece_us.find({k, pidx}); if (pt == s.piece_us.end() || i >= static_cast<int>(pt->second.size())) return -1;
+            const double t = pt->second[i] * piece_scale; const int J2 = slot_at(lead_us + t + piece_guard_us);
+            if (J2 <= J) { if (t_us) *t_us = t; return pidx; }
+            J = J2;
+        }
+        return -1;
+    }
+    int choose_piece(EngineSet& s, int k, int i, int64_t w, int64_t slot_end, double lead_us, double* t_us = nullptr) {
+        const int64_t left_ns = slot_end - now_real_ns(); double t = 0.0;
+        const int pidx = piece_fit(s, k, i, w, left_ns, lead_us, &t); if (pidx < 0) return -1;
+        if (defer_slots > 0 && t > defer_min_us) {
+            const double fin_now = lead_us + t;
+            for (int j = 1; j <= defer_slots; j++) {
+                const double lead_j = left_ns / 1e3 + (j - 1) * 500.0 + piece_guard_us + 1.0;   // first instant the piece may start in slot w + j
+                if (lead_j <= lead_us) continue;                 // it starts that late anyway
+                if (lead_j + defer_gain_us >= fin_now) break;    // waiting that long cannot pay any more
+                double tj = 0.0;
+                if (piece_fit(s, k, i, w, left_ns, lead_j, &tj) >= 0 && lead_j + tj + defer_gain_us < fin_now) { pc_defer++; return -1; }
+            }
+        }
+        if (t_us) *t_us = t; return pidx;
+    }
     // ---- agent: estimates --------------------------------------------------------------------------------------------
     double set_time_ms(const EngineSet& s, int ci) const { double t = 0.0; for (int k = 0; k < s.nseg; k++) t += s.seg_ema[ci][k]; return t; }
     std::string estimate_json(int64_t w, int64_t slot_end, bool clock) {
@@ -679,9 +908,14 @@ struct Tenant {
         if (it == models.end() || !it->second.loaded) { fail_request("no_engine"); return false; }
         aset = &it->second; EngineSet& s = *aset;
         bool known = true;
-        if (clock) a_pidx = choose_part(s, 0, w, slot_end, known, false);
+        if (clock && piece_on && s.piece_ok) {   // piece mode: the decode (one synchronous launch burst) gets the class that fits every slot it will touch
+            horizon_cache(w); const int64_t span_ns = static_cast<int64_t>((piece_guard_us + dec_ema * 1250.0) * 1000.0) - (slot_end - now_real_ns());
+            const int J = span_ns > 0 ? std::min(static_cast<int>(span_ns / 500000) + 1, horizon_max) : 0;
+            a_pidx = part_for(hcP[J], hcN[J], hcDL[J] != 0, hcUL[J] != 0, s, false);
+        }
+        else if (clock) a_pidx = choose_part(s, 0, w, slot_end, known, false);
         else { a_pidx = -1; auto pt = part_of.find({nsm - pusch_sm.back(), pdsch_sm.back()}); if (pt != part_of.end()) for (int i : pt->second) { if (s.cls_index(parts[i].cls) >= 0) { a_pidx = i; break; } } }
-        if (a_pidx < 0) return false;                       // paused now: keep the request, retry next loop
+        if (a_pidx < 0) { aset = nullptr; return false; }   // paused now: keep the request, retry next loop (2026-11-13: with aset left set the loop read the previous request's pipe state and answered this one at once with stale output)
         const Part& p = parts[a_pidx];
         if (prof_s > 0 && !prof_on && !prof_done) { cudaProfilerStart(); prof_on = true; prof_t0 = now_real_ns(); if (lf) { std::fprintf(lf, "agent: cudaProfilerStart at req %llu (%d s)\n", static_cast<unsigned long long>(cur.id), prof_s); std::fflush(lf); } }
         if (qos_on && cur.deadline_ms > 0) {   // docs/XAPP_INTERFACE.md: a request that certainly cannot meet its deadline is refused at once (fail / overload)
@@ -702,15 +936,16 @@ struct Tenant {
         if (s.in_half && !a_skip_decode) { const size_t n = s.bytes["images"] / 2; k_f2h<<<static_cast<unsigned>((n + 255) / 256), 256, 0, ds>>>(d_dec, static_cast<__half*>(s.buf["images"]), n); }
         if (!a_skip_decode) cudaStreamSynchronize(ds);
         a_dec_ms = (now_real_ns() - a_t_start) / 1e6; dec_ema = 0.9 * dec_ema + 0.1 * a_dec_ms;
-        apipe = Pipe(); apipe.set = &s; apipe.cls_hist.assign(s.classes.size(), 0); apipe.tiles_left = s.batch; a_cls.clear();
+        apipe = Pipe(); apipe.set = &s; apipe.cls_hist.assign(s.classes.size(), 0); apipe.tiles_left = s.batch; a_cls.clear(); a_piece = false; a_ppart.clear(); a_pt.clear(); a_pclean.clear(); a_wait_t0 = 0;
         a_est_end_ns = now_real_ns() + static_cast<int64_t>(set_time_ms(s, s.cls_index(p.cls)) * 1e6);
         return true;
     }
     // enqueue segment k of the agent request on partition pidx (no blocking sync; completion is polled)
-    // cut a captured graph into pieces of chunk_n nodes in topological order; each piece is a clone with the other nodes removed
+    // cut a captured graph into pieces of chunk_n nodes (or at the given boundaries) in topological order; each piece is a clone with the other nodes removed
     // (edges to earlier pieces are implied by stream order, edges to later pieces cannot exist in topological order)
-    bool chunk_graph(cudaGraph_t g, int chunk, std::vector<cudaGraphExec_t>& out, cudaStream_t st, std::string& err) {
+    bool chunk_graph(cudaGraph_t g, int chunk, const std::vector<int>* bounds, std::vector<cudaGraphExec_t>& out, cudaStream_t st, std::string& err) {
         size_t n = 0; CKR(cudaGraphGetNodes(g, nullptr, &n)); if (n == 0) return true;
+        if (chunk < 1) chunk = 1;
         std::vector<cudaGraphNode_t> nodes(n); CKR(cudaGraphGetNodes(g, nodes.data(), &n));
         // TensorRT graphs carry edge data (programmatic dependent launch), which the legacy cudaGraphGetEdges refuses ("semantically lossy"): read the topology with _v2
         size_t ne = 0; CKR(cudaGraphGetEdges_v2(g, nullptr, nullptr, nullptr, &ne)); std::vector<cudaGraphNode_t> from(ne), to(ne); std::vector<cudaGraphEdgeData> ed(ne); if (ne) CKR(cudaGraphGetEdges_v2(g, from.data(), to.data(), ed.data(), &ne));
@@ -720,12 +955,47 @@ struct Tenant {
         std::vector<int> order; std::deque<int> q; for (size_t i = 0; i < n; i++) { if (indeg[i] == 0) q.push_back(static_cast<int>(i)); }
         while (!q.empty()) { const int u = q.front(); q.pop_front(); order.push_back(u); for (int v : adj[u]) { if (--indeg[v] == 0) q.push_back(v); } }
         if (order.size() != n) { err = "graph is not a DAG"; return false; }
-        for (size_t c0 = 0; c0 < n; c0 += chunk) {
-            std::set<int> keep(order.begin() + c0, order.begin() + std::min(n, c0 + chunk));
+        std::vector<size_t> b; if (bounds && !bounds->empty()) { for (int x : *bounds) b.push_back(static_cast<size_t>(x)); } else { for (size_t c0 = 0; c0 < n; c0 += chunk) b.push_back(c0); }
+        if (b.front() != 0 || b.back() >= n) { err = "piece boundaries do not match the graph (" + std::to_string(n) + " nodes)"; return false; }
+        for (size_t bi = 0; bi < b.size(); bi++) { const size_t c0 = b[bi], c1 = bi + 1 < b.size() ? b[bi + 1] : n;
+            std::set<int> keep(order.begin() + c0, order.begin() + c1);
             cudaGraph_t cg = nullptr; CKR(cudaGraphClone(&cg, g));
             for (size_t i = 0; i < n; i++) { if (keep.count(static_cast<int>(i))) continue; cudaGraphNode_t cn = nullptr; CKR(cudaGraphNodeFindInClone(&cn, nodes[i], cg)); CKR(cudaGraphDestroyNode(cn)); }
             cudaGraphExec_t ge = nullptr; CKR(cudaGraphInstantiate(&ge, cg, 0)); cudaGraphDestroy(cg); cudaGraphUpload(ge, st); out.push_back(ge);
         }
+        return true;
+    }
+    // 2026-11-13 balanced cut (DAPP_AGENT_PIECE_US): every node of segment k is timed alone (1-node pieces launched back to back, median of 3 passes after a
+    // warm-up pass) on the partition with the smallest class; a piece is closed before the node that would take it over the target. The boundaries are
+    // shared by all partitions, so a piece takes about the target on the smallest class and less on the others; a node above the target stays one piece.
+    bool balance_cut(EngineSet& es, const std::string& m, int k, std::FILE* lf, std::string& err) {
+        int ref = -1; for (size_t pi = 0; pi < parts.size(); pi++) { if (es.cls_index(parts[pi].cls) < 0) continue; if (ref < 0 || parts[pi].cls < parts[ref].cls) ref = static_cast<int>(pi); }
+        if (ref < 0) return true;
+        const Part& p = parts[ref]; const int ci = es.cls_index(p.cls); cudaGraph_t g = nullptr;
+        if (cudaStreamBeginCapture(p.s, cudaStreamCaptureModeThreadLocal) != cudaSuccess) { err = "graph capture begin failed"; return false; }
+        bind_aux(es.segs[k], ci, p);
+        const bool okq = es.segs[k].exec[ci]->enqueueV3(p.s); const cudaError_t ce = cudaStreamEndCapture(p.s, &g);
+        if (!okq || ce != cudaSuccess || !g) { err = std::string("graph capture failed (") + (okq ? cudaGetErrorString(ce) : "enqueue") + ")"; return false; }
+        std::vector<cudaGraphExec_t> one; const bool okc = chunk_graph(g, 1, nullptr, one, p.s, err); cudaGraphDestroy(g);
+        const size_t n = one.size(); std::vector<float> t(n, 0.0f);
+        if (okc && n > 0) {
+            while (es.chunk_ev.size() < n) { cudaEvent_t e = nullptr; cudaEventCreate(&e); es.chunk_ev.push_back(e); }
+            std::vector<std::vector<float>> rep(n);
+            for (int r = 0; r < 4; r++) {
+                cudaEventRecord(es.ev_start[k], p.s); for (size_t j = 0; j < n; j++) { cudaGraphLaunch(one[j], p.s); cudaEventRecord(es.chunk_ev[j], p.s); } cudaStreamSynchronize(p.s);
+                for (size_t j = 0; r > 0 && j < n; j++) { float ms = 0; if (cudaEventElapsedTime(&ms, j ? es.chunk_ev[j - 1] : es.ev_start[k], es.chunk_ev[j]) == cudaSuccess) rep[j].push_back(ms * 1000.0f); }
+            }
+            for (size_t j = 0; j < n; j++) { if (!rep[j].empty()) { std::sort(rep[j].begin(), rep[j].end()); t[j] = rep[j][rep[j].size() / 2]; } }
+        }
+        for (cudaGraphExec_t ge : one) cudaGraphExecDestroy(ge);
+        if (!okc) return false;
+        std::vector<int> b; double cur = 0.0, sum = 0.0, mx = 0.0; int over = 0;
+        for (size_t j = 0; j < n; j++) {
+            if (b.empty() || cur + t[j] > piece_us_target) { b.push_back(static_cast<int>(j)); cur = 0.0; }
+            cur += t[j]; sum += t[j]; mx = std::max(mx, static_cast<double>(t[j])); if (t[j] > piece_us_target) over++;
+        }
+        es.bounds[k] = b;
+        if (lf) std::fprintf(lf, "  %s balanced cut seg %d: %zu nodes -> %zu pieces of about %d us on class %d (DAPP_AGENT_PIECE_US; node sum %.2f ms, longest node %.0f us, %d node(s) above the target)\n", m.c_str(), k, n, b.size(), piece_us_target, p.cls, sum / 1000.0, mx, over);
         return true;
     }
     bool agent_enqueue(int pidx, std::FILE* lf) {
@@ -735,7 +1005,7 @@ struct Tenant {
         cudaEventRecord(s.ev_start[k], p.s);
         auto git = s.graphs.find({k, pidx}); auto cit = s.chunks.find({k, pidx});
         if (!a_skip_infer && a_use_graph && cit != s.chunks.end() && !cit->second.empty()) {
-            a_chunks = &cit->second; a_chunk_part = &p; a_chunk_k = k; a_chunk_next = 0; a_chunking = true;
+            a_chunks = &cit->second; a_chunk_part = &p; a_chunk_k = k; a_chunk_next = 0; a_chunking = true; a_chunk_pidx = pidx; a_piece = piece_on && s.piece_ok; a_ppart.clear(); a_pt.clear(); a_pclean.clear(); a_free_for = -1; a_plaunch.clear(); a_plead.clear(); a_pend.clear(); a_p0_ns = now_real_ns();
             apipe.prev_part = pidx; apipe.segments++; apipe.cls_hist[ci]++; a_cls.push_back(p.cls); apipe.k++;
             return agent_pump(lf);                    // ev_end[k] is recorded by the pump after the last piece
         }
@@ -750,17 +1020,57 @@ struct Tenant {
     // chunked graph launch: keep at most chunk_ahead pieces queued on the partition stream; called every loop iteration while a segment is in flight
     bool agent_pump(std::FILE* lf) {
         if (!a_chunking || !aset) return true;
-        EngineSet& s = *aset; const Part& p = *a_chunk_part; const int total = static_cast<int>(a_chunks->size());
+        EngineSet& s = *aset; const int total = static_cast<int>(a_chunks->size());
         while (a_chunk_next < total) {
-            if (a_chunk_next >= chunk_ahead && cudaEventQuery(s.chunk_ev[a_chunk_next - chunk_ahead]) != cudaSuccess) return true;
+            const bool time_rule = a_piece && ahead_us > 0;
+            if (!time_rule && a_chunk_next >= chunk_ahead && cudaEventQuery(s.chunk_ev[a_chunk_next - chunk_ahead]) != cudaSuccess) return true;
+            if (a_piece) {   // piece mode (2026-11-12): piece i goes to the partition whose class fits the slots it will touch; piece 0 keeps the one agent_enqueue was given
+                const int i = a_chunk_next; int pidx = a_ppart.empty() ? a_chunk_pidx : a_ppart.back(); double t_us = 0.0, lead_us = 0.0; bool prev_running = false;
+                if (i > 0) {
+                    // the pieces still queued or running end at most their table time after now: the piece chunk_ahead back has just been seen complete
+                    const int64_t now = now_real_ns();
+                    if (time_rule) {
+                        // work in flight = the incomplete pieces: the oldest one is running and ends at its estimated end, the others add their table time
+                        int nin = 0, oldest = -1; double sum = 0.0;
+                        for (int j = i - 1; j >= 0 && cudaEventQuery(s.chunk_ev[j]) != cudaSuccess; j--) { sum += a_pt[j]; oldest = j; nin++; }
+                        if (nin > 0) {
+                            prev_running = true; lead_us = sum - a_pt[oldest] + std::min(static_cast<double>(a_pt[oldest]), std::max(0.0, (a_pend[oldest] - now) / 1e3));
+                            if (lead_us > ahead_us || nin >= ahead_max) return true;   // enough work queued: looked at again by the next pass
+                        }
+                    } else {
+                    for (int j = i - 1; j >= 0 && cudaEventQuery(s.chunk_ev[j]) != cudaSuccess; j--) { lead_us += a_pt[j]; prev_running = true; }
+                    if (a_free_for != i) { a_free_for = i; a_gpu_free_ns = now + static_cast<int64_t>(lead_us * 1000.0); }
+                    lead_us = prev_running ? std::max(0.0, (a_gpu_free_ns - now) / 1e3) : 0.0;
+                    }
+                    int64_t w = 0, slot_end = 0;
+                    if (current_slot(w, slot_end)) {
+                        const int c = choose_piece(s, a_chunk_k, i, w, slot_end, lead_us, &t_us);
+                        if (c < 0) { if (a_wait_t0 == 0) { a_wait_t0 = now; pc_wait++; } return true; }   // no class fits now: retried by the next loop pass
+                        pidx = c;
+                    }
+                }
+                if (a_wait_t0 != 0) { pc_wait_ns += now_real_ns() - a_wait_t0; a_wait_t0 = 0; }
+                auto cv = s.chunks.find({a_chunk_k, pidx}); auto tv = s.piece_us.find({a_chunk_k, pidx});
+                if (cv == s.chunks.end() || i >= static_cast<int>(cv->second.size())) { pidx = a_ppart.empty() ? a_chunk_pidx : a_ppart.back(); cv = s.chunks.find({a_chunk_k, pidx}); tv = s.piece_us.find({a_chunk_k, pidx}); t_us = 0.0; }
+                if (t_us == 0.0 && tv != s.piece_us.end() && i < static_cast<int>(tv->second.size())) t_us = tv->second[i] * piece_scale;
+                const Part& q = parts[pidx];
+                if (i > 0 && pidx != a_ppart.back()) { cudaStreamWaitEvent(q.s, s.chunk_ev[i - 1], 0); apipe.switches++; pc_switch++; }
+                if (cudaGraphLaunch(cv->second[i], q.s) != cudaSuccess) { if (lf) { std::fprintf(lf, "agent: piece %d launch failed seg %d part %d\n", i, a_chunk_k, pidx); std::fflush(lf); } a_chunking = false; fail_request("internal"); return false; }
+                cudaEventRecord(s.chunk_ev[i], q.s);
+                { const int64_t tl = now_real_ns(); a_pend.push_back(((prev_running && i > 0) ? std::max(tl, a_pend[i - 1]) : tl) + static_cast<int64_t>(t_us * 1000.0)); }
+                a_ppart.push_back(pidx); a_pt.push_back(static_cast<float>(t_us)); a_pclean.push_back((i == 0 || prev_running) ? 1 : 0); a_plaunch.push_back(now_real_ns()); a_plead.push_back(static_cast<float>(lead_us)); a_pidx = pidx; a_chunk_part = &q; pc_pieces++; a_chunk_next++;
+                continue;
+            }
+            const Part& p = *a_chunk_part;
             if (cudaGraphLaunch((*a_chunks)[a_chunk_next], p.s) != cudaSuccess) { if (lf) { std::fprintf(lf, "agent: chunk %d launch failed seg %d\n", a_chunk_next, a_chunk_k); std::fflush(lf); } a_chunking = false; fail_request("internal"); return false; }
             cudaEventRecord(s.chunk_ev[a_chunk_next], p.s); a_chunk_next++;
         }
-        cudaEventRecord(s.ev_end[a_chunk_k], p.s); a_chunking = false; return true;
+        cudaEventRecord(s.ev_end[a_chunk_k], a_chunk_part->s); a_chunking = false; return true;
     }
     void finish_request(std::FILE* lf) {
         EngineSet& s = *aset; const int64_t t_end = now_real_ns();
-        for (int k = 0; k < s.nseg; k++) { float ms = 0; const int ci = s.cls_index(a_cls[k]); if (cudaEventElapsedTime(&ms, s.ev_start[k], s.ev_end[k]) == cudaSuccess) { const double al = (ci < static_cast<int>(s.ema_n.size()) && s.ema_n[ci] < 5) ? 0.5 : 0.1; s.seg_ema[ci][k] = s.seg_ema[ci][k] == 0.0 ? ms : (1.0 - al) * s.seg_ema[ci][k] + al * ms; } }
+        // 2026-11-12: piece mode mixes classes inside a segment, so the per-class segment estimates keep their init values there
+        for (int k = 0; !a_piece && k < s.nseg; k++) { float ms = 0; const int ci = s.cls_index(a_cls[k]); if (cudaEventElapsedTime(&ms, s.ev_start[k], s.ev_end[k]) == cudaSuccess) { const double al = (ci < static_cast<int>(s.ema_n.size()) && s.ema_n[ci] < 5) ? 0.5 : 0.1; s.seg_ema[ci][k] = s.seg_ema[ci][k] == 0.0 ? ms : (1.0 - al) * s.seg_ema[ci][k] + al * ms; } }
         if (!a_cls.empty()) { const int ci0 = s.cls_index(a_cls.front()); if (ci0 >= 0 && ci0 < static_cast<int>(s.ema_n.size())) s.ema_n[ci0]++; }
         if (lf && s.chunk_log_n < 3 && a_pidx >= 0) { auto cit = s.chunks.find({0, a_pidx}); if (cit != s.chunks.end() && !cit->second.empty()) {
             std::vector<double> d; float ms = 0; if (cudaEventElapsedTime(&ms, s.ev_start[0], s.chunk_ev[0]) == cudaSuccess) d.push_back(ms);
@@ -769,6 +1079,18 @@ struct Tenant {
         agent::Result r; r.id = cur.id; r.client = cur.client; r.model = cur.model; r.t_recv_ns = cur.t_recv_ns; r.t_start_ns = a_t_start; r.t_end_ns = t_end;
         r.wait_ms = (a_t_start - cur.t_recv_ns) / 1e6; r.decode_ms = a_dec_ms; r.infer_ms = (now_mono_ns() - apipe.t_inf_start) / 1e6; r.latency_ms = (t_end - cur.t_recv_ns) / 1e6;
         r.sm = a_cls.empty() ? 0 : a_cls.front(); double sm_sum = 0; for (int c : a_cls) sm_sum += c; r.sm_mean = a_cls.empty() ? 0.0 : sm_sum / a_cls.size(); r.tiles = s.batch;
+        if (a_piece && !a_ppart.empty()) {   // piece mode: time-weighted mean class; observed/table time of the pieces that were queued behind a running one corrects the table (piece_scale)
+            double tw = 0.0, tc = 0.0, obs = 0.0, tab = 0.0;
+            for (size_t i = 0; i < a_ppart.size(); i++) { auto tv = s.piece_us.find({a_chunk_k, a_ppart[i]}); if (tv == s.piece_us.end() || i >= tv->second.size()) continue;
+                const double tt = tv->second[i]; tw += tt; tc += tt * parts[a_ppart[i]].cls; float ms = 0;
+                if (a_pclean[i] && cudaEventElapsedTime(&ms, i ? s.chunk_ev[i - 1] : s.ev_start[a_chunk_k], s.chunk_ev[i]) == cudaSuccess) { obs += ms * 1000.0; tab += tt; } }
+            if (tw > 0.0) { r.sm = parts[a_ppart.front()].cls; r.sm_mean = tc / tw; }
+            if (tab > 0.5 * tw) { piece_scale = std::min(2.0, std::max(1.0, 0.8 * piece_scale + 0.2 * obs / tab)); } pc_obs_us += obs; pc_tab_us += tab;
+            if (piece_trace) {   // req,piece,launch_ns,class,observed_us (end of the previous piece -> end of this one),table_us,lead_us,P,N
+                for (size_t i = 0; i < a_ppart.size(); i++) { const Part& q = parts[a_ppart[i]]; float ms = 0; cudaEventElapsedTime(&ms, i ? s.chunk_ev[i - 1] : s.ev_start[a_chunk_k], s.chunk_ev[i]);
+                    std::fprintf(piece_trace, "%llu,%zu,%lld,%d,%.1f,%.1f,%.1f,%d,%d\n", static_cast<unsigned long long>(cur.id), i, static_cast<long long>(i ? a_plaunch[i] : a_p0_ns), q.cls, ms * 1000.0, a_pt[i], a_plead[i], q.P, q.N); }
+            }
+        }
         std::vector<float> out;
         if (read_output(s, out)) {
             // the end-to-end head: per slot k_out rows [x1 y1 x2 y2 conf cls] in net pixels, sorted by score; map through the slot ROI, class-aware NMS between slots
@@ -803,14 +1125,34 @@ struct Tenant {
         { std::lock_guard<std::mutex> g(rep_m); done.push_back(DoneRec{t_end, cur.model, r.sm_mean}); while (done.size() > 10000) done.pop_front();
           last.valid = true; last.t_end_ns = t_end; last.model = cur.model; last.status = r.status; last.sm = r.sm; last.sm_mean = r.sm_mean; last.infer_ms = r.infer_ms; last.latency_ms = r.latency_ms; }
         if (r.status == "success") a_ok++; else a_fail++;
-        have_req = false; aset = nullptr; a_pidx = -1;
+        have_req = false; aset = nullptr; a_pidx = -1; a_piece = false;
     }
 
+    // ---- loop stall monitor (2026-11-13): which part of the agent loop held the tenant thread longer than DAPP_TENANT_STALL_US
+    // (default 1000 us, 0 = off; the request start = JPEG decode is synchronous by design and counts above 10 x that)
+    enum { ST_LOOP, ST_LOG, ST_CSV, ST_EST, ST_PUMP, ST_ENQ, ST_FIN, ST_BEGIN, ST_NAP, ST_N };
+    struct StallEv { int64_t t_ns; int sec; float us; };
+    int stall_us = 1000; int64_t st_last = 0; uint64_t st_cnt[ST_N] = {0}; double st_max[ST_N] = {0}; std::vector<StallEv> st_ev; size_t st_printed = 0;
+    void st_note(int sec, double us) { if (us > st_max[sec]) st_max[sec] = us; if (us > (sec == ST_BEGIN ? 10.0 * stall_us : 1.0 * stall_us)) { st_cnt[sec]++; if (st_ev.size() < 4096) st_ev.push_back(StallEv{now_real_ns(), sec, static_cast<float>(us)}); } }
+    void st_mark(int sec) { if (stall_us <= 0) return; const int64_t t = now_mono_ns(); if (st_last != 0) st_note(sec, (t - st_last) / 1e3); st_last = t; }
+    void nap(int us) {   // sleep; an oversleep is its own section and never charged to the caller's
+        const int64_t t0 = now_mono_ns(); std::this_thread::sleep_for(std::chrono::microseconds(us)); if (stall_us <= 0) return;
+        const int64_t t1 = now_mono_ns(); st_note(ST_NAP, (t1 - t0) / 1e3 - us); if (st_last != 0) st_last += t1 - t0;
+    }
+    void st_print(std::FILE* lf) {
+        if (!lf || stall_us <= 0) return;
+        static const char* nm[ST_N] = {"loop", "log", "csv", "est", "pump", "enq", "finish", "begin", "nap"};
+        std::fprintf(lf, "tenant loop: longest us (count over %d us; begin over %d us) |", stall_us, 10 * stall_us);
+        for (int i = 0; i < ST_N; i++) { std::fprintf(lf, " %s %.0f (%llu)", nm[i], st_max[i], static_cast<unsigned long long>(st_cnt[i])); st_max[i] = 0; }
+        std::fprintf(lf, " | io %s | new events:", AsyncIo::async_on() ? "async" : "direct");
+        for (; st_printed < st_ev.size(); st_printed++) { const StallEv& e = st_ev[st_printed]; std::fprintf(lf, " %s@%.6f:%.0f", nm[e.sec], e.t_ns / 1e9, e.us); }
+        std::fprintf(lf, "\n"); std::fflush(lf);
+    }
     // ---- main loop ----------------------------------------------------------------------------------------------------
     void run() {
         pthread_setname_np(pthread_self(), "dapp_tenant");
         cuCtxSetCurrent(prim);
-        std::FILE* lf = log_file.empty() ? nullptr : std::fopen(log_file.c_str(), "a");
+        std::FILE* lf = log_file.empty() ? nullptr : AsyncIo::get().open(log_file.c_str(), "a");
         if (agent_on) {
             njd = njd_create(0); if (!njd) njd = njd_create(1);
             // DAPP_AGENT_DEC_PART=1 (2026-11-02 08:45): no separate decode stream; the decode's CUDA kernels (nvjpeg post-processing, k_f2h) run on
@@ -840,8 +1182,8 @@ struct Tenant {
             if (lf) { std::fprintf(lf, "==== agent: port %d, models", srv_port); for (const std::string& m : model_names) std::fprintf(lf, " %s", m.c_str()); std::fprintf(lf, ", input %s (b%d), nvjpeg %s (%u engines), freerun %d\n", input_profile.c_str(), model_names.empty() ? 0 : models[model_names.front()].batch, njd ? "ok" : "MISSING", eng, freerun ? 1 : 0); std::fflush(lf); }
         }
         if (lf) { std::fprintf(lf, "==== tenant ready (engines loaded and validated, decoder warm) %lld\n", static_cast<long long>(now_real_ns() / 1000000000LL)); std::fflush(lf); }
-        std::FILE* cf = csv_file.empty() ? nullptr : std::fopen(csv_file.c_str(), "w");
-        if (cf) { std::fprintf(cf, "abs_slot,sfn,slot,pos,P,N,part,class,set,segments,paused_us,known,plan_ul_sm,plan_dl_sm,t_ns,gap_P,gap_N,run_cls,queue,model\n"); }
+        std::FILE* cf = csv_file.empty() ? nullptr : AsyncIo::get().open(csv_file.c_str(), "w");
+        if (cf) { std::fprintf(cf, "abs_slot,sfn,slot,pos,P,N,part,class,set,segments,paused_us,known,plan_ul_sm,plan_dl_sm,t_ns,gap_P,gap_N,run_cls,queue,model,plan_ul_us,plan_dl_us\n"); }
         int64_t last_log = now_mono_ns(); int64_t last_w = -1; int segs_in_slot = 0, segs_q = 0, segs_b = 0; int64_t paused_in_slot = 0; int cur_part_slot = -1; bool known_slot = true;
         uint64_t q_inf_at_log = 0, b_inf_at_log = 0, q_req_at_log = 0, b_req_at_log = 0;
         auto flush_slot = [&](int64_t w) {
@@ -850,13 +1192,15 @@ struct Tenant {
                 // 2026-11-11 (slot-map video, tools/slotmap_render.py): t_ns = wall clock at the slot change; gap_P/gap_N = the (P, N) gap the sizer
                 // offered YOLO in this slot (free SMs = P - N - 8, RAN reserved = 132 - free), request or not; run_cls = SMs the in-flight inference
                 // occupies (chunked graphs included; the older `class` column only marks slots with a segment enqueue); queue = waiting requests
+                // 2026-11-13: plan_ul_us / plan_dl_us = the sizer's predicted PUSCH completion after t0 / PDSCH duration at the chosen profile (estimator check)
                 int gP = -1, gN = -1; { bool gk, gd, gu; busy_of(last_w, gP, gN, gk, gd, gu); }
                 const int run_cls = (have_req && a_pidx >= 0) ? parts[a_pidx].cls : 0;
-                std::fprintf(cf, "%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%lld,%d,%d,%d,%lld,%d,%d,%d,%zu,%s\n", static_cast<long long>(last_w), static_cast<int>((last_w / kSzSlotsPerFrame) & 1023), static_cast<int>(last_w % kSzSlotsPerFrame), static_cast<int>(last_w % 10),
+                std::fprintf(cf, "%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%lld,%d,%d,%d,%lld,%d,%d,%d,%zu,%s,%.0f,%.0f\n", static_cast<long long>(last_w), static_cast<int>((last_w / kSzSlotsPerFrame) & 1023), static_cast<int>(last_w % kSzSlotsPerFrame), static_cast<int>(last_w % 10),
                              cur_part_slot >= 0 ? parts[cur_part_slot].P : -1, cur_part_slot >= 0 ? parts[cur_part_slot].N : -1, cur_part_slot, cur_part_slot >= 0 ? parts[cur_part_slot].cls : 0,
                              segs_b > segs_q ? busy.batch : (segs_q > 0 ? quiet.batch : 0), segs_in_slot, static_cast<long long>(paused_in_slot / 1000), known_slot ? 1 : 0,
                              (e && !pred) ? (e->ul_any ? static_cast<int>(e->ul_sm) : 0) : -1, (e && !pred) ? (e->dl_any ? static_cast<int>(e->dl_sm) : 0) : -1,
-                             static_cast<long long>(now_real_ns()), gP, gN, run_cls, agent_on ? srv.queue_depth() : static_cast<size_t>(0), have_req ? cur.model.c_str() : "");
+                             static_cast<long long>(now_real_ns()), gP, gN, run_cls, agent_on ? srv.queue_depth() : static_cast<size_t>(0), have_req ? cur.model.c_str() : "",
+                             (e && !pred && e->ul_prof >= 0) ? static_cast<double>(e->pusch_t) : -1.0, (e && !pred && e->dl_prof >= 0) ? static_cast<double>(e->pdsch_t) : -1.0);
             }
             last_w = w; segs_in_slot = 0; segs_q = 0; segs_b = 0; paused_in_slot = 0; cur_part_slot = -1; known_slot = true;
         };
@@ -871,9 +1215,11 @@ struct Tenant {
             inf_at = pp.inferences; req_at = pp.requests; pp.inf_lat.clear(); pp.req_lat.clear();
         };
         while (!stop.load(std::memory_order_acquire)) {
+            st_mark(ST_LOOP);   // the rest of the previous pass
             if (prof_on && now_real_ns() - prof_t0 > static_cast<int64_t>(prof_s) * 1000000000LL) { cudaProfilerStop(); prof_on = false; prof_done = true; if (lf) { std::fprintf(lf, "agent: cudaProfilerStop\n"); std::fflush(lf); } }
             const int64_t tnow = now_mono_ns();
             if (tnow - last_log >= static_cast<int64_t>(log_s) * 1000000000LL) {
+                st_mark(ST_LOOP);
                 const double sec = (tnow - last_log) / 1e9;
                 if (lf) {
                     const uint64_t tiles = (qpipe.inferences - q_inf_at_log) * quiet.batch + (bpipe.inferences - b_inf_at_log) * (busy.loaded ? busy.batch : 0);
@@ -881,6 +1227,7 @@ struct Tenant {
                                  static_cast<unsigned long long>(pauses), pause_ns / 1e6);
                     stats(qpipe, "quiet", q_inf_at_log, q_req_at_log, sec); stats(bpipe, "busy", b_inf_at_log, b_req_at_log, sec);
                     if (agent_on) { std::fprintf(lf, " | agent ok %llu fail %llu queue %zu received %llu rejected %llu dec_ema %.1f ms", static_cast<unsigned long long>(a_ok), static_cast<unsigned long long>(a_fail), srv.queue_depth(), static_cast<unsigned long long>(srv.requests_received()), static_cast<unsigned long long>(srv.rejected()), dec_ema); }
+                    if (agent_on && piece_on) { std::fprintf(lf, " | piece %llu pieces %llu switches %llu waits (%.1f ms, %llu deferrals) scale %.3f observed/table %.3f plan lead %.0f us", static_cast<unsigned long long>(pc_pieces), static_cast<unsigned long long>(pc_switch), static_cast<unsigned long long>(pc_wait), pc_wait_ns / 1e6, static_cast<unsigned long long>(pc_defer), piece_scale, pc_tab_us > 0.0 ? pc_obs_us / pc_tab_us : 0.0, g_plan_lead_ns.load(std::memory_order_relaxed) / 1e3); }
                     std::fprintf(lf, " | sizer plans %llu incomplete %llu wait max %.1f us plan max %.1f us | PUSCH slots %llu infeasible %llu prof",
                                  static_cast<unsigned long long>(g_sizer_stats.plans.load()), static_cast<unsigned long long>(g_sizer_stats.incomplete.load()),
                                  g_sizer_stats.wait_max_ns.load() / 1e3, g_sizer_stats.plan_max_ns.load() / 1e3,
@@ -893,6 +1240,7 @@ struct Tenant {
                     std::fflush(lf);
                 }
                 if (cf) std::fflush(cf);
+                st_mark(ST_LOG); st_print(lf); st_last = now_mono_ns();
                 last_log = tnow;
             }
             // ---- agent path: requests from the Resource Allocator (sequential), estimates every slot
@@ -900,34 +1248,36 @@ struct Tenant {
                 int64_t w = 0, slot_end = 0; const bool clk = current_slot(w, slot_end);
                 if (clk && w != last_w) {
                     if (last_w >= 0) { int P, N; bool kn, dla, ula; busy_of(last_w, P, N, kn, dla, ula); std::lock_guard<std::mutex> g(rep_m); yolo_sm_sum += (have_req && a_pidx >= 0) ? parts[a_pidx].cls : 0; ran_sm_sum += (nsm - P) + N; slot_samples++; }
-                    flush_slot(w);
+                    st_mark(ST_LOOP); flush_slot(w); st_mark(ST_CSV);
                     const std::string e = estimate_json(w, slot_end, true); srv.publish_estimate(e); { std::lock_guard<std::mutex> g(rep_m); last_estimate = e; }
+                    st_mark(ST_EST);
                 }
                 if (have_req && aset) {
                     EngineSet& s = *aset;
-                    if (a_chunking) { if (!agent_pump(lf)) continue; if (a_chunking) { std::this_thread::sleep_for(std::chrono::microseconds(5)); if (!loop_on) continue; } }
+                    if (a_chunking) { st_mark(ST_LOOP); const bool pumped = agent_pump(lf); st_mark(ST_PUMP); if (!pumped) continue; if (a_chunking) { nap(5); if (!loop_on) continue; } }
                     if (have_req && aset && a_chunking) { }
                     else if (apipe.k < s.nseg) {
                         // next segment once the previous one finished (keeps the class choice current for segmented sets)
                         if (apipe.k == 0 || cudaEventQuery(s.ev_end[apipe.k - 1]) == cudaSuccess) {
-                            bool kn = true; int pidx = clk ? choose_part(s, apipe.k, w, slot_end, kn, false) : a_pidx;
-                            if (pidx >= 0) { a_pidx = pidx; if (cur_part_slot < 0) cur_part_slot = pidx; agent_enqueue(pidx, lf); segs_in_slot++; }
-                            else { pauses++; std::this_thread::sleep_for(std::chrono::microseconds(pause_us)); }
-                        } else { std::this_thread::sleep_for(std::chrono::microseconds(50)); }
-                    } else if (cudaEventQuery(s.ev_end[s.nseg - 1]) == cudaSuccess) { finish_request(lf); }
-                    else { std::this_thread::sleep_for(std::chrono::microseconds(50)); }
+                            st_mark(ST_LOOP);
+                            bool kn = true; int pidx = !clk ? a_pidx : (piece_on && s.piece_ok && chunk_n > 0) ? choose_piece(s, apipe.k, 0, w, slot_end, 0.0) : choose_part(s, apipe.k, w, slot_end, kn, false);
+                            if (pidx >= 0) { a_pidx = pidx; if (cur_part_slot < 0) cur_part_slot = pidx; agent_enqueue(pidx, lf); segs_in_slot++; st_mark(ST_ENQ); }
+                            else { st_mark(ST_ENQ); pauses++; nap(pause_us); }
+                        } else { nap(50); }
+                    } else if (cudaEventQuery(s.ev_end[s.nseg - 1]) == cudaSuccess) { st_mark(ST_LOOP); finish_request(lf); st_mark(ST_FIN); }
+                    else { nap(50); }
                     if (!loop_on) continue;
                 } else {
                     if (!have_req && srv.pop_request(cur)) { have_req = true; }
-                    if (have_req) { if (!begin_request(w, slot_end, clk, lf) && have_req) { pauses++; std::this_thread::sleep_for(std::chrono::microseconds(pause_us)); } continue; }
-                    if (!loop_on) { if (!clk) { std::lock_guard<std::mutex> g(rep_m); } std::this_thread::sleep_for(std::chrono::microseconds(100)); continue; }
+                    if (have_req) { st_mark(ST_LOOP); const bool begun = begin_request(w, slot_end, clk, lf); st_mark(ST_BEGIN); if (!begun && have_req) { pauses++; nap(pause_us); } continue; }
+                    if (!loop_on) { if (!clk) { std::lock_guard<std::mutex> g(rep_m); } nap(100); continue; }
                 }
             }
             // ---- which pipeline and partition now?
             Pipe* pp = &qpipe; int pidx = -1; bool known = true; int64_t w = 0, slot_end = 0;
             if (fixed > 0 && fixed_gap_part < 0) { pidx = 0; }
             else if (fixed_gap_part >= 0) { pidx = fixed_gap_part; if (current_slot(w, slot_end) && w != last_w) flush_slot(w); }
-            else if (!current_slot(w, slot_end)) { std::this_thread::sleep_for(std::chrono::microseconds(200)); continue; }
+            else if (!current_slot(w, slot_end)) { nap(200); continue; }
             else {
                 if (w != last_w) flush_slot(w);
                 int P, N; bool dla, ula; busy_of(w, P, N, known, dla, ula);
@@ -950,7 +1300,7 @@ struct Tenant {
             }
             if (pidx < 0) {
                 const int64_t t_p = now_mono_ns(); pauses++;
-                std::this_thread::sleep_for(std::chrono::microseconds(pause_us));
+                nap(pause_us);
                 const int64_t d = now_mono_ns() - t_p; pause_ns += d; paused_in_slot += d;
                 continue;
             }
@@ -959,6 +1309,8 @@ struct Tenant {
             segs_in_slot++; if (pp == &qpipe) segs_q++; else segs_b++;
         }
         if (cf) { flush_slot(-1); std::fclose(cf); }
+        if (piece_trace) { std::fclose(piece_trace); piece_trace = nullptr; }
+        st_print(lf);
         if (lf) { std::fprintf(lf, "tenant thread stopped: quiet inferences %llu busy inferences %llu agent ok %llu fail %llu\n", static_cast<unsigned long long>(qpipe.inferences), static_cast<unsigned long long>(bpipe.inferences), static_cast<unsigned long long>(a_ok), static_cast<unsigned long long>(a_fail)); std::fclose(lf); }
         if (njd) { njd_destroy(njd); njd = nullptr; }
         if (dec_s) { cudaStreamDestroy(dec_s); dec_s = nullptr; }
@@ -976,9 +1328,16 @@ struct Tenant {
         dl_pause = envi("DAPP_TENANT_DL_PAUSE", 0); dl_max_class = envi("DAPP_TENANT_DL_MAX_CLASS", 0); ul_pause = envi("DAPP_TENANT_UL_PAUSE", 0); tiles_per_request = envi("DAPP_TENANT_TILES", 8);
         unknown_prev = std::string(envs("DAPP_TENANT_UNKNOWN", "prev")) != "max"; horizon_max = envi("DAPP_TENANT_HORIZON_MAX", 200); pred_frames = envi("DAPP_TENANT_PRED_FRAMES", 12); empty_us = envi("DAPP_TENANT_EMPTY_US", 400);
         one_per_gap = envi("DAPP_TENANT_ONE_PER_GAP", -1);   // -1: union layout keeps only the largest class per (P, N) (the horizon rule never uses a smaller one); gap layout keeps all
-        fb_guard = envi("DAPP_TENANT_FB_GUARD", 0); layout = envs("DAPP_TENANT_LAYOUT", "union"); engine_ctx_per_class = std::string(envs("DAPP_TENANT_ENGINE_CTX", "prim")) == "part";   // 2026-11-10: was a const char* pointer comparison (prim never took effect) if (one_per_gap < 0) one_per_gap = (layout == "union") ? 1 : 0;
+        fb_guard = envi("DAPP_TENANT_FB_GUARD", 0); layout = envs("DAPP_TENANT_LAYOUT", "union"); engine_ctx_per_class = std::string(envs("DAPP_TENANT_ENGINE_CTX", "prim")) == "part";   // 2026-11-10: was a const char* pointer comparison (prim never took effect)
+        if (one_per_gap < 0) one_per_gap = (layout == "gap") ? 0 : 1;   // 2026-11-13: back on its own line (the 11-10 comment had swallowed it; -1 acted as 1)
+        // 2026-11-12 (feature/slot_level): DAPP_TENANT_ENGINE_SM=132 one-engine sets, DAPP_AGENT_PIECE=1 SM class per graph piece (needs DAPP_AGENT_GRAPH_CHUNK > 0), guard per piece
+        engine_sm = envi("DAPP_TENANT_ENGINE_SM", 0); piece_on = envi("DAPP_AGENT_PIECE", 0) != 0; piece_guard_us = envi("DAPP_AGENT_PIECE_GUARD_US", 30); piece_window = envi("DAPP_AGENT_PIECE_WINDOW", 1) != 0;
+        stall_us = envi("DAPP_TENANT_STALL_US", 1000);
+        { const char* pt = std::getenv("DAPP_AGENT_PIECE_TRACE"); if (piece_on && pt && *pt) { piece_trace = AsyncIo::get().open(pt, "w"); if (piece_trace) std::fprintf(piece_trace, "req,piece,launch_ns,cls,obs_us,tab_us,lead_us,P,N\n"); } }
         qos_on = envi("DAPP_AGENT_QOS", 1) != 0; prof_s = envi("DAPP_AGENT_PROFILE_S", 0);
         chunk_n = envi("DAPP_AGENT_GRAPH_CHUNK", 3); chunk_ahead = std::max(1, envi("DAPP_AGENT_CHUNK_AHEAD", 2));
+        piece_us_target = envi("DAPP_AGENT_PIECE_US", 0); ahead_us = envi("DAPP_AGENT_AHEAD_US", 0); ahead_max = std::max(1, envi("DAPP_AGENT_AHEAD_MAX", 8));
+        defer_slots = std::max(0, envi("DAPP_AGENT_PIECE_DEFER", 0)); defer_min_us = envi("DAPP_AGENT_PIECE_DEFER_MIN_US", 150); defer_gain_us = envi("DAPP_AGENT_PIECE_DEFER_GAIN_US", 50);
         // guard 0 (14:30): 80 SM at 1 cell, the PUSCH fallback profile ran 0-2 of 48000 UL slots without a recovery. Pieces 3 nodes / 2 ahead (15:15): 3/1 was clean
         // but idled the GPU between pieces (+6..10 ms per request); 6/2 left one FATAL in ~10 runs (pieces up to 2.9 ms). (A comment appended to this line on 14:30
         // had commented out these assignments: chain21 ran with the member defaults 6/2.)
@@ -1021,7 +1380,7 @@ struct Tenant {
             CKR(cudaEventRecord(a, p.s));
             stress_launch(p);
             CKR(cudaEventRecord(b, p.s)); CKR(cudaEventSynchronize(b)); float ms = 0; CKR(cudaEventElapsedTime(&ms, a, b));
-            std::FILE* lf0 = log_file.empty() ? nullptr : std::fopen(log_file.c_str(), "a");
+            std::FILE* lf0 = log_file.empty() ? nullptr : AsyncIo::get().open(log_file.c_str(), "a");
             if (lf0) { std::fprintf(lf0, "==== stress mode %s: %d MB buffer, launch %.0f us on class %d (spin cycles %lld, read iters %d, blocks %d, gap %d us)\n", stress.c_str(), stress_mb, ms * 1000.0, p.cls, spin_cycles, read_iters, cal_blocks, stress_gap_us); std::fclose(lf0); }
         } else {
             if (loop_on && !load_set(quiet, err)) return false;
@@ -1030,7 +1389,7 @@ struct Tenant {
         }
         qpipe.set = &quiet; qpipe.cls_hist.assign(quiet.classes.size(), 0); qpipe.tiles_left = tiles_per_request;
         bpipe.set = &busy; bpipe.cls_hist.assign(busy.classes.size(), 0); bpipe.tiles_left = tiles_per_request;
-        std::FILE* lf = log_file.empty() ? nullptr : std::fopen(log_file.c_str(), "a");
+        std::FILE* lf = log_file.empty() ? nullptr : AsyncIo::get().open(log_file.c_str(), "a");
         if (lf) {
             std::fprintf(lf, "==== dapp_tenant quiet %s (b%d, %d segments, classes", quiet.dir.c_str(), quiet.batch, quiet.nseg); for (int c : quiet.classes) std::fprintf(lf, " %d", c);
             if (busy.loaded) { std::fprintf(lf, ") busy %s (b%d, %d segments, classes", busy.dir.c_str(), busy.batch, busy.nseg); for (int c : busy.classes) std::fprintf(lf, " %d", c); }
@@ -1056,6 +1415,7 @@ struct Tenant {
         if (a_use_graph && stress.empty()) {
             int ng = 0, nchunk = 0; double chunk_ms = 0.0;
             for (const std::string& m : model_names) { EngineSet& es = models[m]; if (!es.loaded) continue;
+                if (chunk_n > 0 && piece_on && piece_us_target > 0) { for (int k = 0; k < es.nseg; k++) { std::string e2; if (!balance_cut(es, m, k, lf, e2)) { err = "balanced cut of " + m + ": " + e2; if (lf) std::fclose(lf); return false; } } }
                 for (size_t pi = 0; pi < parts.size(); pi++) { const Part& p = parts[pi]; const int ci = es.cls_index(p.cls); if (ci < 0) continue;
                     for (int k = 0; k < es.nseg; k++) {
                         cudaGraph_t g = nullptr; cudaGraphExec_t ge = nullptr;
@@ -1065,15 +1425,37 @@ struct Tenant {
                         const cudaError_t ce = cudaStreamEndCapture(p.s, &g);
                         if (!okq || ce != cudaSuccess || !g) { err = "graph capture of " + m + " seg " + std::to_string(k) + " part " + std::to_string(pi) + " failed (" + (okq ? cudaGetErrorString(ce) : "enqueue") + ")"; if (lf) std::fclose(lf); return false; }
                         if (cudaGraphInstantiate(&ge, g, 0) != cudaSuccess) { err = "graph instantiate failed"; if (lf) std::fclose(lf); return false; }
-                        if (chunk_n > 0) { std::vector<cudaGraphExec_t> pieces; std::string e2; const int64_t tc0 = now_mono_ns(); if (!chunk_graph(g, chunk_n, pieces, p.s, e2)) { err = "graph chunking of " + m + ": " + e2; if (lf) std::fclose(lf); return false; }
-                            es.chunks[{k, static_cast<int>(pi)}] = pieces; nchunk += static_cast<int>(pieces.size()); chunk_ms += (now_mono_ns() - tc0) / 1e6;
+                        if (chunk_n > 0) { std::vector<cudaGraphExec_t> pieces; std::string e2; const int64_t tc0 = now_mono_ns(); { auto bt = es.bounds.find(k); if (!chunk_graph(g, chunk_n, bt != es.bounds.end() ? &bt->second : nullptr, pieces, p.s, e2)) { err = "graph chunking of " + m + ": " + e2; if (lf) std::fclose(lf); return false; }
+                            } es.chunks[{k, static_cast<int>(pi)}] = pieces; nchunk += static_cast<int>(pieces.size()); chunk_ms += (now_mono_ns() - tc0) / 1e6;
                             while (es.chunk_ev.size() < pieces.size()) { cudaEvent_t ce2 = nullptr; cudaEventCreate(&ce2); es.chunk_ev.push_back(ce2); } }
                         cudaGraphDestroy(g); cudaGraphUpload(ge, p.s); es.graphs[{k, static_cast<int>(pi)}] = ge; ng++;
                     }
                 }
                 cudaDeviceSynchronize();
             }
+            // 2026-11-12 piece mode: table time of every piece on every partition - the pieces launched back to back on the partition's stream,
+            // median of 3 passes after one warm-up pass (the launch-time choice needs the time of ONE piece on a given class)
+            if (piece_on && chunk_n > 0) {
+                for (const std::string& m : model_names) { EngineSet& es = models[m]; if (!es.loaded || es.nseg != 1) continue;
+                    size_t np = 0; bool same = true; int nparts = 0;
+                    for (auto& kv : es.chunks) { const Part& p = parts[kv.first.second]; const std::vector<cudaGraphExec_t>& pv = kv.second; const size_t n = pv.size();
+                        if (np == 0) np = n; if (n != np || n == 0) { same = false; continue; }
+                        std::vector<std::vector<float>> rep(n);
+                        for (int r = 0; r < 4; r++) {
+                            cudaEventRecord(es.ev_start[0], p.s); for (size_t j = 0; j < n; j++) { cudaGraphLaunch(pv[j], p.s); cudaEventRecord(es.chunk_ev[j], p.s); } cudaStreamSynchronize(p.s);
+                            for (size_t j = 0; r > 0 && j < n; j++) { float ms = 0; if (cudaEventElapsedTime(&ms, j ? es.chunk_ev[j - 1] : es.ev_start[0], es.chunk_ev[j]) == cudaSuccess) rep[j].push_back(ms * 1000.0f); }
+                        }
+                        std::vector<float> t(n, 0.0f); double sum = 0.0, mx = 0.0;
+                        for (size_t j = 0; j < n; j++) { if (rep[j].empty()) { same = false; break; } std::sort(rep[j].begin(), rep[j].end()); t[j] = rep[j][rep[j].size() / 2]; sum += t[j]; mx = std::max(mx, static_cast<double>(t[j])); }
+                        es.piece_us[kv.first] = t; nparts++;
+                        if (lf) std::fprintf(lf, "  %s piece table part %d (P %d, N %d, class %d): %zu pieces, sum %.2f ms, longest piece %.0f us\n", m.c_str(), kv.first.second, p.P, p.N, p.cls, n, sum / 1000.0, mx);
+                    }
+                    es.piece_ok = same && nparts > 0;
+                    if (lf) std::fprintf(lf, "  %s piece mode %s (DAPP_AGENT_PIECE=1, guard %d us, slots %s, unknown slots = %s)\n", m.c_str(), es.piece_ok ? "ON: SM class chosen per graph piece" : "OFF (pieces differ between partitions): request-level rule", piece_guard_us, piece_window ? "from the piece start" : "from now", unknown_prev ? "previous frame" : "largest profile");
+                }
+            }
             if (lf) std::fprintf(lf, "  CUDA graphs captured: %d (DAPP_AGENT_GRAPH=1), cut into %d pieces of %d nodes (DAPP_AGENT_GRAPH_CHUNK) in %.1f s, %d queued ahead (DAPP_AGENT_CHUNK_AHEAD)\n", ng, nchunk, chunk_n, chunk_ms / 1000.0, chunk_ahead);
+            if (lf && (piece_us_target > 0 || ahead_us > 0 || defer_slots > 0)) std::fprintf(lf, "  piece cut: %s | piece queue: %s | waiting rule: %s (DAPP_AGENT_PIECE_US %d, DAPP_AGENT_AHEAD_US %d, DAPP_AGENT_AHEAD_MAX %d, DAPP_AGENT_PIECE_DEFER %d slots / pieces over %d us / gain %d us)\n", piece_us_target > 0 && piece_on ? "balanced by time" : "fixed node count", ahead_us > 0 && piece_on ? "by time" : "by count", defer_slots > 0 && piece_on ? "on" : "off", piece_us_target, ahead_us, ahead_max, defer_slots, defer_min_us, defer_gain_us);
         }
         if (lf) std::fclose(lf);
         return true;

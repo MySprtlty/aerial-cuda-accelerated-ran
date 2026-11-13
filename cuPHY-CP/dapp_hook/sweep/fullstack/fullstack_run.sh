@@ -110,6 +110,15 @@ grep -n "^  use_green_contexts" cuPHY-CP/cuphycontroller/config/cuphycontroller_
 if [ -n "${SM_OVERRIDE:-}" ]; then
   for kv in $SM_OVERRIDE; do sed -i "s/^  mps_sm_${kv%%=*}: .*/  mps_sm_${kv%%=*}: ${kv##*=}/" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml; done
 fi
+# YAML_SET="key=value key2=value2" (2026-11-13): per-run values of top-level cuphydriver_config keys of the L1 yaml (diagnosis pilots only,
+# e.g. enable_ul_cuphy_graphs=0); the key must exist; restored after the run like the other lab files
+if [ -n "${YAML_SET:-}" ]; then
+  for kv in $YAML_SET; do
+    grep -q "^  ${kv%%=*}: " cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml || { echo "!! YAML_SET: no key ${kv%%=*} in the L1 yaml"; restore_lab; exit 1; }
+    sed -i "s/^  ${kv%%=*}: .*/  ${kv%%=*}: ${kv#*=}/" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml
+    echo "   YAML_SET: $(grep -n "^  ${kv%%=*}: " cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml | tr -s ' ')"
+  done
+fi
 grep -n "^  mps_sm_" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml | tr -d ' ' | tr '\n' ' '; echo
 grep -n "workers_ul\|workers_dl\|debug_worker\|enable_cpu_task_tracing" cuPHY-CP/cuphycontroller/config/cuphycontroller_F08_CG1.yaml
 # optional: INFO-level shm logging for selected nvlog tag ids (comma separated)
@@ -150,13 +159,16 @@ RUN_ENV_ARGS=""; for kv in ${RUN_ENV:-}; do RUN_ENV_ARGS="$RUN_ENV_ARGS -e $kv";
 # green-context profiles (cuphydriver DAPP_PUSCH_PROFILES / DAPP_PDSCH_PROFILES) chosen by the in-process sizer
 # (include/dapp_hook/dapp_sizer.hpp, model estimator/sm_model.txt). Needs GREEN=1, the async hook (export_dl 1) and a build
 # with the patches (BUILD_DIR). PROFILES_ONLY=1: profiles + sizer without the tenant thread (A/B). Knobs: PUSCH_PROFILES,
-# PDSCH_PROFILES, SIZER_MODEL (file name under estimator/), TENANT_CLASSES, TENANT_FIXED, TENANT_ENV (extra "-e K=V" args).
+# PDSCH_PROFILES, SIZER_MODEL (file name under estimator/), TENANT_CLASSES, TENANT_FIXED, TENANT_ENV (extra "-e K=V" args), L1_ENV (the same, also with PROFILES_ONLY=1).
 L1_ENV_ARGS=""
 if [ "${TENANT:-0}" = "1" ] || [ "${PROFILES_ONLY:-0}" = "1" ]; then
   L1_ENV_ARGS="-e DAPP_PUSCH_PROFILES=${PUSCH_PROFILES:-40,56,72,96} -e DAPP_PDSCH_PROFILES=${PDSCH_PROFILES:-40,56} -e DAPP_SIZER_MODEL=/opt/nvidia/cuBB/cuPHY-CP/dapp_hook/estimator/${SIZER_MODEL:-sm_model.txt}"
   [ "${TENANT:-0}" = "1" ] && L1_ENV_ARGS="$L1_ENV_ARGS -e DAPP_TENANT=1 -e DAPP_TENANT_CLASSES=${TENANT_CLASSES:-40,48,64,88} -e DAPP_TENANT_FIXED=${TENANT_FIXED:-0} -e DAPP_TENANT_LOG=/tmp/dapp_tenant_$NAME.log -e DAPP_TENANT_CSV=/tmp/dapp_tenant_$NAME.csv ${TENANT_ENV:-}"
+  [ -n "${L1_ENV:-}" ] && L1_ENV_ARGS="$L1_ENV_ARGS ${L1_ENV}"   # 2026-11-13: extra "-e K=V" args for the L1 in both modes (e.g. -e DAPP_GC_SPLIT_FLAGS=1; TENANT_ENV only reaches the L1 with TENANT=1)
   echo "   L1 env: $L1_ENV_ARGS (build ${BUILD_DIR:-build.aarch64})"
 fi
+# 2026-11-13: a plain green-context run (sl_fluct.sh arm green: stock SM values, no profiles / sizer / tenant) takes L1_ENV as well (test knobs only)
+if [ -z "$L1_ENV_ARGS" ] && [ "${GREEN:-0}" = "1" ] && [ -n "${L1_ENV:-}" ]; then L1_ENV_ARGS="${L1_ENV}"; echo "   L1 env: $L1_ENV_ARGS (build ${BUILD_DIR:-build.aarch64})"; fi
 docker exec $RUN_ENV_ARGS c_aerial_troy bash -lc "$P/run1_RU.sh ${BUILD_DIR:+--build_dir=$BUILD_DIR} --timeout $((TRAFFIC_S + 330))" > $S/run1_$NAME.log 2>&1 & RU=$!
 sleep 25
 # 2026-11-02: the tenant log/csv in the container are appended across runs; a stale "tenant ready" marker made the traffic start
@@ -168,7 +180,7 @@ grep -q "L1 is ready" $S/run2_$NAME.log || { echo "L1 did not come up"; kill_ran
 # 2026-11-02: with the in-process tenant, wait until its engines are loaded and validated ("tenant ready" in its log) before the
 # traffic starts: TensorRT deserialisation + execution contexts of 10 engines stall the GPU for >10 ms and crash the L1 (k1_26x_av12)
 if [ "${TENANT:-0}" = "1" ]; then
-  for i in $(seq 1 180); do docker exec c_aerial_troy grep -q "tenant ready" /tmp/dapp_tenant_$NAME.log 2>/dev/null && break; grep -q "tenant not started\|FATAL exit" $S/run2_$NAME.log 2>/dev/null && break; kill -0 $L1 2>/dev/null || break; sleep 1; done
+  for i in $(seq 1 180); do docker exec c_aerial_troy grep -q "tenant ready" /tmp/dapp_tenant_$NAME.log 2>/dev/null && break; grep -q "tenant not started\|FATAL exit\|l1_exit_handler" $S/run2_$NAME.log 2>/dev/null && break; kill -0 $L1 2>/dev/null || break; sleep 1; done
   echo "   tenant ready after $i s ($(docker exec c_aerial_troy grep -c "tenant ready" /tmp/dapp_tenant_$NAME.log 2>/dev/null))"
 fi
 echo "   L1 ready $(date +%T); starting DCGM + testMAC (recorder: $RECORD)"
@@ -182,6 +194,8 @@ TEN=""
 if [ -n "${TENANT_SPEC:-}" ] || [ "${TENANT_MODE:-}" = "dispatcher" ]; then FS_OUT=$S bash "$(dirname "$0")/fs_tenant.sh" start "$NAME" "$TRAFFIC_S" > $S/tenant_$NAME.log 2>&1 & TEN=$!; fi
 for i in $(seq 1 $((TRAFFIC_S + 150))); do
   grep -q "Finished running" $S/run3_$NAME.log && break
+  # 2026-11-13: an L1 that died after the traffic start ends the run at once (before: the testMAC timeout, traffic + 120 s)
+  grep -q "FATAL exit\|l1_exit_handler" $S/run2_$NAME.log 2>/dev/null && { echo "!! L1 FATAL exit during the run: $(grep -m1 'FATAL exit\|l1_exit_handler' $S/run2_$NAME.log | cut -c1-200)"; break; }
   # thread placement snapshot once the traffic is on (host view: all containers share the host pid namespace view via ps -eL)
   if [ "$MPSTAT" = "1" ] && [ $i -eq 90 ]; then
     docker exec c_aerial_troy bash -c 'ps -eLo pid,tid,psr,pcpu,pri,comm,args | grep -E "phy_main|ru_emulator|test_mac" | grep -v grep' > $S/threads_$NAME.txt 2>&1
@@ -209,6 +223,8 @@ if [ -n "$L1_ENV_ARGS" ]; then
   docker exec c_aerial_troy bash -lc "grep -aE 'dApp|green context with|profile [0-9]+ \\(|DL context' /tmp/phy.log | cut -c1-700 > $CS/dapp_$NAME.log; grep -ac 'profile .* requested, .* used' /tmp/phy.log" | sed 's/^/   profile fallbacks: /'
   tail -2 $S/dapp_tenant_$NAME.log 2>/dev/null | cut -c1-400
 fi
+# 2026-11-13: after an L1 FATAL exit the last 400k lines of the unfiltered L1 log are kept for the diagnosis (phyfatal_<name>.log)
+grep -q "FATAL exit\|l1_exit_handler" $S/run2_$NAME.log 2>/dev/null && docker exec c_aerial_troy bash -lc "tail -n 400000 /tmp/phy.log > $CS/phyfatal_$NAME.log; chmod a+r $CS/phyfatal_$NAME.log" && echo "   L1 FATAL exit: raw log tail kept in phyfatal_$NAME.log"
 [ "${PURGE_TMP:-1}" = "1" ] && docker exec -u root c_aerial_troy bash -lc "rm -f /tmp/phy.log /tmp/ru.log /tmp/testmac.log" && echo "   container /tmp raw logs purged"
 restore_lab
 echo "== $NAME done $(date +%T)"

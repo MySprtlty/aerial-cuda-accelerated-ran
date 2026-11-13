@@ -22,6 +22,7 @@
 #include "context.hpp"
 #include "constant.hpp"
 #include <cmath>
+#include <cstdlib>
 #include "ti_generic.hpp"
 
 #define PRINT_MEMORY_FOOTPRINT_IN_CTOR 1
@@ -677,7 +678,9 @@ int Cell::setGpuItems()
         PHYDRIVER_THROW_EXCEPTIONS(errno, "MPS device is different from Cell device. Multi-GPU is not supported yet");
     pdctx->setUlCtx();
     CUDA_CHECK(cudaStreamCreateWithPriority(&stream_ul, cudaStreamNonBlocking, -3));
-    CUDA_CHECK(cudaStreamCreateWithPriority(&stream_order, cudaStreamNonBlocking, -5));
+    int dapp_order_prio = -5;   // dApp experiment knob (2026-11-13; unset = -5 = unchanged), the same as in context.cpp
+    if(const char* order_prio_env = std::getenv("DAPP_ORDER_PRIO")) dapp_order_prio = std::atoi(order_prio_env);
+    CUDA_CHECK(cudaStreamCreateWithPriority(&stream_order, cudaStreamNonBlocking, dapp_order_prio));
 
     launch_kernel_warmup(stream_order);
     launch_kernel_order(stream_order, 1, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, 0, nullptr, 0, 0, 0, 0, 0);

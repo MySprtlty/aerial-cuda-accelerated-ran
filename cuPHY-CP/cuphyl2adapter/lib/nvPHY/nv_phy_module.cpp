@@ -472,6 +472,8 @@ PHY_module::PHY_module(yaml::node node_config) :
                                    nv::dapp::g_sizer_wait_max_ns / 1000.0);
                     else
                         NVLOGC_FMT(TAG, "dApp sizer disabled: {}", serr);
+                    if (nv::dapp::g_sizer_enabled)
+                        NVLOGC_FMT(TAG, "dApp sizer YOLO term: {}", nv::dapp::sizer_yolo_desc());
                 }
                 const bool async_export = dcfg.has_key("async_export") ? (dcfg["async_export"].as<uint32_t>() != 0) : true;
                 const int  export_cpu   = dcfg.has_key("export_cpu") ? dcfg["export_cpu"].as<int>() : -1;

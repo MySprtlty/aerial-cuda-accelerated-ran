@@ -14,6 +14,13 @@
  * runs wherever the PDU walk runs (the async export thread, or inline); sizer_plan() runs on the msg_processing thread
  * and waits (bounded) until the export thread has accounted for every submitted request of the slot.
  * Header-only, no CUDA; the ring record format is untouched.
+ *
+ * YOLO term (2026-11-14): the fitted model describes PUSCH with the GPU to itself. While the in-process YOLO tenant has an
+ * inference in flight on its own SMs, PUSCH starts later and runs longer (6 cells + 30 req/s: 2.1 % of the completions
+ * past the planning limit and every out-of-order pair, against 0 % / 0 without YOLO). DAPP_SIZER_YOLO_US =
+ * "slot:us,slot:us,..." (slot-in-frame 0..19) is an extra completion margin for those slot positions; it is applied
+ * while the tenant has reported a request in hand (sizer_yolo_mark) within the last DAPP_SIZER_YOLO_HOLD_MS (default 1000).
+ * Unset or all zero = off: the plan is the one without this term.
  */
 #pragma once
 
@@ -246,6 +253,7 @@ inline SlotPlanEntry& slot_plan_entry(int64_t abs_id) noexcept { return g_slot_p
 // statistics (read by the tenant for its periodic log line)
 struct SizerStats {
     std::atomic<uint64_t> plans{0}, incomplete{0}, pusch_slots{0}, pdsch_slots{0}, pusch_infeasible{0}, pdsch_infeasible{0};
+    std::atomic<uint64_t> pusch_yolo_slots{0}, pusch_yolo_up{0}, pusch_yolo_nofit{0};     // YOLO term: PUSCH slots planned with it / moved to a larger profile by it / no profile meets it (largest taken)
     std::atomic<uint64_t> pusch_prof[16], pdsch_prof[16];
     std::atomic<int64_t>  wait_max_ns{0}, wait_sum_ns{0}, plan_max_ns{0}, plan_sum_ns{0};
     SizerStats() { for (auto& a : pusch_prof) { a.store(0); } for (auto& a : pdsch_prof) { a.store(0); } }
@@ -257,16 +265,46 @@ inline SizerProfiles g_sizer_profiles;
 inline bool    g_sizer_enabled = false;
 inline int64_t g_sizer_wait_max_ns = 40000;
 inline int64_t g_prev_ul_end_abs_ns = 0;     // burst check: completion of the previous U slot's PUSCH (absolute ns)
+// YOLO term (see the file comment): extra PUSCH completion margin per slot-in-frame while the tenant has work
+inline double  g_sizer_yolo_us[kSzSlotsPerFrame] = {0};
+inline bool    g_sizer_yolo_on = false;
+inline int64_t g_sizer_yolo_hold_ns = 1000000000LL;
+inline std::atomic<int64_t> g_sizer_yolo_seen_ns{0};     // CLOCK_MONOTONIC ns of the tenant's last mark (0 = never)
+// tenant thread: a YOLO request is in hand (queued, decoding or running)
+inline void sizer_yolo_mark(int64_t now_mono_ns) noexcept { g_sizer_yolo_seen_ns.store(now_mono_ns, std::memory_order_relaxed); }
+inline std::string sizer_yolo_desc()
+{
+    if (!g_sizer_yolo_on) { return "off"; }
+    std::string s; char b[64];
+    for (int i = 0; i < kSzSlotsPerFrame; i++) {
+        if (g_sizer_yolo_us[i] > 0.0) { std::snprintf(b, sizeof(b), "%s%d:%.0f", s.empty() ? "" : ",", i, g_sizer_yolo_us[i]); s += b; }
+    }
+    std::snprintf(b, sizeof(b), " us (slot-in-frame:margin), hold %.0f ms", g_sizer_yolo_hold_ns / 1e6);
+    return s + b;
+}
 
 inline int64_t sizer_now_ns() noexcept { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return static_cast<int64_t>(ts.tv_sec) * 1000000000LL + ts.tv_nsec; }
 
-// Reads DAPP_SIZER_MODEL (file) and DAPP_SIZER_WAIT_US; returns false (and leaves the sizer disabled) without a model.
+// Reads DAPP_SIZER_MODEL (file), DAPP_SIZER_WAIT_US and the YOLO term (DAPP_SIZER_YOLO_US, DAPP_SIZER_YOLO_HOLD_MS);
+// returns false (and leaves the sizer disabled) without a model.
 inline bool sizer_init(std::string& err)
 {
     const char* m = std::getenv("DAPP_SIZER_MODEL");
     if (m == nullptr || *m == '\0') { err = "DAPP_SIZER_MODEL not set"; return false; }
     if (!g_sizer_model.load(m, err)) { return false; }
     if (const char* w = std::getenv("DAPP_SIZER_WAIT_US")) { g_sizer_wait_max_ns = static_cast<int64_t>(std::atof(w) * 1000.0); }
+    if (const char* y = std::getenv("DAPP_SIZER_YOLO_US")) {     // e.g. 7:120,8:120,17:120,18:120
+        std::istringstream ys(y); std::string tok;
+        while (std::getline(ys, tok, ',')) {
+            const size_t c = tok.find(':');
+            if (c == std::string::npos || c == 0) { continue; }
+            char* end = nullptr; const long s = std::strtol(tok.c_str(), &end, 10);
+            if (end != tok.c_str() + c) { continue; }
+            const double v = std::atof(tok.c_str() + c + 1);
+            if (s >= 0 && s < kSzSlotsPerFrame && v > 0.0) { g_sizer_yolo_us[s] = v; g_sizer_yolo_on = true; }
+        }
+    }
+    if (const char* h = std::getenv("DAPP_SIZER_YOLO_HOLD_MS")) { g_sizer_yolo_hold_ns = static_cast<int64_t>(std::atof(h) * 1e6); }
     g_sizer_enabled = true;
     return true;
 }
@@ -329,7 +367,20 @@ inline void sizer_plan(uint16_t sfn, uint16_t slot, int64_t t0_ns) noexcept
                 if (g_prev_ul_end_abs_ns > start_abs) { queue_us = static_cast<double>(g_prev_ul_end_abs_ns - start_abs) / 1000.0; }
             }
             double t; bool ok;
-            const int p = sizer_pick(g_sizer_model.pusch, e.pusch, SZ_PUSCH_K, g_sizer_profiles.pusch_sm, g_sizer_profiles.n_pusch, queue_us, slot, t, ok);
+            int p = sizer_pick(g_sizer_model.pusch, e.pusch, SZ_PUSCH_K, g_sizer_profiles.pusch_sm, g_sizer_profiles.n_pusch, queue_us, slot, t, ok);
+            // YOLO term: while the tenant has had a request in hand within the hold time, this slot position's extra margin has to fit too
+            if (g_sizer_yolo_on && ok) {
+                const double  y    = g_sizer_yolo_us[slot % kSzSlotsPerFrame];
+                const int64_t seen = g_sizer_yolo_seen_ns.load(std::memory_order_relaxed);
+                if (y > 0.0 && seen != 0 && t_start - seen <= g_sizer_yolo_hold_ns) {
+                    double ty; bool oky;
+                    const int py = sizer_pick(g_sizer_model.pusch, e.pusch, SZ_PUSCH_K, g_sizer_profiles.pusch_sm, g_sizer_profiles.n_pusch, queue_us + y, slot, ty, oky);
+                    g_sizer_stats.pusch_yolo_slots.fetch_add(1, std::memory_order_relaxed);
+                    if (py != p) { g_sizer_stats.pusch_yolo_up.fetch_add(1, std::memory_order_relaxed); }
+                    if (!oky) { g_sizer_stats.pusch_yolo_nofit.fetch_add(1, std::memory_order_relaxed); }
+                    p = py; t = ty - y;     // t stays the model's prediction at the chosen profile, without the margin (ok: it meets the limit)
+                }
+            }
             pe.ul_prof = static_cast<int8_t>(p); pe.ul_sm = static_cast<int16_t>(g_sizer_profiles.pusch_sm[p]); pe.pusch_t = static_cast<float>(t); pe.pusch_ok = ok ? 1 : 0;
             want_pusch = static_cast<uint8_t>(p);
             if (t0_ns != 0) { g_prev_ul_end_abs_ns = t0_ns + static_cast<int64_t>((g_sizer_model.pusch.completion ? t : start + queue_us + t) * 1000.0); }

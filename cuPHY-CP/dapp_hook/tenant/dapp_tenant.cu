@@ -576,7 +576,7 @@ struct Tenant {
         EngineSet& s = *pp.set; const Part& p = parts[pidx]; const int ci = s.cls_index(p.cls);
         const int k = pp.k;
         if (k > lookahead) { cudaEventSynchronize(s.ev_end[k - 1 - lookahead]); }
-        if (k == 0) { pp.t_inf_start = now_mono_ns(); if (pp.tiles_left == tiles_per_request) pp.t_req_start = pp.t_inf_start; }
+        if (k == 0) { pp.t_inf_start = now_mono_ns(); sizer_yolo_mark(pp.t_inf_start); if (pp.tiles_left == tiles_per_request) pp.t_req_start = pp.t_inf_start; }
         if (pp.prev_part >= 0 && pp.prev_part != pidx && k > 0) { cudaStreamWaitEvent(p.s, s.ev_end[k - 1], 0); pp.switches++; }
         cudaEventRecord(s.ev_start[k], p.s);
         if (!stress.empty()) {
@@ -873,6 +873,7 @@ struct Tenant {
         while (!stop.load(std::memory_order_acquire)) {
             if (prof_on && now_real_ns() - prof_t0 > static_cast<int64_t>(prof_s) * 1000000000LL) { cudaProfilerStop(); prof_on = false; prof_done = true; if (lf) { std::fprintf(lf, "agent: cudaProfilerStop\n"); std::fflush(lf); } }
             const int64_t tnow = now_mono_ns();
+            if (have_req) { sizer_yolo_mark(tnow); }     // the sizer's YOLO term (dapp_sizer.hpp): a request is in hand
             if (tnow - last_log >= static_cast<int64_t>(log_s) * 1000000000LL) {
                 const double sec = (tnow - last_log) / 1e9;
                 if (lf) {
@@ -889,7 +890,9 @@ struct Tenant {
                     std::fprintf(lf, " fallback %llu | PDSCH slots %llu infeasible %llu prof", static_cast<unsigned long long>(cuphydriver_dapp_fallback_count(0)),
                                  static_cast<unsigned long long>(g_sizer_stats.pdsch_slots.load()), static_cast<unsigned long long>(g_sizer_stats.pdsch_infeasible.load()));
                     for (size_t i = 0; i < pdsch_sm.size(); i++) { std::fprintf(lf, " %d:%llu/%llu", pdsch_sm[i], static_cast<unsigned long long>(g_sizer_stats.pdsch_prof[i].load()), static_cast<unsigned long long>(cuphydriver_dapp_profile_count(1, static_cast<int>(i)))); }
-                    std::fprintf(lf, " fallback %llu\n", static_cast<unsigned long long>(cuphydriver_dapp_fallback_count(1)));
+                    std::fprintf(lf, " fallback %llu", static_cast<unsigned long long>(cuphydriver_dapp_fallback_count(1)));
+                    if (g_sizer_yolo_on) { std::fprintf(lf, " | yolo term slots %llu raised %llu nofit %llu", static_cast<unsigned long long>(g_sizer_stats.pusch_yolo_slots.load()), static_cast<unsigned long long>(g_sizer_stats.pusch_yolo_up.load()), static_cast<unsigned long long>(g_sizer_stats.pusch_yolo_nofit.load())); }
+                    std::fprintf(lf, "\n");
                     std::fflush(lf);
                 }
                 if (cf) std::fflush(cf);
